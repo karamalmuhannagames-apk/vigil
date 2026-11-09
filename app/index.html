@@ -21,6 +21,11 @@
 <section id="sheet"></section>
 <section id="report" hidden></section>
 <div id="crash" hidden><div class="crash-card"><div class="crash-icon"></div><h2 id="crashTitle"></h2><p id="crashBody"></p><code id="crashInfo"></code><button id="crashBtn"></button></div></div>
+<script>
+// Small safety nets for older phone browsers.
+if (!window.structuredClone) window.structuredClone = function (o) { return JSON.parse(JSON.stringify(o)); };
+if (window.CanvasRenderingContext2D && !CanvasRenderingContext2D.prototype.roundRect) CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h) { this.rect(x, y, w, h); };
+</script>
 <script type="module" src="main.js"></script>
 </body>
 </html>
