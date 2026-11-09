@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0b1220">
+<title>Vigil</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="boot"><div class="boot-mark"></div><div class="boot-title">VIGIL</div><div class="boot-sub" id="bootSub">Raising the command post…</div><div class="boot-bar"><i></i></div></div>
+<canvas id="map"></canvas>
+<header id="top">
+  <div class="clock"><span id="clockIcon" class="sun"></span><b id="clockTime">06:00</b><small id="clockDay"></small></div>
+  <div class="speed" id="speed"><button data-s="0" aria-label="pause">❙❙</button><button data-s="1" class="on">▶</button><button data-s="4">▶▶</button></div>
+  <button id="langBtn" class="lang">ع</button>
+</header>
+<button id="cmdChip" class="cmd-chip"><span class="cmd-face">RH</span><span class="cmd-txt"><b id="cmdName"></b><small id="cmdTrait"></small></span></button>
+<div id="battleChip" class="battle-chip" hidden></div>
+<div id="toasts"></div>
+<section id="sheet"></section>
+<section id="report" hidden></section>
+<div id="crash" hidden><div class="crash-card"><div class="crash-icon"></div><h2 id="crashTitle"></h2><p id="crashBody"></p><code id="crashInfo"></code><button id="crashBtn"></button></div></div>
+<script type="module" src="main.js"></script>
+</body>
+</html>

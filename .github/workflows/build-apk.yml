@@ -1,0 +1,70 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-apk
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run the automatic tests
+        run: npm test
+
+      - name: Balance report
+        run: node ci/balance.mjs
+
+      - name: Download fonts
+        run: |
+          base=https://raw.githubusercontent.com/google/fonts/main/ofl
+          mkdir -p app/fonts
+          for w in SemiBold Bold; do curl -fsSL "$base/rajdhani/Rajdhani-$w.ttf" -o "app/fonts/Rajdhani-$w.ttf" || echo "font Rajdhani-$w missing"; done
+          for w in Medium Bold; do curl -fsSL "$base/tajawal/Tajawal-$w.ttf" -o "app/fonts/Tajawal-$w.ttf" || echo "font Tajawal-$w missing"; done
+          ls -la app/fonts
+
+      - name: Copy the game into the Android app
+        run: |
+          mkdir -p android/app/src/main/assets
+          cp -r app core android/app/src/main/assets/
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Build the signed APK
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+        run: gradle -p android assembleRelease --no-daemon
+
+      - name: Publish the APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk "vigil-${{ github.run_number }}.apk"
+          gh release create "build-${{ github.run_number }}" "vigil-${{ github.run_number }}.apk" \
+            --title "Vigil build ${{ github.run_number }}" --notes "Automatic build from $(git rev-parse --short HEAD)." --latest
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vigil-apk
+          path: vigil-*.apk

@@ -1,0 +1,28 @@
+plugins { id 'com.android.application' }
+def vCode = (System.getenv('VERSION_CODE') ?: '1') as Integer
+android {
+    namespace 'com.vigil.game'
+    compileSdk 34
+    defaultConfig {
+        applicationId 'com.vigil.game'
+        minSdk 26
+        targetSdk 34
+        versionCode vCode
+        versionName "0.1.${vCode}"
+    }
+    signingConfigs {
+        // One fixed key for every build, so each update installs over the last one.
+        fixed {
+            storeFile file('../vigil.keystore')
+            storePassword 'vigil-dev'
+            keyAlias 'vigil'
+            keyPassword 'vigil-dev'
+        }
+    }
+    buildTypes {
+        release { minifyEnabled false; signingConfig signingConfigs.fixed }
+        debug { signingConfig signingConfigs.fixed }
+    }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+}
+dependencies { implementation 'androidx.webkit:webkit:1.11.0' }
