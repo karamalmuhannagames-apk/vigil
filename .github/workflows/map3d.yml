@@ -1,0 +1,46 @@
+name: Render 3D map
+
+on:
+  push:
+    branches: [main]
+    paths: ['ci/map/**', '.github/workflows/map3d.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  map:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools (free)
+        run: |
+          pip install -q numpy scipy pillow
+          sudo apt-get update -qq && sudo apt-get install -y -qq libxi6 libxkbcommon0 libxrender1 libgl1 libsm6 libxxf86vm1 libxfixes3 > /dev/null
+          curl -sSL -o b.tar.xz https://download.blender.org/release/Blender4.2/blender-4.2.3-linux-x64.tar.xz
+          tar xf b.tar.xz && mv blender-4.2.3-linux-x64 blender
+      - name: Bake map layers
+        run: MAP_SIZE=2048 EXPORT_LAYERS=1 python3 ci/map/bake.py layers
+      - name: Render the 3D landscape from above
+        env:
+          MAP_RES: '1536'
+          MESH_DIV: '1024'
+          SAMPLES: '16'
+          MAP_SAMPLES: '16'
+          TREES: '300000'
+        run: ./blender/blender -b -P ci/map/render3d.py -- layers art/map3d/map.png 2>&1 | grep -E "rendered|Error|Traceback|line |Fra:.*Sample 16" | tail -40
+      - name: Check
+        run: ls -la art/map3d
+      - uses: actions/upload-artifact@v4
+        with:
+          name: map3d
+          path: art/map3d
+      - name: Save to repository
+        run: |
+          python3 -c "from PIL import Image; Image.open('art/map3d/map.png').convert('RGB').save('art/map3d/map.jpg', quality=90); import os; os.remove('art/map3d/map.png')"
+          git config user.name "vigil-art"
+          git config user.email "noreply@github.com"
+          git add art/map3d
+          git diff --cached --quiet || (git commit -m "Art: 3D map render" && git pull --rebase origin main && git push)

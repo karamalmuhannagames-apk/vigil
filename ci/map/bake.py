@@ -171,6 +171,21 @@ fc = field_cols[(tint * len(field_cols)).astype(int) % len(field_cols)]
 fc = np.where(edge[..., None], fc * 0.75, fc)
 fz = farm_zone[..., None]
 base = base * (1 - fz * 0.85) + fc * fz * 0.85
+# --- export layers for the 3D map render (Blender): unshaded colours, height, forest, rivers
+if os.environ.get('EXPORT_LAYERS'):
+    dsea = ndi.distance_transform_edt(~land)
+    depth = np.clip(dsea / (S * 0.05), 0, 1)
+    sand = np.array([0.55, 0.62, 0.52]); dark = np.array([0.05, 0.12, 0.18])
+    sea_alb = sand * (1 - depth[..., None]) ** 2 + dark * (1 - (1 - depth[..., None]) ** 2)
+    alb = np.where(land[..., None], base, sea_alb)
+    alb = np.where(river[..., None], np.array([0.12, 0.17, 0.2]), alb)
+    Image.fromarray((np.clip(alb, 0, 1) * 255).astype(np.uint8)).save(os.path.join(OUT, 'albedo.png'))
+    hn = height / max(height.max(), 1e-6)
+    hh = np.where(land, 0.03 + hn * 0.97 - river * 0.02, -0.02 - depth * 0.3)
+    hh16 = ((hh + 0.35) / 1.4 * 65535).clip(0, 65535).astype(np.uint16)  # stored as 0..1 = -0.35..1.05
+    Image.fromarray(hh16).save(os.path.join(OUT, 'height16.png'))
+    Image.fromarray((np.clip(forest * 1.3, 0, 1) * 255).astype(np.uint8)).save(os.path.join(OUT, 'forest.png'))
+    Image.fromarray((np.clip(bush * 2, 0, 1) * 255).astype(np.uint8)).save(os.path.join(OUT, 'bush.png'))
 # forest canopy: dark green crowns with lit tops
 fcol = np.array([0.13, 0.30, 0.10]) * (0.7 + 0.6 * canopy_shade[..., None])
 ff = np.clip(np.maximum(forest * 1.4, crown * (bush > 0) * 0.9), 0, 1)[..., None]
