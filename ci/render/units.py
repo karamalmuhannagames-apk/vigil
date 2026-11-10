@@ -27,9 +27,17 @@ def reset():
     s.view_settings.exposure = -0.2
     w = bpy.data.worlds.new('w'); s.world = w; w.use_nodes = True
     nt = w.node_tree; bg = nt.nodes['Background']
-    # soft blue-grey sky fill; the sun does the real lighting
-    bg.inputs[0].default_value = (0.55, 0.62, 0.72, 1); bg.inputs[1].default_value = 0.55
-    sun = bpy.data.lights.new('sun', 'SUN'); sun.energy = 3.2; sun.angle = math.radians(6)
+    hdri = os.environ.get('HDRI', 'tex/sky.hdr')
+    if os.path.exists(hdri):
+        # light from a real photographed sky: real reflections and soft outdoor shadows
+        env = nt.nodes.new('ShaderNodeTexEnvironment'); env.image = bpy.data.images.load(os.path.abspath(hdri))
+        mp = nt.nodes.new('ShaderNodeMapping'); tc = nt.nodes.new('ShaderNodeTexCoord')
+        mp.inputs['Rotation'].default_value[2] = math.radians(110)
+        nt.links.new(tc.outputs['Generated'], mp.inputs['Vector']); nt.links.new(mp.outputs['Vector'], env.inputs['Vector'])
+        nt.links.new(env.outputs['Color'], bg.inputs[0]); bg.inputs[1].default_value = 1.0
+    else:
+        bg.inputs[0].default_value = (0.55, 0.62, 0.72, 1); bg.inputs[1].default_value = 0.55
+    sun = bpy.data.lights.new('sun', 'SUN'); sun.energy = 2.2 if os.path.exists(os.environ.get('HDRI', 'tex/sky.hdr')) else 3.2; sun.angle = math.radians(6)
     sun.color = (1.0, 0.96, 0.9)
     so = bpy.data.objects.new('sun', sun); s.collection.objects.link(so)
     so.rotation_euler = (math.radians(48), 0, math.radians(150))
@@ -88,8 +96,36 @@ def mat(name, color, rough=0.6, metal=0.0, noise=0.0, dirt=0.0, spec=0.4):
         nt.links.new(wear.outputs['Color'], p.inputs['Base Color'])
     else:
         p.inputs['Base Color'].default_value = base
+    if name.startswith(('paint', 'skin', 'hull')):
+        add_scan_detail(nt, p)
     MATS[key] = m
     return m
+
+SCAN = {}
+def scan_img(kind):
+    import glob
+    if kind in SCAN: return SCAN[kind]
+    f = sorted(glob.glob(f'tex/metal/*{kind}*.jpg') + glob.glob(f'tex/metal/*{kind}*.png'))
+    im = bpy.data.images.load(os.path.abspath(f[0])) if f else None
+    if im: im.colorspace_settings.name = 'Non-Color'
+    SCAN[kind] = im
+    return im
+
+def add_scan_detail(nt, p):
+    nrm, rgh = scan_img('NormalGL'), scan_img('Roughness')
+    if not nrm: return
+    tc = nt.nodes.new('ShaderNodeTexCoord'); mp = nt.nodes.new('ShaderNodeMapping')
+    mp.inputs['Scale'].default_value = (0.9, 0.9, 0.9)
+    nt.links.new(tc.outputs['Object'], mp.inputs['Vector'])
+    tn = nt.nodes.new('ShaderNodeTexImage'); tn.image = nrm; tn.projection = 'BOX'; tn.projection_blend = 0.3
+    nt.links.new(mp.outputs['Vector'], tn.inputs['Vector'])
+    nm = nt.nodes.new('ShaderNodeNormalMap'); nm.inputs['Strength'].default_value = 0.6
+    nt.links.new(tn.outputs['Color'], nm.inputs['Color']); nt.links.new(nm.outputs['Normal'], p.inputs['Normal'])
+    if rgh:
+        tr = nt.nodes.new('ShaderNodeTexImage'); tr.image = rgh; tr.projection = 'BOX'; tr.projection_blend = 0.3
+        nt.links.new(mp.outputs['Vector'], tr.inputs['Vector'])
+        mr = nt.nodes.new('ShaderNodeMapRange'); mr.inputs['To Min'].default_value = 0.35; mr.inputs['To Max'].default_value = 0.85
+        nt.links.new(tr.outputs['Color'], mr.inputs['Value']); nt.links.new(mr.outputs['Result'], p.inputs['Roughness'])
 
 def finish(o, m, bevel=0.04, seg=2):
     o.data.materials.append(m)

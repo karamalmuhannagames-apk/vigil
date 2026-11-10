@@ -20,6 +20,15 @@ jobs:
           sudo apt-get update -qq && sudo apt-get install -y -qq libxi6 libxkbcommon0 libxrender1 libgl1 libsm6 libxxf86vm1 libxfixes3 > /dev/null
           curl -sSL -o b.tar.xz https://download.blender.org/release/Blender4.2/blender-4.2.3-linux-x64.tar.xz
           tar xf b.tar.xz && mv blender-4.2.3-linux-x64 blender
+      - name: Fetch free CC0 sky and scanned textures (Poly Haven, ambientCG)
+        run: |
+          mkdir -p tex/metal
+          curl -sSfL -o tex/sky.hdr https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/kloofendal_48d_partly_cloudy_puresky_2k.hdr || echo "sky download failed"
+          for id in PaintedMetal006 PaintedMetal009 PaintedMetal004; do
+            if curl -sSfL -o m.zip "https://ambientcg.com/get?file=${id}_1K-JPG.zip"; then unzip -oq m.zip -d tex/metal && break; fi
+          done
+          ls -la tex tex/metal || true
+          echo "Poly Haven kloofendal_48d_partly_cloudy_puresky (CC0); ambientCG painted metal (CC0)" > tex/LICENSES.txt
       - name: Render vehicles and cities
         run: ./blender/blender -b -P ci/render/units.py -- art/render 2>&1 | grep -E "rendered|Error|Traceback|line " || true
       - name: Check output
