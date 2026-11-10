@@ -211,17 +211,30 @@ if os.path.exists(tile_path):
     # real simulated waves: tile the seamless ocean normals over the whole sea
     nt_img = np.asarray(Image.open(tile_path)).astype(np.float32)
     nt_img = nt_img / (65535.0 if nt_img.max() > 255 else 255.0)
-    tile = int(os.environ.get('OCEAN_TILE_PX', str(S // 4)))
+    tile = int(os.environ.get('OCEAN_TILE_PX', str(S // 7)))
     nt_img = np.asarray(Image.fromarray((nt_img[..., :3] * 255).astype(np.uint8)).resize((tile, tile), Image.LANCZOS)).astype(np.float32) / 255
-    reps = S // tile + 1
-    big = np.tile(nt_img, (reps, reps, 1))[:S, :S]
+    def tiled(t, ang_deg, off):
+        im = Image.fromarray((nt_img * 255).astype(np.uint8)).resize((t, t), Image.LANCZOS)
+        a2 = np.asarray(im).astype(np.float32) / 255
+        yy3, xx3 = np.mgrid[0:S, 0:S].astype(np.float32)
+        c, s_ = np.cos(np.radians(ang_deg)), np.sin(np.radians(ang_deg))
+        u = ((xx3 * c - yy3 * s_ + off) % t).astype(int); v = ((xx3 * s_ + yy3 * c + off) % t).astype(int)
+        out = a2[v, u]
+        # rotate the normal vectors by the same angle so lighting stays consistent
+        nx_, ny_ = out[..., 0] * 2 - 1, out[..., 1] * 2 - 1
+        rx, ry = nx_ * c + ny_ * s_, -nx_ * s_ + ny_ * c
+        out[..., 0] = (rx + 1) / 2; out[..., 1] = (ry + 1) / 2
+        return out
+    A = tiled(tile, 0, 0); B = tiled(int(tile * 1.37), 17, 311)
+    mask = np.clip((fbm(3, 5) - 0.5) * 3 + 0.5, 0, 1)[..., None]
+    big = A * mask + B * (1 - mask)
     nx, ny, nzz = big[..., 0] * 2 - 1, big[..., 1] * 2 - 1, big[..., 2] * 2 - 1
-    gx, gy = -nx * 6, ny * 6                                           # slopes, in the units the shading below expects
+    gx, gy = -nx * 16, ny * 16                                           # slopes, in the units the shading below expects
     nz = np.clip(nzz, 0.05, 1)
-    glint = np.clip(-nx * 0.6 + ny * 0.6 + 0.0, 0, 1) ** 8 * (fbm(10, 4) > 0.35)
+    glint = np.clip((-nx + ny) * 2.2, 0, 1) ** 4 * (fbm(10, 4) > 0.35)
 band_w = S * (0.012 + 0.03 * fbm(5, 5))
 band = np.clip(1 - (dist_land - band_w) / (S * 0.006), 0, 1)        # shallow coastal water, width varies
-deep = np.array([0.11, 0.24, 0.36]); shal = np.array([0.22, 0.42, 0.50])
+deep = np.array([0.12, 0.23, 0.31]); shal = np.array([0.21, 0.36, 0.42])
 depth_dark = np.clip(dist_land / (S * 0.25), 0, 1)[..., None] * 0.18
 wcol = deep * (1 - band[..., None]) + shal * band[..., None]
 lam = np.clip(0.5 + (-gx - gy) * 0.35, 0, 1)[..., None]               # each ripple lit on one side
