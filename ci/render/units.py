@@ -572,7 +572,7 @@ for side in ('green', 'tan'):
 only = os.environ.get('ONLY')
 for name, fn, side in JOBS:
     if only and only not in name: continue
-    reset(); MATS.clear(); fn(side)
+    reset(); MATS.clear(); SCAN.clear(); fn(side)
     if name.startswith(('fighter', 'heli')):
         # an invisible marker on the ground where the shadow falls keeps it inside the frame
         bpy.ops.mesh.primitive_plane_add(size=0.01, location=(-3.0, 2.5, 0.0))
@@ -582,4 +582,4 @@ for name, fn, side in JOBS:
         frame_and_render(name)
 for i, style in enumerate(('mid', 'big')):
     if only and only != 'city': continue
-    reset(); MATS.clear(); city(seed=7 + i, style=style); frame_and_render('city_' + style, elev=40, azim=-45, margin=1.02)
+    reset(); MATS.clear(); SCAN.clear(); city(seed=7 + i, style=style); frame_and_render('city_' + style, elev=40, azim=-45, margin=1.02)

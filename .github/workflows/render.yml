@@ -30,7 +30,11 @@ jobs:
           ls -la tex tex/metal || true
           echo "Poly Haven kloofendal_48d_partly_cloudy_puresky (CC0); ambientCG painted metal (CC0)" > tex/LICENSES.txt
       - name: Render vehicles and cities
-        run: ./blender/blender -b -P ci/render/units.py -- art/render 2>&1 | grep -E "rendered|Error|Traceback|line " || true
+        run: |
+          rm -f art/render/*.png
+          ./blender/blender -b -P ci/render/units.py -- art/render > blender.log 2>&1 || true
+          grep -E "rendered|Error|Traceback|line " blender.log || true
+          if grep -q Traceback blender.log; then exit 1; fi
       - name: Check output
         run: ls -la art/render && test $(ls art/render/*.png | wc -l) -ge 8
       - uses: actions/upload-artifact@v4
