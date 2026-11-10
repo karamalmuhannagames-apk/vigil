@@ -7,7 +7,7 @@ LAY, OUT = args[0], args[1]
 RES = int(os.environ.get('MAP_RES', '2048'))
 SAMPLES = int(os.environ.get('MAP_SAMPLES', '24'))
 W = 20.0                  # world size of the map in Blender units
-RELIEF = float(os.environ.get('RELIEF', '0.55'))
+RELIEF = float(os.environ.get('RELIEF', '1.2'))
 SEA_DEPTH_SCALE = 1.4     # height16 stores -0.35..1.05
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -17,10 +17,10 @@ sc.cycles.samples = SAMPLES; sc.cycles.use_denoising = True
 sc.render.resolution_x = RES; sc.render.resolution_y = RES
 sc.render.image_settings.file_format = 'PNG'
 try:
-    sc.view_settings.view_transform = 'AgX'
+    sc.view_settings.view_transform = 'Standard'
 except Exception:
     sc.view_settings.view_transform = 'Filmic'
-sc.view_settings.exposure = -0.3
+sc.view_settings.exposure = 0.0
 
 def img(name, data=True):
     im = bpy.data.images.load(os.path.join(LAY, name))
@@ -30,11 +30,11 @@ def img(name, data=True):
 # ---------- world and sun ----------
 w = bpy.data.worlds.new('w'); sc.world = w; w.use_nodes = True
 bg = w.node_tree.nodes['Background']
-bg.inputs[0].default_value = (0.52, 0.62, 0.78, 1); bg.inputs[1].default_value = 0.7
+bg.inputs[0].default_value = (0.55, 0.68, 0.85, 1); bg.inputs[1].default_value = 0.9
 sun = bpy.data.lights.new('sun', 'SUN'); sun.energy = 3.4; sun.angle = math.radians(2.5)
 sun.color = (1.0, 0.97, 0.92)
 so = bpy.data.objects.new('sun', sun); sc.collection.objects.link(so)
-so.rotation_euler = (math.radians(52), 0, math.radians(-40))   # light from the north-west, like CoN
+so.rotation_euler = (math.radians(58), 0, math.radians(-40))   # light from the north-west, like CoN
 
 # ---------- terrain mesh ----------
 N = int(os.environ.get('MESH_DIV', '1024'))
@@ -91,7 +91,7 @@ def make_tree(name, crown_col, h=0.05, r=0.022):
     trunk.data.materials.append(bm)
     bpy.ops.object.select_all(action='DESELECT'); crown.select_set(True); trunk.select_set(True)
     bpy.context.view_layer.objects.active = crown; bpy.ops.object.join()
-    t = bpy.context.object; t.name = name; t.location = (0, 0, -50)   # parked out of sight
+    t = bpy.context.object; t.name = name
     return t
 
 broad = make_tree('broadleaf', (0.07, 0.17, 0.05))
@@ -99,6 +99,7 @@ pine = make_tree('pine', (0.04, 0.12, 0.05), h=0.06, r=0.017)
 coll = bpy.data.collections.new('trees'); sc.collection.children.link(coll)
 for t in (broad, pine):
     sc.collection.objects.unlink(t); coll.objects.link(t)
+bpy.context.view_layer.layer_collection.children['trees'].exclude = True   # sources hidden, instances render
 
 def scatter(mask_png, count, name):
     ftex = bpy.data.textures.new(name, 'IMAGE'); ftex.image = img(mask_png); ftex.extension = 'EXTEND'
@@ -124,7 +125,7 @@ oc.geometry_mode = 'GENERATE'
 oc.spatial_size = int(os.environ.get('OCEAN_TILE', '2'))
 oc.repeat_x = oc.repeat_y = int(W / oc.spatial_size)
 oc.resolution = int(os.environ.get('OCEAN_RES', '14'))
-oc.wave_scale = float(os.environ.get('WAVE_SCALE', '0.004'))
+oc.wave_scale = float(os.environ.get('WAVE_SCALE', '0.03'))
 oc.choppiness = 1.2
 oc.wind_velocity = float(os.environ.get('WIND', '9'))
 oc.wave_alignment = 0.35; oc.wave_direction = math.radians(30)
@@ -136,7 +137,7 @@ wp.inputs['Base Color'].default_value = (0.02, 0.06, 0.09, 1)
 wp.inputs['Roughness'].default_value = 0.06
 wp.inputs['IOR'].default_value = 1.333
 for key in ('Transmission Weight', 'Transmission'):
-    if key in wp.inputs: wp.inputs[key].default_value = 0.82
+    if key in wp.inputs: wp.inputs[key].default_value = 0.6
 sea.data.materials.append(wm)
 
 # ---------- camera straight down ----------
