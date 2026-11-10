@@ -24,15 +24,12 @@ def reset():
     s.render.image_settings.color_mode = 'RGBA'
     s.view_settings.view_transform = 'AgX' if 'AgX' in [i.identifier for i in s.view_settings.bl_rna.properties['view_transform'].enum_items] else 'Filmic'
     s.view_settings.look = 'None'
+    s.view_settings.exposure = -0.2
     w = bpy.data.worlds.new('w'); s.world = w; w.use_nodes = True
     nt = w.node_tree; bg = nt.nodes['Background']
-    sky = nt.nodes.new('ShaderNodeTexSky')
-    try:
-        sky.sky_type = 'NISHITA'; sky.sun_elevation = math.radians(42); sky.sun_rotation = math.radians(150)
-    except Exception:
-        pass
-    nt.links.new(sky.outputs[0], bg.inputs[0]); bg.inputs[1].default_value = 0.35
-    sun = bpy.data.lights.new('sun', 'SUN'); sun.energy = 4.2; sun.angle = math.radians(6)
+    # soft blue-grey sky fill; the sun does the real lighting
+    bg.inputs[0].default_value = (0.55, 0.62, 0.72, 1); bg.inputs[1].default_value = 0.55
+    sun = bpy.data.lights.new('sun', 'SUN'); sun.energy = 3.2; sun.angle = math.radians(6)
     sun.color = (1.0, 0.96, 0.9)
     so = bpy.data.objects.new('sun', sun); s.collection.objects.link(so)
     so.rotation_euler = (math.radians(48), 0, math.radians(150))
