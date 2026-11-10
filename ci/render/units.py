@@ -79,7 +79,7 @@ def mat(name, color, rough=0.6, metal=0.0, noise=0.0, dirt=0.0, spec=0.4):
         geo2 = nt.nodes.new('ShaderNodeNewGeometry')
         mr2 = nt.nodes.new('ShaderNodeMapRange')
         mr2.inputs['From Min'].default_value = 0.52; mr2.inputs['From Max'].default_value = 0.6
-        mr2.inputs['To Max'].default_value = 0.55
+        mr2.inputs['To Max'].default_value = 0.22
         nt.links.new(geo2.outputs['Pointiness'], mr2.inputs['Value'])
         wear = nt.nodes.new('ShaderNodeMixRGB'); wear.blend_type = 'SCREEN'
         nt.links.new(mr2.outputs['Result'], wear.inputs['Fac'])
@@ -149,7 +149,7 @@ def prism_xy(profile, z0, z1, m, bevel=0.05):
 
 # ---------- palettes ----------
 PALETTE = {
-    'green': dict(paint=(0.115, 0.13, 0.065), canvas=(0.17, 0.165, 0.10)),
+    'green': dict(paint=(0.085, 0.12, 0.04), canvas=(0.15, 0.15, 0.08)),
     'tan':   dict(paint=(0.42, 0.33, 0.20),  canvas=(0.36, 0.30, 0.19)),
 }
 
@@ -213,6 +213,8 @@ def apc(side):
     prof = [(-2.45, 0.55), (2.05, 0.55), (2.6, 1.15), (2.15, 2.15), (-2.45, 2.15)]
     prism_xz(prof, -1.42, 1.42, M['paint'], 0.06)
     box(0.12, 2.9, 0.12, (2.5, 0, 1.15), M['metal'], 0.02)
+    box(0.08, 2.6, 0.9, (2.45, 0, 1.75), M['paint'], 0.03, rot=(0, math.radians(-30), 0))  # trim vane
+    box(0.06, 0.9, 0.5, (0.0, 0.4, 2.75), M['metal'], 0.02)           # gun shield
     box(0.9, 0.9, 0.3, (-0.3, 0.4, 2.3), M['paint'], 0.06)            # cupola base
     cyl(0.38, 0.35, (-0.3, 0.4, 2.55), M['paint'], 'Z', 20, 0.04)
     cyl(0.05, 1.4, (0.45, 0.4, 2.65), M['metal'], 'X', 10, 0.0)       # heavy MG
@@ -268,10 +270,11 @@ def ifv(side):
     prof = [(-2.9, 0.55), (2.2, 0.55), (3.0, 1.0), (2.4, 1.85), (-2.9, 1.95)]
     prism_xz(prof, -1.7, 1.7, M['paint'], 0.06)
     tur = [(-0.9, -0.85), (0.6, -0.95), (1.1, -0.45), (1.1, 0.45), (0.6, 0.95), (-0.9, 0.85)]
-    prism_xy(tur, 1.9, 2.55, M['paint'], 0.05)
-    cyl(0.06, 3.0, (2.5, -0.2, 2.25), M['metal'], 'X', 12, 0.0)      # autocannon
-    cyl(0.1, 0.6, (1.2, -0.2, 2.25), M['paint'], 'X', 12, 0.02)
-    box(0.5, 0.3, 0.35, (0.2, 0.75, 2.75), M['paint'], 0.04)          # missile box
+    tur = [(x * 1.35, y * 1.35) for x, y in tur]
+    prism_xy(tur, 1.9, 2.9, M['paint'], 0.06)
+    cyl(0.1, 3.6, (3.0, -0.2, 2.45), M['metal'], 'X', 12, 0.0)       # autocannon
+    cyl(0.16, 0.8, (1.6, -0.2, 2.45), M['paint'], 'X', 12, 0.02)
+    box(1.2, 0.45, 0.45, (0.0, 1.25, 2.75), M['paint'], 0.04)          # missile launcher
     box(0.35, 0.3, 0.3, (-0.3, -0.5, 2.7), M['metal'], 0.03)          # sight
     box(1.4, 1.2, 0.08, (-2.0, 0, 2.0), M['paint'], 0.02)             # rear door
     for y in (-1.25, 1.25):
@@ -317,11 +320,12 @@ def mlrs(side):
 def armored_car(side):
     """8x8 wheeled armour: low sharp hull, small turret, four big wheels a side."""
     M = common(side)
-    prof = [(-3.1, 0.75), (2.6, 0.75), (3.3, 1.25), (2.8, 1.95), (-3.0, 2.0)]
+    prof = [(-3.1, 0.8), (2.4, 0.8), (4.0, 1.25), (2.2, 1.75), (-3.0, 1.8)]
     prism_xz(prof, -1.45, 1.45, M['paint'], 0.06)
     tur = [(-0.8, -0.8), (0.5, -0.85), (1.0, -0.4), (1.0, 0.4), (0.5, 0.85), (-0.8, 0.8)]
-    prism_xy(tur, 2.0, 2.55, M['paint'], 0.05)
-    cyl(0.07, 3.6, (2.7, 0, 2.3), M['paint'], 'X', 12, 0.0)
+    prism_xy(tur, 1.8, 2.35, M['paint'], 0.05)
+    cyl(0.1, 4.8, (3.4, 0, 2.1), M['paint'], 'X', 12, 0.0)
+    cyl(0.14, 0.4, (5.8, 0, 2.1), M['metal'], 'X', 12, 0.02)
     cyl(0.04, 1.0, (-0.5, 0.6, 3.0), M['metal'], 'Z', 6, 0.0)
     for x in (2.1, 0.8, -1.0, -2.3):
         for y in (-1.42, 1.42):
@@ -339,9 +343,9 @@ def facade(name, wall, win=(0.06, 0.07, 0.08), rows=6):
     br.offset = 0.0
     br.inputs['Color1'].default_value = (*win, 1); br.inputs['Color2'].default_value = (*win, 1)
     br.inputs['Mortar'].default_value = (*wall, 1)
-    br.inputs['Scale'].default_value = rows / 6.0
-    br.inputs['Mortar Size'].default_value = 0.2
-    br.inputs['Brick Width'].default_value = 0.5; br.inputs['Row Height'].default_value = 0.45
+    br.inputs['Scale'].default_value = rows / 3.0
+    br.inputs['Mortar Size'].default_value = 0.1
+    br.inputs['Brick Width'].default_value = 0.35; br.inputs['Row Height'].default_value = 0.42
     nt.links.new(tc.outputs['Object'], br.inputs['Vector'])
     nt.links.new(br.outputs['Color'], p.inputs['Base Color'])
     return m
@@ -380,7 +384,7 @@ def city(seed=3, style='mid'):
         finish(bpy.context.object, tree, 0)
 
 # ---------- camera & render ----------
-def frame_and_render(name, elev=34, azim=-38, margin=1.12):
+def frame_and_render(name, elev=28, azim=-38, margin=1.12):
     s = bpy.context.scene
     objs = [o for o in s.objects if o.type == 'MESH' and o.name != 'ground']
     cam_d = bpy.data.cameras.new('cam'); cam_d.type = 'ORTHO'
