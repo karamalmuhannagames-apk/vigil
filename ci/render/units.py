@@ -389,7 +389,7 @@ def city(seed=3, style='mid'):
     blocks = [(-7, -7), (0, -7), (7, -7), (-7, 0), (0, 0), (7, 0), (-7, 7), (0, 7), (7, 7)]
     for bx, by in blocks:
         if math.hypot(bx, by) > 9.5: continue
-        for k in range(random.randint(2, 4)):
+        for k in range(random.randint(3, 6)):
             w = random.uniform(1.4, 2.6); d = random.uniform(1.4, 2.6)
             cx = bx + random.uniform(-1.6, 1.6); cy = by + random.uniform(-1.6, 1.6)
             if math.hypot(cx, cy) > 8.6: continue
@@ -397,6 +397,12 @@ def city(seed=3, style='mid'):
             h = random.uniform(1.0, 2.5) + centre * random.uniform(2, 9 if style == 'big' else 5)
             m = random.choice([concrete, concrete, warm, glass]) if h > 4 else random.choice([concrete, warm])
             box(w, d, h, (cx, cy, 0.1 + h / 2), m, 0.05)
+            winm = mat('win', (0.035, 0.05, 0.065), 0.1, 0.2)
+            fl = 0.1 + 0.35
+            while fl < 0.1 + h - 0.3:                                    # one dark window band per floor
+                box(0.03, d * 0.86, 0.16, (cx + w / 2 + 0.012, cy, fl), winm, 0.0)
+                box(w * 0.86, 0.03, 0.16, (cx, cy - d / 2 - 0.012, fl), winm, 0.0)
+                fl += 0.42
             box(w * 0.92, d * 0.92, 0.12, (cx, cy, 0.1 + h + 0.06), roof, 0.02)
             if random.random() < 0.4:
                 box(w * 0.3, d * 0.3, 0.35, (cx, cy, 0.1 + h + 0.3), roof, 0.02)
@@ -470,7 +476,7 @@ def fighter(side):
 def helicopter(side):
     A = air_mats(side); z = ALT * 0.7
     bpy.ops.mesh.primitive_uv_sphere_add(radius=1.0, location=(0.4, 0, z))
-    o = bpy.context.object; o.scale = (2.4, 0.75, 1.0); bpy.ops.object.transform_apply(scale=True)
+    o = bpy.context.object; o.scale = (2.7, 0.95, 1.15); bpy.ops.object.transform_apply(scale=True)
     finish(o, A['skin'], 0)                                             # narrow fuselage
     for i, x in enumerate((1.9, 0.9)):                                  # stepped tandem canopies
         bpy.ops.mesh.primitive_uv_sphere_add(radius=0.5, location=(x, 0, z + 0.55 + i * 0.15))
@@ -486,13 +492,13 @@ def helicopter(side):
     cyl(0.12, 0.7, (0.2, 0, z + 1.25), A['metal'], 'Z', 10, 0.0)       # mast
     blur = bpy.data.materials.new('rotor'); blur.use_nodes = True
     pb = blur.node_tree.nodes['Principled BSDF']
-    pb.inputs['Base Color'].default_value = (0.05, 0.05, 0.05, 1); pb.inputs['Alpha'].default_value = 0.28
+    pb.inputs['Base Color'].default_value = (0.05, 0.05, 0.05, 1); pb.inputs['Alpha'].default_value = 0.12
     try: blur.blend_method = 'BLEND'
     except Exception: pass
-    bpy.ops.mesh.primitive_cylinder_add(radius=5.2, depth=0.03, vertices=64, location=(0.2, 0, z + 1.6))
+    bpy.ops.mesh.primitive_cylinder_add(radius=3.9, depth=0.02, vertices=64, location=(0.2, 0, z + 1.6))
     bpy.context.object.data.materials.append(blur)                     # spinning main rotor
     for a in (0, 90):                                                   # faint blades inside the blur
-        box(10.2, 0.25, 0.03, (0.2, 0, z + 1.62), A['metal'], 0.0, rot=(0, 0, math.radians(a + 20)))
+        box(7.6, 0.22, 0.03, (0.2, 0, z + 1.62), A['metal'], 0.0, rot=(0, 0, math.radians(a + 20)))
     bpy.ops.mesh.primitive_cylinder_add(radius=0.9, depth=0.02, vertices=32, location=(-6.4, 0.15, z + 1.1), rotation=(math.pi / 2, 0, 0))
     bpy.context.object.data.materials.append(blur)
 
