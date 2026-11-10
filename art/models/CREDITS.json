@@ -1,0 +1,98 @@
+[
+ {
+  "unit": "tank",
+  "name": "General Dynamics M1A2 Abrams Main Battle Tank",
+  "author": "Muhamad Mirza Arrafi",
+  "author_url": "https://sketchfab.com/MirzaArrafiERV_45",
+  "url": "https://sketchfab.com/3d-models/general-dynamics-m1a2-abrams-main-battle-tank-10a16c96ca8b4ebc855915f5d5202046",
+  "licence": "CC BY 4.0"
+ },
+ {
+  "unit": "ifv",
+  "name": "MARDER 1A3 INFANTRY COMBAT VEHICLE",
+  "author": "Muhamad Mirza Arrafi",
+  "author_url": "https://sketchfab.com/MirzaArrafiERV_45",
+  "url": "https://sketchfab.com/3d-models/marder-1a3-infantry-combat-vehicle-53238479325448fcb158e5ea58568e38",
+  "licence": "CC BY 4.0"
+ },
+ {
+  "unit": "apc",
+  "name": "GTK BOXER ARMORED PERSONNEL CARRIERS",
+  "author": "Muhamad Mirza Arrafi",
+  "author_url": "https://sketchfab.com/MirzaArrafiERV_45",
+  "url": "https://sketchfab.com/3d-models/gtk-boxer-armored-personnel-carriers-e74b3f67d954401ab825bb1053dfd194",
+  "licence": "CC BY 4.0"
+ },
+ {
+  "unit": "car",
+  "name": "EBRC Jaguar Infantry Fighting Vehicle",
+  "author": "Muhamad Mirza Arrafi",
+  "author_url": "https://sketchfab.com/MirzaArrafiERV_45",
+  "url": "https://sketchfab.com/3d-models/ebrc-jaguar-infantry-fighting-vehicle-f7972bf5f63a4676bacac015ef4f33c0",
+  "licence": "CC BY 4.0"
+ },
+ {
+  "unit": "spaa",
+  "name": "Type-625 Anti Aircraft Gun Missile System",
+  "author": "Muhamad Mirza Arrafi",
+  "author_url": "https://sketchfab.com/MirzaArrafiERV_45",
+  "url": "https://sketchfab.com/3d-models/type-625-anti-aircraft-gun-missile-system-8b7e85f45b954592bd4bb8e72cdd6312",
+  "licence": "CC BY 4.0"
+ },
+ {
+  "unit": "arty",
+  "name": "PANZERHAUBITZE 2000 ARTILLERY (PzH-2000)",
+  "author": "Muhamad Mirza Arrafi",
+  "author_url": "https://sketchfab.com/MirzaArrafiERV_45",
+  "url": "https://sketchfab.com/3d-models/panzerhaubitze-2000-artillery-pzh-2000-da078be6bc66461e87034f29600a4982",
+  "licence": "CC BY 4.0"
+ },
+ {
+  "unit": "mlrs",
+  "name": "Shaanxi SX2190 Missile Launcher",
+  "author": "Muhamad Mirza Arrafi",
+  "author_url": "https://sketchfab.com/MirzaArrafiERV_45",
+  "url": "https://sketchfab.com/3d-models/shaanxi-sx2190-missile-launcher-a3cb343f3bf8486c8a0482df5b753c38",
+  "licence": "CC BY 4.0"
+ },
+ {
+  "unit": "truck",
+  "name": "Kamaz 5330",
+  "author": "Brout",
+  "author_url": "https://sketchfab.com/davidbroutian",
+  "url": "https://sketchfab.com/3d-models/kamaz-5330-e86a62f4b8c84e03b2c6e32c51474bc7",
+  "licence": "CC BY 4.0"
+ },
+ {
+  "unit": "fighter",
+  "name": "General Dynamics F-16D Block 60",
+  "author": "Muhamad Mirza Arrafi",
+  "author_url": "https://sketchfab.com/MirzaArrafiERV_45",
+  "url": "https://sketchfab.com/3d-models/general-dynamics-f-16d-block-60-ea8edb08d79e4eafa9c794c581f88cf3",
+  "licence": "CC BY 4.0"
+ },
+ {
+  "unit": "heli",
+  "name": "Boeing AH-64D Apache Combat Helicopter",
+  "author": "Muhamad Mirza Arrafi",
+  "author_url": "https://sketchfab.com/MirzaArrafiERV_45",
+  "url": "https://sketchfab.com/3d-models/boeing-ah-64d-apache-combat-helicopter-c3b58008c46b45048fdd7dd283a3c8c8",
+  "licence": "CC BY 4.0"
+ },
+ {
+  "unit": "destroyer",
+  "name": "1:1 Low poly US NAVY DDG-51 USS Arleigh Burke.",
+  "author": "Yi Tsung Lee",
+  "author_url": "https://sketchfab.com/WTigerTw",
+  "url": "https://sketchfab.com/3d-models/11-low-poly-us-navy-ddg-51-uss-arleigh-burke-17be09c31c6047e4a5969b68c29eba03",
+  "licence": "CC BY 4.0"
+ },
+ {
+  "unit": "sub",
+  "name": "KoreaNavy -Jang bogo- Class(Type209) Submarine",
+  "author": "Artech",
+  "author_url": "https://sketchfab.com/ArtechStudio",
+  "url": "https://sketchfab.com/3d-models/koreanavy-jang-bogo-classtype209-submarine-abd6a2cd5fe14f6baa16e64c2d20f317",
+  "licence": "CC BY 4.0"
+ }
+]
