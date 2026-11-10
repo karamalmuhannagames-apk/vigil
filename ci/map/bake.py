@@ -206,6 +206,19 @@ rip *= (0.6 + 0.8 * fbm(5, 4)).astype(np.float32)                     # calmer a
 gy, gx = np.gradient(rip)
 nz = 1.0 / np.sqrt(gx * gx * 0.08 + gy * gy * 0.08 + 1)
 glint = np.clip((-gx * 0.22 - gy * 0.22) * nz + nz * 0.1, 0, 1) ** 5 * (fbm(10, 4) > 0.4)   # sun from top-left, patchy
+tile_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'art', 'map', 'ocean_normals.png')
+if os.path.exists(tile_path):
+    # real simulated waves: tile the seamless ocean normals over the whole sea
+    nt_img = np.asarray(Image.open(tile_path)).astype(np.float32)
+    nt_img = nt_img / (65535.0 if nt_img.max() > 255 else 255.0)
+    tile = int(os.environ.get('OCEAN_TILE_PX', str(S // 4)))
+    nt_img = np.asarray(Image.fromarray((nt_img[..., :3] * 255).astype(np.uint8)).resize((tile, tile), Image.LANCZOS)).astype(np.float32) / 255
+    reps = S // tile + 1
+    big = np.tile(nt_img, (reps, reps, 1))[:S, :S]
+    nx, ny, nzz = big[..., 0] * 2 - 1, big[..., 1] * 2 - 1, big[..., 2] * 2 - 1
+    gx, gy = -nx * 6, ny * 6                                           # slopes, in the units the shading below expects
+    nz = np.clip(nzz, 0.05, 1)
+    glint = np.clip(-nx * 0.6 + ny * 0.6 + 0.0, 0, 1) ** 8 * (fbm(10, 4) > 0.35)
 band_w = S * (0.012 + 0.03 * fbm(5, 5))
 band = np.clip(1 - (dist_land - band_w) / (S * 0.006), 0, 1)        # shallow coastal water, width varies
 deep = np.array([0.11, 0.24, 0.36]); shal = np.array([0.22, 0.42, 0.50])
