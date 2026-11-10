@@ -15,11 +15,13 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
-      - name: Generate images
-        run: python3 ci/art/generate.py
+      - name: Fetch public-domain photographs and cut them out
+        run: |
+          pip install -q "rembg[cpu]" pillow
+          python3 ci/art/photos.py
       - name: Save them to the repository
         run: |
           git config user.name "vigil-art"
           git config user.email "noreply@github.com"
-          git add art/raw || true
+          git add art || true
           git diff --cached --quiet || (git commit -m "Art: new generated images" && git pull --rebase origin main && git push)
