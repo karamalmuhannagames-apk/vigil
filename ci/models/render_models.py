@@ -8,8 +8,8 @@ os.makedirs(OUT, exist_ok=True)
 SIZE = int(os.environ.get('ICON_SIZE', '512'))
 ROT = json.load(open('ci/models/rotations.json')) if os.path.exists('ci/models/rotations.json') else {}
 TINT = {
-    'green': {'ground': (0.55, 0.62, 0.42), 'air': (0.62, 0.66, 0.64), 'sea': (0.66, 0.69, 0.71)},
-    'tan':   {'ground': (0.86, 0.74, 0.55), 'air': (0.80, 0.76, 0.68), 'sea': (0.80, 0.77, 0.70)},
+    'green': {'ground': (0.36, 0.52, 0.22), 'air': (0.50, 0.60, 0.52), 'sea': (0.56, 0.64, 0.60)},
+    'tan':   {'ground': (0.95, 0.76, 0.48), 'air': (0.86, 0.76, 0.62), 'sea': (0.84, 0.76, 0.64)},
 }
 KIND = {'fighter': 'air', 'heli': 'air', 'destroyer': 'sea', 'sub': 'sea'}
 
@@ -41,8 +41,8 @@ def tint_materials(objs, col):
             nt = m.node_tree
             for p in [n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED']:
                 inp = p.inputs['Base Color']
-                hs = nt.nodes.new('ShaderNodeHueSaturation'); hs.inputs['Saturation'].default_value = 0.3
-                mix = nt.nodes.new('ShaderNodeMixRGB'); mix.blend_type = 'MULTIPLY'; mix.inputs['Fac'].default_value = 0.9
+                hs = nt.nodes.new('ShaderNodeHueSaturation'); hs.inputs['Saturation'].default_value = 0.1
+                mix = nt.nodes.new('ShaderNodeMixRGB'); mix.blend_type = 'MULTIPLY'; mix.inputs['Fac'].default_value = 1.0
                 mix.inputs['Color2'].default_value = (*col, 1)
                 if inp.is_linked:
                     src = inp.links[0].from_socket
