@@ -1,0 +1,25 @@
+name: Find free 3D models
+
+on:
+  push:
+    branches: [main]
+    paths: ['ci/models/**', '.github/workflows/models.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Search Sketchfab for commercial-use models (CC0 / CC-BY only)
+        run: python3 ci/models/fetch.py search
+      - name: Save candidate list
+        run: |
+          git config user.name "vigil-art"
+          git config user.email "noreply@github.com"
+          git add art/models/candidates.json
+          git diff --cached --quiet || (git commit -m "Art: model candidates" && git pull --rebase origin main && git push)
