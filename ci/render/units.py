@@ -194,9 +194,24 @@ def truck(side):
             wheel(x, y, 0.58, 0.58, 0.45, M)
     return M
 
+def track_mat():
+    if 'track' in MATS: return MATS['track']
+    m = bpy.data.materials.new('track'); m.use_nodes = True
+    nt = m.node_tree; p = nt.nodes['Principled BSDF']
+    p.inputs['Roughness'].default_value = 0.8; p.inputs['Metallic'].default_value = 0.4
+    w = nt.nodes.new('ShaderNodeTexWave'); w.inputs['Scale'].default_value = 9.0
+    w.bands_direction = 'X'
+    ramp = nt.nodes.new('ShaderNodeValToRGB')
+    ramp.color_ramp.elements[0].color = (0.015, 0.015, 0.014, 1)
+    ramp.color_ramp.elements[1].color = (0.09, 0.085, 0.08, 1)
+    nt.links.new(w.outputs['Fac'], ramp.inputs['Fac'])
+    nt.links.new(ramp.outputs['Color'], p.inputs['Base Color'])
+    MATS['track'] = m
+    return m
+
 def tracks(x0, x1, y, width, M, h=1.0, wheels=5, skirt=None):
     prof = [(x0, 0.35), (x0 + 0.4, 0.02), (x1 - 0.4, 0.02), (x1, 0.4), (x1 - 0.15, h), (x0 + 0.15, h)]
-    prism_xz(prof, y - width / 2, y + width / 2, M['rubber'], 0.08)
+    prism_xz(prof, y - width / 2, y + width / 2, track_mat(), 0.08)
     step = (x1 - x0 - 1.0) / (wheels - 1)
     for i in range(wheels):
         x = x0 + 0.5 + i * step
@@ -215,6 +230,9 @@ def apc(side):
     box(0.12, 2.9, 0.12, (2.5, 0, 1.15), M['metal'], 0.02)
     box(0.08, 2.6, 0.9, (2.45, 0, 1.75), M['paint'], 0.03, rot=(0, math.radians(-30), 0))  # trim vane
     box(0.06, 0.9, 0.5, (0.0, 0.4, 2.75), M['metal'], 0.02)           # gun shield
+    for y in (-0.75, 0.75):                                            # open roof hatch doors, standing up
+        box(1.1, 0.06, 0.75, (-1.5, y, 2.55), M['paint'], 0.02)
+    box(0.9, 1.0, 0.05, (1.2, -0.6, 2.18), mat('grille', (0.02, 0.02, 0.02), 0.9), 0.0)
     box(0.9, 0.9, 0.3, (-0.3, 0.4, 2.3), M['paint'], 0.06)            # cupola base
     cyl(0.38, 0.35, (-0.3, 0.4, 2.55), M['paint'], 'Z', 20, 0.04)
     cyl(0.05, 1.4, (0.45, 0.4, 2.65), M['metal'], 'X', 10, 0.0)       # heavy MG
@@ -346,7 +364,12 @@ def facade(name, wall, win=(0.06, 0.07, 0.08), rows=6):
     br.inputs['Scale'].default_value = rows / 3.0
     br.inputs['Mortar Size'].default_value = 0.1
     br.inputs['Brick Width'].default_value = 0.35; br.inputs['Row Height'].default_value = 0.42
-    nt.links.new(tc.outputs['Object'], br.inputs['Vector'])
+    sep = nt.nodes.new('ShaderNodeSeparateXYZ'); nt.links.new(tc.outputs['Object'], sep.inputs[0])
+    add = nt.nodes.new('ShaderNodeMath'); add.operation = 'ADD'
+    nt.links.new(sep.outputs['X'], add.inputs[0]); nt.links.new(sep.outputs['Y'], add.inputs[1])
+    comb = nt.nodes.new('ShaderNodeCombineXYZ')
+    nt.links.new(add.outputs[0], comb.inputs['X']); nt.links.new(sep.outputs['Z'], comb.inputs['Y'])
+    nt.links.new(comb.outputs[0], br.inputs['Vector'])
     nt.links.new(br.outputs['Color'], p.inputs['Base Color'])
     return m
 
@@ -413,16 +436,108 @@ def frame_and_render(name, elev=28, azim=-38, margin=1.12):
     bpy.ops.render.render(write_still=True)
     print('rendered', name)
 
+def air_mats(side):
+    c = {'green': (0.20, 0.23, 0.21), 'tan': (0.36, 0.33, 0.27)}[side]
+    return dict(skin=mat('skin_' + side, c, 0.45, 0.1, noise=0.06),
+                dark=mat('canopy', (0.02, 0.03, 0.04), 0.05, 0.3),
+                metal=mat('metal', (0.06, 0.06, 0.055), 0.45, 0.7))
+
+ALT = 3.2   # aircraft fly above the ground so the shadow sits apart: altitude you can read
+
+def fighter(side):
+    A = air_mats(side); z = ALT
+    bpy.ops.mesh.primitive_cylinder_add(radius=0.55, depth=7.0, vertices=24, location=(0, 0, z), rotation=(0, math.pi / 2, 0))
+    finish(bpy.context.object, A['skin'], 0.05)
+    bpy.ops.mesh.primitive_cone_add(radius1=0.55, radius2=0.02, depth=2.4, vertices=24, location=(4.7, 0, z), rotation=(0, math.pi / 2, 0))
+    finish(bpy.context.object, A['skin'], 0.02)                        # nose
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.5, location=(2.6, 0, z + 0.45))
+    o = bpy.context.object; o.scale = (2.0, 0.75, 0.6); bpy.ops.object.transform_apply(scale=True)
+    finish(o, A['dark'], 0)                                             # canopy
+    wing = [(1.6, 0.4), (-2.6, 4.6), (-3.6, 4.6), (-3.2, 0.4)]
+    prism_xy(wing, z - 0.12, z + 0.05, A['skin'], 0.03)
+    prism_xy([(x, -y) for x, y in wing][::-1], z - 0.12, z + 0.05, A['skin'], 0.03)
+    tail = [(-2.2, 0.5), (-4.0, 2.1), (-4.5, 2.1), (-4.3, 0.5)]
+    prism_xy(tail, z - 0.08, z + 0.04, A['skin'], 0.02)
+    prism_xy([(x, -y) for x, y in tail][::-1], z - 0.08, z + 0.04, A['skin'], 0.02)
+    for y in (-0.55, 0.55):                                             # twin fins, canted
+        prism_xz([(-2.0, z), (-3.4, z + 2.0), (-4.0, z + 2.0), (-3.9, z)], y - 0.05, y + 0.05, A['skin'], 0.02)
+        box(1.6, 0.5, 0.7, (1.2, y * 1.6, z - 0.15), A['skin'], 0.08)   # intakes
+    for y in (-0.3, 0.3):
+        cyl(0.32, 0.6, (-3.8, y, z), A['metal'], 'X', 16, 0.02)        # engine nozzles
+    for y in (-2.6, 2.6):
+        cyl(0.11, 2.2, (-1.2, y, z - 0.3), A['skin'], 'X', 10, 0.01)   # missiles
+
+def helicopter(side):
+    A = air_mats(side); z = ALT * 0.7
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=1.0, location=(0.4, 0, z))
+    o = bpy.context.object; o.scale = (2.4, 0.75, 1.0); bpy.ops.object.transform_apply(scale=True)
+    finish(o, A['skin'], 0)                                             # narrow fuselage
+    for i, x in enumerate((1.9, 0.9)):                                  # stepped tandem canopies
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=0.5, location=(x, 0, z + 0.55 + i * 0.15))
+        o = bpy.context.object; o.scale = (1.1, 0.75, 0.6); bpy.ops.object.transform_apply(scale=True)
+        finish(o, A['dark'], 0)
+    cyl(0.25, 5.0, (-3.6, 0, z + 0.3), A['skin'], 'X', 16, 0.02)       # tail boom
+    prism_xz([(-5.6, z + 0.2), (-6.4, z + 1.8), (-6.8, z + 1.8), (-6.2, z + 0.2)], -0.06, 0.06, A['skin'], 0.02)
+    prism_xy([(0.6, 0.6), (0.1, 2.0), (-0.5, 2.0), (-0.4, 0.6)], z - 0.15, z, A['skin'], 0.02)
+    prism_xy([(0.6, -0.6), (-0.4, -0.6), (-0.5, -2.0), (0.1, -2.0)], z - 0.15, z, A['skin'], 0.02)
+    for y in (-1.6, 1.6):
+        cyl(0.18, 1.5, (0.2, y, z - 0.4), A['metal'], 'X', 12, 0.02)   # rocket pods
+    cyl(0.12, 0.8, (2.7, 0, z - 0.9), A['metal'], 'X', 8, 0.0)         # chin gun
+    cyl(0.12, 0.7, (0.2, 0, z + 1.25), A['metal'], 'Z', 10, 0.0)       # mast
+    blur = bpy.data.materials.new('rotor'); blur.use_nodes = True
+    pb = blur.node_tree.nodes['Principled BSDF']
+    pb.inputs['Base Color'].default_value = (0.05, 0.05, 0.05, 1); pb.inputs['Alpha'].default_value = 0.28
+    try: blur.blend_method = 'BLEND'
+    except Exception: pass
+    bpy.ops.mesh.primitive_cylinder_add(radius=5.2, depth=0.03, vertices=64, location=(0.2, 0, z + 1.6))
+    bpy.context.object.data.materials.append(blur)                     # spinning main rotor
+    for a in (0, 90):                                                   # faint blades inside the blur
+        box(10.2, 0.25, 0.03, (0.2, 0, z + 1.62), A['metal'], 0.0, rot=(0, 0, math.radians(a + 20)))
+    bpy.ops.mesh.primitive_cylinder_add(radius=0.9, depth=0.02, vertices=32, location=(-6.4, 0.15, z + 1.1), rotation=(math.pi / 2, 0, 0))
+    bpy.context.object.data.materials.append(blur)
+
+def frigate(side):
+    g = {'green': (0.30, 0.32, 0.33), 'tan': (0.40, 0.38, 0.34)}[side]
+    hull = mat('hull_' + side, g, 0.5, 0.1, noise=0.08)
+    deck = mat('deck', (0.16, 0.17, 0.17), 0.8, 0, noise=0.1)
+    red = mat('antifoul', (0.25, 0.05, 0.04), 0.7)
+    dark = mat('glass', (0.03, 0.045, 0.06), 0.08)
+    metal = mat('metal', (0.06, 0.06, 0.055), 0.45, 0.7)
+    outline = [(9.0, 0), (6.0, 1.3), (-7.5, 1.5), (-8.2, 1.2), (-8.2, -1.2), (-7.5, -1.5), (6.0, -1.3)]
+    prism_xy(outline, 0.0, 0.5, red, 0.03)                              # below the waterline
+    prism_xy(outline, 0.5, 1.6, hull, 0.04)
+    prism_xy([(x * 0.98, y * 0.96) for x, y in outline], 1.6, 1.65, deck, 0.0)
+    box(5.5, 2.2, 1.6, (-0.5, 0, 2.45), hull, 0.06)                     # superstructure
+    box(2.6, 2.0, 1.2, (0.6, 0, 3.8), hull, 0.05)                       # bridge
+    box(0.05, 1.7, 0.35, (1.92, 0, 4.0), dark, 0.0)                     # bridge windows
+    prism_xy([(0.5, -0.5), (0.5, 0.5), (-0.6, 0.4), (-0.6, -0.4)], 4.4, 6.6, hull, 0.04)   # stealth mast
+    box(0.9, 0.9, 0.6, (-0.05, 0, 6.9), metal, 0.03)                    # radar
+    box(1.8, 1.5, 1.4, (-3.0, 0, 3.6), hull, 0.05)                      # funnel
+    cyl(0.6, 0.6, (4.6, 0, 1.95), hull, 'Z', 20, 0.05)                  # gun turret
+    cyl(0.08, 2.0, (5.8, 0, 2.05), metal, 'X', 10, 0.0)
+    box(1.4, 1.4, 0.35, (3.0, 0, 1.85), metal, 0.03)                    # missile cells
+    box(3.2, 2.6, 0.05, (-6.3, 0, 1.68), mat('pad', (0.1, 0.11, 0.11), 0.8), 0.0)  # helicopter pad
+    box(2.2, 2.2, 1.5, (-4.4, 0, 2.4), hull, 0.05)                      # hangar
+
 JOBS = []
 for side in ('green', 'tan'):
     JOBS += [('ifv_' + side, ifv, side), ('spaa_' + side, spaa, side),
              ('mlrs_' + side, mlrs, side), ('car_' + side, armored_car, side)]
     JOBS += [('truck_' + side, truck, side), ('apc_' + side, apc, side),
              ('tank_' + side, tank, side), ('arty_' + side, howitzer, side)]
+    JOBS += [('fighter_' + side, fighter, side), ('heli_' + side, helicopter, side),
+             ('frigate_' + side, frigate, side)]
 only = os.environ.get('ONLY')
 for name, fn, side in JOBS:
     if only and only not in name: continue
-    reset(); MATS.clear(); fn(side); frame_and_render(name)
+    reset(); MATS.clear(); fn(side)
+    if name.startswith(('fighter', 'heli')):
+        # an invisible marker on the ground where the shadow falls keeps it inside the frame
+        bpy.ops.mesh.primitive_plane_add(size=0.01, location=(-3.0, 2.5, 0.0))
+        bpy.context.object.hide_render = True
+        frame_and_render(name, margin=1.05)
+    else:
+        frame_and_render(name)
 for i, style in enumerate(('mid', 'big')):
     if only and only != 'city': continue
     reset(); MATS.clear(); city(seed=7 + i, style=style); frame_and_render('city_' + style, elev=40, azim=-45, margin=1.02)
