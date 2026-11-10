@@ -159,6 +159,8 @@ export class Renderer {
     this.size = 36; this.cx = 0; this.cy = 0; this.t = 0;
     this.pos = {}; this.padBottom = 0; this.pad = 0; this.arrows = []; this.arrowT = 0; this.selected = null; this.pulseObjective = false;
     this.terrain = null; this.fog = document.createElement('canvas');
+    this.sprites = {}; this.sil = {};
+    for (const t of ['arm', 'inf', 'art']) { const im = new Image(); im.onload = () => { this.sprites[t] = im; }; im.src = 'art/' + t + '.png'; }
     this.resize();
   }
   resize() {
@@ -178,7 +180,33 @@ export class Renderer {
   }
   setArrows(list) { this.arrows = list; this.arrowT = 0; }
 
+  // Units are real photographs cut out and set on the map, with a small status plate.
+  sprite(k, x, y, sz, o) {
+    const im = this.sprites[o.type]; if (!im) return false;
+    const w = sz * 2.5, h = w * im.height / im.width, col = o.ghost ? COL.ghost : o.side === 'p' ? COL.friend : COL.foe;
+    k.save(); k.translate(x, y);
+    k.fillStyle = 'rgba(0,0,0,0.45)'; k.beginPath(); k.ellipse(0, h * 0.34, w * 0.44, h * 0.2, 0, 0, 7); k.fill();
+    if (o.selected) { k.strokeStyle = '#fff'; k.lineWidth = 2; k.beginPath(); k.ellipse(0, h * 0.34, w * 0.52, h * 0.26, 0, 0, 7); k.stroke(); }
+    k.save(); if (o.side === 'p') k.scale(-1, 1);
+    if (o.ghost) {
+      let sc = this.sil[o.type];
+      if (!sc) { sc = this.sil[o.type] = document.createElement('canvas'); sc.width = im.width; sc.height = im.height; const c = sc.getContext('2d'); c.drawImage(im, 0, 0); c.globalCompositeOperation = 'source-in'; c.fillStyle = '#2b2410'; c.fillRect(0, 0, sc.width, sc.height); }
+      k.globalAlpha = o.alpha ?? 0.8; k.shadowColor = COL.ghost; k.shadowBlur = 6; k.drawImage(sc, -w / 2, -h / 2, w, h); k.shadowBlur = 0;
+    } else { k.globalAlpha = o.broken ? 0.55 : 1; k.drawImage(im, -w / 2, -h / 2, w, h); }
+    k.restore(); k.globalAlpha = 1;
+    // status plate
+    const pw = sz * 1.5, ph = sz * 0.42, py = h * 0.5 + sz * 0.05;
+    k.fillStyle = 'rgba(6,10,18,0.88)'; k.beginPath(); k.roundRect(-pw / 2, py, pw, ph, ph * 0.3); k.fill();
+    k.fillStyle = col; k.beginPath(); k.roundRect(-pw / 2, py, ph * 0.9, ph, ph * 0.3); k.fill();
+    if (o.ghost) { k.fillStyle = '#1a1300'; k.font = `700 ${ph * 0.8}px sans-serif`; k.textAlign = 'center'; k.fillText('?', -pw / 2 + ph * 0.45, py + ph * 0.78); }
+    if (o.str != null) { const bx = -pw / 2 + ph * 1.1, bw = pw - ph * 1.3; k.fillStyle = 'rgba(255,255,255,0.14)'; k.fillRect(bx, py + ph * 0.34, bw, ph * 0.32); k.fillStyle = o.str > 0.5 ? '#6fe08a' : o.str > 0.25 ? '#ffc04d' : '#ff6a5c'; k.fillRect(bx, py + ph * 0.34, bw * clamp(o.str), ph * 0.32); }
+    if (o.dug) { k.fillStyle = '#e9eef5'; const dy = -h * 0.5 - sz * 0.1; k.beginPath(); k.moveTo(-sz * 0.3, dy); k.lineTo(0, dy - sz * 0.26); k.lineTo(sz * 0.3, dy); k.lineTo(sz * 0.18, dy); k.lineTo(0, dy - sz * 0.13); k.lineTo(-sz * 0.18, dy); k.closePath(); k.fill(); }
+    if (o.low) { const bx = pw / 2 + sz * 0.22, by = py + ph * 0.5, t = sz * 0.22; k.fillStyle = COL.supply; k.beginPath(); k.moveTo(bx, by - t); k.lineTo(bx + t, by + t * 0.8); k.lineTo(bx - t, by + t * 0.8); k.closePath(); k.fill(); k.fillStyle = '#2a1a00'; k.font = `700 ${t * 1.2}px sans-serif`; k.textAlign = 'center'; k.fillText('!', bx, by + t * 0.62); }
+    k.restore(); return true;
+  }
+
   token(k, x, y, sz, o) {
+    if (o.type && this.sprite(k, x, y, sz, o)) return;
     const w = sz * 1.5, h = sz * 1.08, col = o.ghost ? COL.ghost : o.side === 'p' ? COL.friend : COL.foe, dark = o.ghost ? '#3d3210' : o.side === 'p' ? COL.friendDark : COL.foeDark;
     k.save(); k.translate(x, y); k.globalAlpha = o.alpha ?? 1;
     // ground shadow and pointer
