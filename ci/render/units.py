@@ -48,16 +48,16 @@ def mat(name, color, rough=0.6, metal=0.0, noise=0.0, dirt=0.0, spec=0.4):
     p.inputs['Metallic'].default_value = metal
     base = (*color, 1)
     if noise > 0 or dirt > 0:
-        tex = nt.nodes.new('ShaderNodeTexNoise'); tex.inputs['Scale'].default_value = 6.0
-        tex.inputs['Detail'].default_value = 8
+        tex = nt.nodes.new('ShaderNodeTexNoise'); tex.inputs['Scale'].default_value = 28.0
+        tex.inputs['Detail'].default_value = 12; tex.inputs['Roughness'].default_value = 0.62
         ramp = nt.nodes.new('ShaderNodeValToRGB')
         c = color
         dark = tuple(max(0, v * (1 - noise - dirt)) for v in c)
         light = tuple(min(1, v * (1 + noise * 0.6)) for v in c)
         ramp.color_ramp.elements[0].color = (*dark, 1)
         ramp.color_ramp.elements[1].color = (*light, 1)
-        ramp.color_ramp.elements[0].position = 0.35
-        ramp.color_ramp.elements[1].position = 0.65
+        ramp.color_ramp.elements[0].position = 0.42
+        ramp.color_ramp.elements[1].position = 0.58
         nt.links.new(tex.outputs['Fac'], ramp.inputs['Fac'])
         if dirt > 0:
             # darker toward the ground (dust and mud on lower panels)
@@ -72,9 +72,20 @@ def mat(name, color, rough=0.6, metal=0.0, noise=0.0, dirt=0.0, spec=0.4):
             mix.inputs['Color1'].default_value = mud
             nt.links.new(mr.outputs['Result'], mix.inputs['Fac'])
             nt.links.new(ramp.outputs['Color'], mix.inputs['Color2'])
-            nt.links.new(mix.outputs['Color'], p.inputs['Base Color'])
+            out = mix.outputs['Color']
         else:
-            nt.links.new(ramp.outputs['Color'], p.inputs['Base Color'])
+            out = ramp.outputs['Color']
+        # worn, lighter paint on sharp edges (reads as real metal at icon size)
+        geo2 = nt.nodes.new('ShaderNodeNewGeometry')
+        mr2 = nt.nodes.new('ShaderNodeMapRange')
+        mr2.inputs['From Min'].default_value = 0.52; mr2.inputs['From Max'].default_value = 0.6
+        mr2.inputs['To Max'].default_value = 0.55
+        nt.links.new(geo2.outputs['Pointiness'], mr2.inputs['Value'])
+        wear = nt.nodes.new('ShaderNodeMixRGB'); wear.blend_type = 'SCREEN'
+        nt.links.new(mr2.outputs['Result'], wear.inputs['Fac'])
+        nt.links.new(out, wear.inputs['Color1'])
+        wear.inputs['Color2'].default_value = (0.5, 0.48, 0.42, 1)
+        nt.links.new(wear.outputs['Color'], p.inputs['Base Color'])
     else:
         p.inputs['Base Color'].default_value = base
     MATS[key] = m
@@ -248,12 +259,99 @@ def howitzer(side):
     box(1.0, 2.6, 0.5, (-3.0, 0, 1.9), M['canvas'], 0.1)
     return M
 
+
+def ifv(side):
+    """Infantry fighting vehicle: APC-like body but a real turret and long thin autocannon."""
+    M = common(side)
+    tracks(-2.9, 2.8, 1.35, 0.55, M, 1.0, 6, skirt=True)
+    tracks(-2.9, 2.8, -1.35, 0.55, M, 1.0, 6, skirt=True)
+    prof = [(-2.9, 0.55), (2.2, 0.55), (3.0, 1.0), (2.4, 1.85), (-2.9, 1.95)]
+    prism_xz(prof, -1.7, 1.7, M['paint'], 0.06)
+    tur = [(-0.9, -0.85), (0.6, -0.95), (1.1, -0.45), (1.1, 0.45), (0.6, 0.95), (-0.9, 0.85)]
+    prism_xy(tur, 1.9, 2.55, M['paint'], 0.05)
+    cyl(0.06, 3.0, (2.5, -0.2, 2.25), M['metal'], 'X', 12, 0.0)      # autocannon
+    cyl(0.1, 0.6, (1.2, -0.2, 2.25), M['paint'], 'X', 12, 0.02)
+    box(0.5, 0.3, 0.35, (0.2, 0.75, 2.75), M['paint'], 0.04)          # missile box
+    box(0.35, 0.3, 0.3, (-0.3, -0.5, 2.7), M['metal'], 0.03)          # sight
+    box(1.4, 1.2, 0.08, (-2.0, 0, 2.0), M['paint'], 0.02)             # rear door
+    for y in (-1.25, 1.25):
+        box(0.05, 0.22, 0.14, (2.95, y * 0.8, 1.25), M['light'], 0.01)
+    return M
+
+def spaa(side):
+    """Air defence: tracked, tall boxy turret, big radar dish on a mast, twin guns."""
+    M = common(side)
+    tracks(-3.0, 2.9, 1.45, 0.6, M, 1.0, 6)
+    tracks(-3.0, 2.9, -1.45, 0.6, M, 1.0, 6)
+    prof = [(-3.0, 0.55), (2.5, 0.55), (3.1, 1.0), (2.7, 1.55), (-3.0, 1.55)]
+    prism_xz(prof, -1.75, 1.75, M['paint'], 0.06)
+    box(2.6, 2.4, 1.3, (-0.4, 0, 2.2), M['paint'], 0.08, 3)
+    for y in (-1.45, 1.45):                                            # twin guns on the sides
+        box(0.7, 0.35, 0.5, (0.6, y, 2.3), M['paint'], 0.04)
+        cyl(0.07, 2.6, (2.1, y, 2.35), M['metal'], 'X', 12, 0.0)
+    cyl(0.07, 1.4, (-1.3, 0, 3.5), M['metal'], 'Z', 10, 0.0)           # mast
+    bpy.ops.mesh.primitive_cylinder_add(radius=0.95, depth=0.12, vertices=40, location=(-1.3, 0, 4.25), rotation=(0, math.radians(70), 0))
+    finish(bpy.context.object, M['metal'], 0.02)                       # search radar dish
+    box(0.6, 0.9, 0.5, (0.5, 0, 3.05), M['paint'], 0.05)               # tracking radar
+    return M
+
+def mlrs(side):
+    """Rocket artillery: truck with a big tilted launcher box of rocket tubes."""
+    M = common(side)
+    box(7.6, 1.2, 0.35, (0, 0, 1.0), M['metal'], 0.02)
+    box(1.9, 2.45, 1.6, (2.85, 0, 2.0), M['paint'], 0.1, 3)
+    box(0.05, 2.0, 0.6, (3.82, 0, 2.35), M['glass'], 0.01)
+    box(0.25, 2.5, 0.35, (3.9, 0, 1.05), M['metal'], 0.03)
+    box(4.9, 2.4, 0.4, (-0.9, 0, 1.4), M['paint'], 0.04)               # flatbed
+    pod = box(3.8, 2.2, 1.3, (-1.0, 0, 2.6), M['paint'], 0.06, rot=(0, math.radians(-14), 0))
+    tube = mat('tube', (0.02, 0.02, 0.02), 0.9)
+    for i in range(3):                                                  # tube mouths on the front face
+        for j in range(5):
+            y = -0.8 + j * 0.4; z = 2.25 + i * 0.36
+            cyl(0.13, 0.08, (0.86, y, z + 0.47), tube, 'X', 12, 0.0)
+    for x in (2.75, 0.4, -0.9, -2.2):
+        for y in (-1.08, 1.08):
+            wheel(x, y, 0.58, 0.58, 0.45, M)
+    return M
+
+def armored_car(side):
+    """8x8 wheeled armour: low sharp hull, small turret, four big wheels a side."""
+    M = common(side)
+    prof = [(-3.1, 0.75), (2.6, 0.75), (3.3, 1.25), (2.8, 1.95), (-3.0, 2.0)]
+    prism_xz(prof, -1.45, 1.45, M['paint'], 0.06)
+    tur = [(-0.8, -0.8), (0.5, -0.85), (1.0, -0.4), (1.0, 0.4), (0.5, 0.85), (-0.8, 0.8)]
+    prism_xy(tur, 2.0, 2.55, M['paint'], 0.05)
+    cyl(0.07, 3.6, (2.7, 0, 2.3), M['paint'], 'X', 12, 0.0)
+    cyl(0.04, 1.0, (-0.5, 0.6, 3.0), M['metal'], 'Z', 6, 0.0)
+    for x in (2.1, 0.8, -1.0, -2.3):
+        for y in (-1.42, 1.42):
+            wheel(x, y, 0.6, 0.6, 0.5, M)
+    box(0.9, 0.5, 0.35, (-2.2, 1.2, 2.15), M['canvas'], 0.08)
+    return M
+
+def facade(name, wall, win=(0.06, 0.07, 0.08), rows=6):
+    """Wall colour with rows of dark windows (brick texture used as a window grid)."""
+    m = bpy.data.materials.new(name); m.use_nodes = True
+    nt = m.node_tree; p = nt.nodes['Principled BSDF']
+    p.inputs['Roughness'].default_value = 0.7
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    br = nt.nodes.new('ShaderNodeTexBrick')
+    br.offset = 0.0
+    br.inputs['Color1'].default_value = (*win, 1); br.inputs['Color2'].default_value = (*win, 1)
+    br.inputs['Mortar'].default_value = (*wall, 1)
+    br.inputs['Scale'].default_value = rows / 6.0
+    br.inputs['Mortar Size'].default_value = 0.2
+    br.inputs['Brick Width'].default_value = 0.5; br.inputs['Row Height'].default_value = 0.45
+    nt.links.new(tc.outputs['Object'], br.inputs['Vector'])
+    nt.links.new(br.outputs['Color'], p.inputs['Base Color'])
+    return m
+
 def city(seed=3, style='mid'):
     random.seed(seed)
-    concrete = mat('concrete', (0.42, 0.42, 0.40), 0.85, 0, noise=0.1)
+    concrete = facade('concrete', (0.44, 0.43, 0.40))
     roof = mat('roof', (0.30, 0.31, 0.30), 0.8, 0, noise=0.15)
-    glass = mat('cglass', (0.10, 0.14, 0.17), 0.15, 0.2)
-    warm = mat('brick', (0.42, 0.33, 0.25), 0.85, 0, noise=0.12)
+    glass = facade('cglass', (0.16, 0.2, 0.24), win=(0.05, 0.08, 0.1), rows=10)
+    warm = facade('brick', (0.45, 0.35, 0.26))
     tree = mat('tree', (0.06, 0.12, 0.04), 0.9, 0, noise=0.3)
     road = mat('road', (0.09, 0.09, 0.09), 0.9)
     ground = mat('lot', (0.24, 0.25, 0.20), 0.95, 0, noise=0.2)
@@ -313,6 +411,8 @@ def frame_and_render(name, elev=34, azim=-38, margin=1.12):
 
 JOBS = []
 for side in ('green', 'tan'):
+    JOBS += [('ifv_' + side, ifv, side), ('spaa_' + side, spaa, side),
+             ('mlrs_' + side, mlrs, side), ('car_' + side, armored_car, side)]
     JOBS += [('truck_' + side, truck, side), ('apc_' + side, apc, side),
              ('tank_' + side, tank, side), ('arty_' + side, howitzer, side)]
 only = os.environ.get('ONLY')
