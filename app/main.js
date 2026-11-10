@@ -115,7 +115,7 @@ sheet.addEventListener('click', (ev) => {
   else if (a === 'why') { ui.intent.why = v; ui.mode = 'limits'; }
   else if (a === 'risk') { ui.intent.risk = v; }
   else if (a === 'send') { ui.mode = 'thinking'; renderSheet(); setTimeout(think, 650); return; }
-  else if (a === 'approve') { approve(game, ui.briefing, ui.adjust ? 'adjusted' : 'commander'); ui.mode = 'run'; ui.manual = false; R.pulseObjective = false; R.size = 28; R.centerOn(7, 6); setTimeout(() => R.setArrows([]), 2500); }
+  else if (a === 'approve') { approve(game, ui.briefing, ui.adjust ? 'adjusted' : 'commander'); ui.mode = 'run'; ui.manual = false; R.pulseObjective = false; R.size = 34; R.centerOn(8, 6); setTimeout(() => R.setArrows([]), 2500); }
   else if (a === 'myway') { ui.mode = 'run'; ui.manual = true; game.cmd = null; game.knownAtPlan = Object.fromEntries(Object.keys(game.belief).map((k) => [k, true])); R.setArrows([]); R.pulseObjective = false; }
   else if (a === 'close') { ui.view = null; ui.selected = R.selected = null; }
   else if (a === 'raise') { game.cmd.lossCap += 0.15; game.cmd.halted = null; game.cmd.fresh = true; }
@@ -131,7 +131,7 @@ function think() {
   const b = makeBriefing(game, { ...ui.intent });
   ui.options = [{ plan: b.plan, est: b.est, planId: b.planId }, ...b.alternatives.map((a) => ({ plan: candidatePlans(game).find((p) => p.id === a.planId), est: a.est, planId: a.planId }))];
   ui.base = b; ui.adjust = 0;
-  R.size = Math.max(18, Math.min(26, window.innerWidth / 19)); R.centerOn(7, 6);
+  R.size = Math.max(20, Math.min(30, window.innerWidth / 17)); R.centerOn(7, 6);
   pickPlan(); ui.mode = 'briefing'; renderSheet();
 }
 // The Adjust dial re-weighs the plans she already worked out; it never hides them.
@@ -162,11 +162,11 @@ cv.addEventListener('pointermove', (e) => {
   const p = ptrs.get(e.pointerId); if (!p) return;
   if (ptrs.size === 1) { const dx = e.clientX - p[0], dy = e.clientY - p[1]; R.cx -= dx; R.cy -= dy; moved += Math.abs(dx) + Math.abs(dy); R.clampCam(game.map); }
   ptrs.set(e.pointerId, [e.clientX, e.clientY]);
-  if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; const d = Math.hypot(a[0] - b[0], a[1] - b[1]); const ns = Math.max(18, Math.min(56, (size0 * d) / pinch0)); const k = ns / R.size; R.cx *= k; R.cy *= k; R.size = ns; moved = 99; }
+  if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; const d = Math.hypot(a[0] - b[0], a[1] - b[1]); const ns = Math.max(20, Math.min(70, (size0 * d) / pinch0)); const k = ns / R.size; R.cx *= k; R.cy *= k; R.size = ns; moved = 99; }
 });
 const up = (e) => { const had = ptrs.has(e.pointerId); ptrs.delete(e.pointerId); if (had && moved < 10 && ptrs.size === 0) tap(e.clientX, e.clientY); };
 cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', (e) => ptrs.delete(e.pointerId));
-cv.addEventListener('wheel', (e) => { const ns = Math.max(18, Math.min(56, R.size * (e.deltaY < 0 ? 1.1 : 0.9))); const k = ns / R.size; R.cx *= k; R.cy *= k; R.size = ns; }, { passive: true });
+cv.addEventListener('wheel', (e) => { const ns = Math.max(20, Math.min(70, R.size * (e.deltaY < 0 ? 1.1 : 0.9))); const k = ns / R.size; R.cx *= k; R.cy *= k; R.size = ns; }, { passive: true });
 
 function tap(px, py) {
   const hex = R.pick(game.map, px, py); if (!hex) return;
