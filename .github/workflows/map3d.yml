@@ -21,6 +21,11 @@ jobs:
           sudo apt-get update -qq && sudo apt-get install -y -qq libxi6 libxkbcommon0 libxrender1 libgl1 libsm6 libxxf86vm1 libxfixes3 > /dev/null
           curl -sSL -o b.tar.xz https://download.blender.org/release/Blender4.2/blender-4.2.3-linux-x64.tar.xz
           tar xf b.tar.xz && mv blender-4.2.3-linux-x64 blender
+      - name: Simulate a real ocean tile
+        run: |
+          ./blender/blender -b -P ci/map/ocean_tile.py -- art/map/ocean_normals.png > ocean.log 2>&1 || true
+          grep -E "rendered|Error|Traceback|line " ocean.log || true
+          mkdir -p art/map3d
       - name: Bake map layers
         run: MAP_SIZE=2048 EXPORT_LAYERS=1 python3 ci/map/bake.py layers
       - name: Render the 3D landscape from above
@@ -42,5 +47,5 @@ jobs:
           python3 -c "from PIL import Image; Image.open('art/map3d/map.png').convert('RGB').save('art/map3d/map.jpg', quality=90); import os; os.remove('art/map3d/map.png')"
           git config user.name "vigil-art"
           git config user.email "noreply@github.com"
-          git add art/map3d
+          git add art/map3d art/map/ocean_normals.png
           git diff --cached --quiet || (git commit -m "Art: 3D map render" && git pull --rebase origin main && git push)
