@@ -23,3 +23,46 @@ jobs:
           git config user.email "noreply@github.com"
           git add art/models/candidates.json
           git diff --cached --quiet || (git commit -m "Art: model candidates" && git pull --rebase origin main && git push)
+
+  render:
+    needs: search
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      SKETCHFAB_TOKEN: ${{ secrets.SKETCHFAB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the token is set
+        id: tok
+        run: |
+          if [ -z "$SKETCHFAB_TOKEN" ]; then echo "No SKETCHFAB_TOKEN secret yet: skipping download"; echo "ok=no" >> $GITHUB_OUTPUT; else echo "ok=yes" >> $GITHUB_OUTPUT; fi
+      - name: Download the chosen models (CC0 / CC-BY only)
+        if: steps.tok.outputs.ok == 'yes'
+        run: |
+          git pull -q origin main
+          python3 ci/models/fetch.py download
+      - name: Install Blender and the free sky
+        if: steps.tok.outputs.ok == 'yes'
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq libxi6 libxkbcommon0 libxrender1 libgl1 libsm6 libxxf86vm1 libxfixes3 > /dev/null
+          curl -sSL -o b.tar.xz https://download.blender.org/release/Blender4.2/blender-4.2.3-linux-x64.tar.xz
+          tar xf b.tar.xz && mv blender-4.2.3-linux-x64 blender
+          mkdir -p tex && curl -sSfL -o tex/sky.hdr https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/kloofendal_48d_partly_cloudy_puresky_2k.hdr || true
+      - name: Render the models as game icons
+        if: steps.tok.outputs.ok == 'yes'
+        run: |
+          ./blender/blender -b -P ci/models/render_models.py -- models art/units > blender.log 2>&1 || true
+          grep -E "rendered|no model|Error|Traceback|line " blender.log | tail -60 || true
+          ls -la art/units
+      - uses: actions/upload-artifact@v4
+        if: steps.tok.outputs.ok == 'yes'
+        with:
+          name: units
+          path: art/units
+      - name: Save renders and credits (the models themselves are not stored in the repository)
+        if: steps.tok.outputs.ok == 'yes'
+        run: |
+          git config user.name "vigil-art"
+          git config user.email "noreply@github.com"
+          git add art/units art/models/CREDITS.json
+          git diff --cached --quiet || (git commit -m "Art: unit icons from artist models (CC0/CC-BY, credited)" && git pull --rebase origin main && git push)
