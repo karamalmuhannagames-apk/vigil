@@ -3,6 +3,7 @@ name: Build APK
 on:
   push:
     branches: [main]
+    paths-ignore: ['ci/art/**', 'art/**', '.github/workflows/art.yml', 'README.md']
   workflow_dispatch:
 
 permissions:
