@@ -332,7 +332,7 @@ if sat:
     sea = ~land
     dist = ndi.distance_transform_edt(sea) * (8192 / W)
     shallow = np.exp(-dist / 18.0)[..., None]
-    deep = np.array([24, 52, 78], np.float32); coast = np.array([48, 98, 118], np.float32)
+    deep = np.array([44, 86, 122], np.float32); coast = np.array([82, 140, 160], np.float32)   # lighter, fresher sea (dark seas read as old)
     noise = ndi.zoom(ndi.gaussian_filter(np.random.default_rng(5).random((H // 16 + 1, W // 16 + 1)), 2), 16, order=1)[:H, :W, None]
     seacol = deep * (1 - shallow) + coast * shallow
     seacol *= 0.94 + 0.12 * (noise - noise.mean()) / (noise.std() + 1e-6) * 0.5

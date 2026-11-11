@@ -1,0 +1,47 @@
+name: Fetch free Arabic fonts (SIL OFL)
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/fonts.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fonts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download candidates from the Google Fonts repository (all SIL Open Font Licence)
+        run: |
+          mkdir -p app/fonts && cd app/fonts
+          G=https://raw.githubusercontent.com/google/fonts/main/ofl
+          get() { curl -sSfL -o "$2" "$G/$1" && echo "got $2" || echo "missing $1"; }
+          get 'alexandria/Alexandria%5Bwght%5D.ttf' Alexandria.ttf
+          get 'alexandria/OFL.txt' Alexandria-OFL.txt
+          get 'readexpro/ReadexPro%5BHEXP%2Cwght%5D.ttf' ReadexPro.ttf
+          get 'readexpro/OFL.txt' ReadexPro-OFL.txt
+          get 'ibmplexsansarabic/IBMPlexSansArabic-Bold.ttf' IBMPlexSansArabic-Bold.ttf
+          get 'ibmplexsansarabic/IBMPlexSansArabic-Medium.ttf' IBMPlexSansArabic-Medium.ttf
+          get 'ibmplexsansarabic/OFL.txt' IBMPlexSansArabic-OFL.txt
+          get 'cairo/Cairo%5Bslnt%2Cwght%5D.ttf' Cairo.ttf
+          get 'cairo/OFL.txt' Cairo-OFL.txt
+          get 'notokufiarabic/NotoKufiArabic%5Bwght%5D.ttf' NotoKufiArabic.ttf
+          get 'notokufiarabic/OFL.txt' NotoKufiArabic-OFL.txt
+          get 'reemkufi/ReemKufi%5Bwght%5D.ttf' ReemKufi.ttf
+          get 'reemkufi/OFL.txt' ReemKufi-OFL.txt
+          get 'tajawal/Tajawal-Bold.ttf' Tajawal-Bold.ttf
+          get 'tajawal/OFL.txt' Tajawal-OFL.txt
+          get 'changa/Changa%5Bwght%5D.ttf' Changa.ttf
+          get 'changa/OFL.txt' Changa-OFL.txt
+          get 'elmessiri/ElMessiri%5Bwght%5D.ttf' ElMessiri.ttf
+          get 'elmessiri/OFL.txt' ElMessiri-OFL.txt
+          ls -la
+      - name: Save
+        run: |
+          git config user.name "vigil-art"
+          git config user.email "noreply@github.com"
+          git add app/fonts
+          git diff --cached --quiet || (git commit -m "Fonts: free Arabic candidates (SIL OFL)" && git pull --rebase origin main && git push)
