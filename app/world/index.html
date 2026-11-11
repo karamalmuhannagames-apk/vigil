@@ -208,6 +208,7 @@ function draw() {
     const fadeM = 1 - smooth(0.8, 1.25, view.z), near = smooth(1.25, 1.8, view.z);
     const below = Math.max(fs * 0.4, (p.kind === 'capital' ? markSize(p) * 0.42 : p.r * s * 0.55 * smooth(0.45, 0.75, view.z)) + fs * 0.85);
     const spots = [[0, below, 'center']];
+    if (p.kind === 'capital') spots.push([-(tw / 2 + 10 * dpr), fs * 0.35, 'left'], [tw / 2 + 10 * dpr, fs * 0.35, 'right']);   // a capital is never dropped: it may sit beside its city
     
     let spot = null;
     for (const [dx, dy] of spots) {
@@ -474,7 +475,8 @@ function markSize(p) {          // on-screen size of a city's miniature (0 = not
   const dpr = devicePixelRatio, z = view.z;
   const on = p.kind === 'capital' ? smooth(0.3, 0.45, z) : p.kind === 'major' ? smooth(0.6, 0.8, z) : smooth(1.1, 1.4, z);
   const base = p.kind === 'capital' ? 76 : p.kind === 'major' ? 44 : 32;
-  return on * base * dpr * Math.min(1.6, Math.max(0.75, Math.pow(z, 0.35)));
+  const room = Math.min(1, Math.max(0.45, (p.r || CR[p.kind]) / CR[p.kind]));     // small countries: smaller landmark
+  return on * base * room * dpr * Math.min(1.6, Math.max(0.75, Math.pow(z, 0.35)));
 }
 function drawMarks(s, sw, sh) {
   for (let ci = 0; ci < countries.length; ci++) for (const p of countries[ci].cities || []) {
