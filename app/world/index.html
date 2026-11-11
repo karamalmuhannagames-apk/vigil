@@ -27,10 +27,10 @@ let W, H, world, countries = [], byIso = {}, cityOrder = [];
 // dark runs through the ramp, so forests, fields and hills stay visible in every colour.
 // keep = how much of the natural terrain colour stays (own land is shown nearly as it is).
 const RAMP = {
-  me:      {lo: [26, 66, 30],   hi: [146, 190, 96],  keep: 0.75},
+  me:      {lo: [26, 66, 30],   hi: [146, 190, 96],  keep: 0.6},
   ally:    {lo: [84, 104, 62],  hi: [188, 204, 146], keep: 0.15},   // pale olive, like Algeria in CoN
   passage: {lo: [12, 44, 22],   hi: [70, 118, 62],   keep: 0.10},
-  neutral: {lo: [8, 24, 20],    hi: [64, 84, 76],    keep: 0.0},    // deep blue-green slate
+  neutral: {lo: [14, 32, 28],   hi: [62, 84, 78],    keep: 0.0},    // deep blue-green slate
   enemy:   {lo: [30, 4, 4],     hi: [142, 40, 34],   keep: 0.0},    // blood red, terrain showing through
 };
 let ME = 'JOR';
@@ -65,7 +65,7 @@ async function buildTile(z, tx, ty) {
     }
     anyLand = true;
     const r = lut[n] || (lut[n] = RAMP[relOf(n)]);
-    const t = Math.min(1, Math.max(0, ((0.3 * d[q] + 0.59 * d[q + 1] + 0.11 * d[q + 2]) / 255 - 0.2) / 0.5));
+    const t = Math.min(1, Math.max(0, ((0.3 * d[q] + 0.59 * d[q + 1] + 0.11 * d[q + 2]) / 255 - 0.14) / 0.6));
     const k = r.keep, lo = r.lo, hi = r.hi;
     d[q]     = d[q]     * k + (lo[0] + (hi[0] - lo[0]) * t) * (1 - k);
     d[q + 1] = d[q + 1] * k + (lo[1] + (hi[1] - lo[1]) * t) * (1 - k);

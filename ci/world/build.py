@@ -413,16 +413,19 @@ if sat:
             f = os.path.join('art/sat', nm + '.jpg')
             if not os.path.exists(f): continue
             a = np.asarray(Image.open(f).convert('RGB').resize((PD, PD), Image.LANCZOS)).astype(np.float32) / 255
-            a = a - ndi.gaussian_filter(a, (40, 40, 0))                              # fine structure only
-            a = a / (a.std() + 1e-6) * 0.055
-            a = np.concatenate([np.concatenate([a, a[:, ::-1]], 1), np.concatenate([a[::-1], a[::-1, ::-1]], 1)], 0)   # mirror tile: no seams
+            a = a - ndi.gaussian_filter(a, (9, 9, 0))                                # fine grain only: no big shapes that could repeat
+            a = a / (a.std() + 1e-6) * 0.05
+            # seamless tile: cross-fade with a half-shifted copy (no mirrors, so no butterfly patterns)
+            u = 1 - np.abs(np.linspace(-1, 1, PD, endpoint=False)); wgt = np.minimum.outer(u, u)[..., None]
+            wgt = np.clip(wgt * 2.5, 0, 1)
+            a = a * wgt + np.roll(a, (PD // 2, PD // 2), (0, 1)) * (1 - wgt)
             out.append(a)
         return out
     D = {'forest': detail(['forest', 'forest2']), 'farm': detail(['farmland', 'farmland2', 'grass']), 'arid': detail(['scrub']), 'rock': detail(['hills'])}
     def dsample(lst, yy, xx, k=0):
         if not lst: return 0
         a = lst[k % len(lst)]
-        return a[np.ix_((yy + 311 * k) % (2 * PD), (xx + 173 * k) % (2 * PD))]
+        return a[np.ix_((yy + 311 * k) % PD, (xx + 173 * k) % PD)]
     big = ndi.zoom(ndi.gaussian_filter(np.random.default_rng(9).random((MH // 64 + 2, M // 64 + 2)), 1.5), 64, order=1)[:MH, :M]
     big = (big - big.mean()) / big.std()
     half = np.zeros((H, W, 3), np.uint8)
@@ -453,7 +456,7 @@ if sat:
         rock = np.clip(1 - veg - arid, 0, 1)
         # large-scale brightness flattened (deserts and forests end up in one family), local contrast kept
         Lb = ndi.gaussian_filter(L, 36) + 0.04
-        Ln = np.clip(0.44 * (L / Lb) ** 1.15 * (Lb / 0.3) ** 0.22, 0, 1.2)
+        Ln = np.clip(0.46 * (L / Lb) ** 0.9 * (Lb / 0.3) ** 0.2, 0, 1.2)
         if HS is not None:
             h = HS[np.clip((sy.astype(np.float64) * HS.shape[0] / sh4).astype(np.int32), 0, HS.shape[0] - 1),
                    np.clip((sx.astype(np.float64) * HS.shape[1] / sw4).astype(np.int32), 0, HS.shape[1] - 1)].astype(np.float32) / 255
@@ -465,13 +468,13 @@ if sat:
         det = (forest[..., None] * dsample(D['forest'], yy, xx, 0) * 1.5
                + farm[..., None] * np.where(mix, dsample(D['farm'], yy, xx, 0), dsample(D['farm'], yy, xx, 1)) * 1.2
                + arid[..., None] * dsample(D['arid'], yy, xx, 0) * 1.0
-               + rough[..., None] * dsample(D['rock'], yy, xx, 0) * 0.9) * (1 - snow[..., None])
-        t = np.clip((Ln + det.mean(-1) * 2.2 - 0.16) / 0.62, 0, 1)[..., None]
+               + rough[..., None] * dsample(D['rock'], yy, xx, 0) * 0.5) * (1 - snow[..., None])
+        t = np.clip((Ln + det.mean(-1) * 1.5 - 0.10) / 0.72, 0, 1)[..., None]
         lo = np.array([0.105, 0.255, 0.115], np.float32); hi = np.array([0.56, 0.72, 0.36], np.float32)
         col = lo + (hi - lo) * t
-        col += arid[..., None] * np.array([0.085, 0.03, -0.03], np.float32) * (0.4 + t)   # dry land: olive and straw
+        col += arid[..., None] * np.array([0.05, 0.015, -0.02], np.float32) * (0.4 + t)   # dry land: a little olive and straw
         col += forest[..., None] * np.array([-0.03, -0.01, 0.005], np.float32)            # forest: deeper, cooler green
-        col += (det - det.mean(-1, keepdims=True)) * 1.6                                    # field colours
+        col += (det - det.mean(-1, keepdims=True)) * 0.7                                    # a hint of field colours
         col = col * (1 - snow[..., None]) + (0.62 + 0.3 * t) * snow[..., None]
         out = (np.clip(col, 0, 1) * 255).astype(np.uint8)
         k0 = ty - a0; rows = min(T, MH - ty)
