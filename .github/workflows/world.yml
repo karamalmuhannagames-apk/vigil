@@ -25,8 +25,8 @@ jobs:
             curl -sSfL -o $f.geojson $NE/$f.geojson && echo "got $f" || echo "missing $f"
           done
           cd .. && python3 ci/world/fetch_sat.py data/world.sat.jpg || echo "satellite download failed"
-          python3 ci/world/fetch_sat.py data/relief.tmp.jpg ASTER_GDEM_Greyscale_Shaded_Relief || echo "relief download failed"
-          [ -f data/relief.tmp.jpg ] && mv data/relief.tmp.jpg data/world.relief.jpg; cd data
+          python3 ci/world/fetch_dem.py data/world.relief.jpg || echo "relief download failed"
+          cd data
           ls -la
       - name: Build the map
         run: rm -rf art/world/tiles && W=8192 python3 ci/world/build.py data art/world

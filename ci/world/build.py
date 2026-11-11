@@ -419,6 +419,12 @@ if sat:
     HS = np.asarray(Image.open(relief_f).convert('L')) if os.path.exists(relief_f) else None
     hs_mid = float(np.median(HS[::16, ::16])) / 255 if HS is not None else 0.5
     print('relief', HS is not None, hs_mid)
+    # source crops over north Arabia, kept for checking joins in the source images
+    def _crop(img, name):
+        hh, ww = img.shape[:2]
+        Image.fromarray(img[int((90 - 33) / 180 * hh):int((90 - 28) / 180 * hh), int((38 + 180) / 360 * ww):int((48 + 180) / 360 * ww)]).save(os.path.join(OUT, name), quality=90)
+    _crop(S4, 'debug_sat.jpg')
+    if HS is not None: _crop(HS, 'debug_relief.jpg')
     PD = 1024
     def detail(names):
         out = []
