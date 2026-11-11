@@ -10,9 +10,10 @@ os.makedirs(OUT, exist_ok=True)
 STAC = 'https://earth-search.aws.element84.com/v1/search'
 # (name, lon, lat): typical places for each terrain, summer, no clouds
 SPOTS = [
-    ('farmland', 1.9, 49.6), ('farmland2', 10.5, 52.3), ('forest', 26.5, 61.5), ('forest2', 11.0, 48.0),
-    ('mountain', 7.9, 46.3), ('mountain2', 44.5, 42.7), ('dry', 36.0, 31.5), ('desert', 46.5, 24.5),
-    ('grass', -1.5, 53.3), ('coast', 21.0, 56.0),
+    ('farmland', 1.9, 49.6), ('farmland2', 19.6, 46.9),
+    ('forest', 8.2, 48.3), ('forest2', 23.8, 52.7),
+    ('hills', 13.6, 42.4), ('mountain', 24.6, 45.5),
+    ('scrub', -3.6, 39.6), ('grass', -0.8, 48.8),
 ]
 SIZE_KM = 20
 def search(lon, lat):
