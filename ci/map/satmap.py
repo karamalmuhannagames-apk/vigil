@@ -96,15 +96,52 @@ ME = int(os.environ.get('ME', '4'))
 REL = {int(k): v for k, v in (x.split(':') for x in os.environ.get('RELATIONS', '0:ally,1:passage,2:enemy,3:neutral').split(','))}
 TINT = {'me': (1.06, 1.06, 1.0), 'ally': (0.92, 1.0, 0.92), 'passage': (0.86, 0.9, 0.86), 'neutral': (0.78, 0.82, 0.8), 'enemy': (0.95, 0.66, 0.6)}
 rel_of = lambda k: 'me' if k == ME else REL.get(k, 'neutral')
-MIX = {'enemy': ((0.55, 0.05, 0.05), 0.62), 'neutral': ((0.10, 0.16, 0.13), 0.38), 'passage': ((0.14, 0.22, 0.17), 0.22), 'ally': ((0.10, 0.30, 0.12), 0.25)}
+MIX = {'enemy': ((0.30, 0.04, 0.04), 0.66), 'neutral': ((0.10, 0.14, 0.12), 0.45), 'passage': ((0.04, 0.20, 0.07), 0.45), 'ally': ((0.45, 0.70, 0.40), 0.30)}
+# allies: no national border at all, only the normal province outline
+
+# cities baked into the ground: dense city clipped exactly to its province, a few villages nearby
+import json
+pol = json.load(open(os.path.join(POL, 'political.json')))
+ct = 'art/citytex/city_dense.png'; vt = 'art/citytex/village.png'
+img_base = img.copy()
+if os.path.exists(ct):
+    city = np.asarray(Image.open(ct).convert('RGBA')).astype(np.float32) / 255
+    vil = np.asarray(Image.open(vt).convert('RGBA')).astype(np.float32) / 255 if os.path.exists(vt) else None
+    edge_noise = ndi.gaussian_filter(rng.random((S // 8, S // 8)), 1.2)
+    edge_noise = ndi.zoom(edge_noise, 8, order=1)[:S, :S]
+    edge_noise = (edge_noise - edge_noise.mean()) / (edge_noise.std() + 1e-6)
+    def paste(tex, cx, cy, radius, mask_fn, strength=1.0):
+        r = int(radius * 1.3)
+        y0, y1, x0, x1 = max(cy - r, 0), min(cy + r, S), max(cx - r, 0), min(cx + r, S)
+        if y1 <= y0 or x1 <= x0: return
+        t = np.asarray(Image.fromarray((tex * 255).astype(np.uint8)).resize((2 * r, 2 * r), Image.LANCZOS)).astype(np.float32) / 255
+        t = t[(y0 - (cy - r)):(y1 - (cy - r)), (x0 - (cx - r)):(x1 - (cx - r))]
+        yy, xx = np.mgrid[y0:y1, x0:x1]
+        d = np.hypot(yy - cy, xx - cx) / radius + edge_noise[y0:y1, x0:x1] * 0.18
+        a = np.clip((1.0 - d) * 4, 0, 1) * t[..., 3] * mask_fn(y0, y1, x0, x1) * strength
+        sub = img[y0:y1, x0:x1]
+        # darken the ground just around built-up area (ambient shadow), then lay the buildings
+        sub *= (1 - 0.25 * np.clip((1.15 - d) * 3, 0, 1) * mask_fn(y0, y1, x0, x1))[..., None]
+        sub[:] = sub * (1 - a[..., None]) + t[..., :3] * 0.92 * a[..., None]
+    for p in pol['provinces']:
+        if p['city'] == 'rural': continue
+        cx, cy = int(p['centre'][0]), int(p['centre'][1])
+        R = {'capital': 95, 'major': 70, 'minor': 48}[p['city']] * S / 2048
+        own = province == p['id']
+        paste(city, cx, cy, R, lambda y0, y1, x0, x1: own[y0:y1, x0:x1].astype(np.float32))      # ends exactly at the border
+        if vil is not None:                                                                       # a few villages spill into neighbours
+            for k in range({'capital': 5, 'major': 3, 'minor': 2}[p['city']]):
+                ang = rng.uniform(0, 2 * np.pi); dd = R * rng.uniform(1.3, 2.4)
+                vx, vy = int(cx + np.cos(ang) * dd), int(cy + np.sin(ang) * dd)
+                if 0 <= vx < S and 0 <= vy < S and land[vy, vx]:
+                    paste(vil, vx, vy, R * rng.uniform(0.25, 0.4), lambda y0, y1, x0, x1: land[y0:y1, x0:x1].astype(np.float32), 0.9)
+# nation tint goes over the cities too, so a city takes its owner's colour like in CoN
 for k in np.unique(nation[nation >= 0]):
     m = nation == k; r = rel_of(int(k))
-    if r == 'me':
-        img[m] = np.clip(img[m] * 1.08, 0, 1)
-    else:
-        col, a = MIX[r]
-        g = img[m].mean(-1, keepdims=True)
-        img[m] = (img[m] * 0.5 + g * 0.5) * (1 - a) + np.array(col) * a + (img[m] - g) * 0.15
+    if r == 'me': continue
+    col, a = MIX[r]
+    g = img[m].mean(-1, keepdims=True)
+    img[m] = (img[m] * 0.5 + g * 0.5) * (1 - a) + np.array(col) * a + (img[m] - g) * 0.15
 def edges(a):
     e = np.zeros_like(a, bool)
     e[1:] |= a[1:] != a[:-1]; e[:, 1:] |= a[:, 1:] != a[:, :-1]
@@ -135,19 +172,6 @@ for kind in ('neutral', 'passage', 'enemy'):
         img[..., 0] += 0.25 * glow
         m2 = ndi.binary_dilation(m, iterations=1) & land
         img[m2] = img[m2] * 0.1 + 0.9 * np.array([0.85, 0.18, 0.15])          # enemy: red line with a glow
-# allies: no national border at all, only the normal province outline
-
-# cities: real 3D city renders at each city province
-import json
-pol = json.load(open(os.path.join(POL, 'political.json')))
-icon = Image.open('art/render/city_big.png').convert('RGBA') if os.path.exists('art/render/city_big.png') else None
 out = Image.fromarray((np.clip(img, 0, 1) * 255).astype(np.uint8)).convert('RGBA')
-if icon:
-    for p in pol['provinces']:
-        if p['city'] == 'rural': continue
-        size = {'capital': 110, 'major': 84, 'minor': 64}[p['city']]
-        ic = icon.resize((size, size), Image.LANCZOS)
-        x, y = int(p['centre'][0]), int(p['centre'][1])
-        out.alpha_composite(ic, (max(0, x - size // 2), max(0, y - size // 2)))
 out.convert('RGB').save(OUT, quality=90)
 print('saved', OUT)
