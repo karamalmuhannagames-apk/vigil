@@ -29,14 +29,14 @@ jobs:
         env:
           REGIONS: ${{ matrix.region }}
         run: |
-          ./blender/blender -b -P ci/render/buildings.py -- art/buildings > b.log 2>&1 || true
+          ./blender/blender -b -P ci/render/buildings.py -- out > b.log 2>&1 || true
           grep -E "rendered|Error|Traceback|line " b.log | tail -60
           if grep -q Traceback b.log; then exit 1; fi
-          ls art/buildings | wc -l
+          ls out | wc -l
       - uses: actions/upload-artifact@v4
         with:
           name: buildings-${{ matrix.region }}
-          path: art/buildings
+          path: out
 
   save:
     needs: render
