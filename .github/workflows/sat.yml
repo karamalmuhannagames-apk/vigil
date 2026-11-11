@@ -1,0 +1,31 @@
+name: Fetch satellite patches
+
+on:
+  push:
+    branches: [main]
+    paths: ['ci/sat/**', '.github/workflows/sat.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Sentinel-2 patches (free, credited)
+        env:
+          AWS_NO_SIGN_REQUEST: 'YES'
+          GDAL_DISABLE_READDIR_ON_OPEN: 'EMPTY_DIR'
+        run: |
+          pip install -q rasterio numpy pillow
+          python3 ci/sat/fetch.py art/sat
+          ls -la art/sat
+      - name: Save
+        run: |
+          git config user.name "vigil-art"
+          git config user.email "noreply@github.com"
+          git add art/sat
+          git diff --cached --quiet || (git commit -m "Art: satellite patches (Copernicus Sentinel-2)" && git pull --rebase origin main && git push)
