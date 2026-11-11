@@ -30,8 +30,10 @@ def city(reg, seed):
         if o.name == 'catcher': bpy.data.objects.remove(o)
     rnd = random.Random(seed)
     R = REGIONS[reg]; st = STYLE[reg]; k = Kit(R)
-    ground = mat((0.30, 0.29, 0.27), rough=1, noise=0.25, scale=0.08)
-    road = mat((0.17, 0.17, 0.17), rough=0.9, noise=0.15, scale=0.5)
+    gcol = {'gulf': (0.46, 0.40, 0.32), 'europe': (0.33, 0.33, 0.30), 'asia': (0.34, 0.34, 0.32), 'americas': (0.36, 0.36, 0.33)}[reg]
+    ground = mat(gcol, rough=1, noise=0.08, scale=0.03)
+    road = mat((0.19, 0.19, 0.19), rough=0.9, noise=0.06, scale=0.4)
+    walls = [mat(tuple(min(1, c * f) for c in base), noise=0.08) for base in (R['wall'], R['wall2']) for f in (0.88, 1.0, 1.1)]
     box(0, 0, -0.1, FRAME * 1.2, FRAME * 1.2, 0.1, ground, bevel=0)
     rot = rnd.uniform(-25, 25)
     import mathutils
@@ -43,9 +45,13 @@ def city(reg, seed):
     while ys[-1] < FRAME * 0.56: ys.append(ys[-1] + rnd.uniform(*st['block']))
     def place(x, y): v = rm @ mathutils.Vector((x, y, 0)); return v.x, v.y
     for x in xs:
-        cx, cy = place(x, 0); box(cx, cy, 0, 7, FRAME * 1.6, 0.02, road, bevel=0, rot=rot)
+        cx, cy = place(x, 0); box(cx, cy, 0.004, 7, FRAME * 1.6, 0.02, road, bevel=0, rot=rot)   # offset height: no flicker where streets cross
     for y in ys:
         cx, cy = place(0, y); box(cx, cy, 0, FRAME * 1.6, 7, 0.02, road, bevel=0, rot=rot)
+    for x in xs:
+        for t in range(-24, 25, 3):
+            if rnd.random() < 0.45:
+                tx, ty = place(x + 4.8, t * 7.5); k.plant(tx, ty)
     # a diagonal avenue cuts across like real cities
     ang = rnd.uniform(30, 60) * rnd.choice((1, -1))
     box(0, 0, 0.01, 14, FRAME * 1.8, 0.02, road, bevel=0, rot=rot + ang)
@@ -70,11 +76,20 @@ def city(reg, seed):
                 for yy, side in ((by0 + d / 2, 0), (by1 - d / 2, 1)):
                     floors = max(1, round(st['floors'][0] * (1 - dc) + st['floors'][1] * dc + rnd.uniform(-1, 1.5)))
                     cx, cy = place(x + w / 2, yy)
-                    wall = k.wall if rnd.random() < 0.6 else k.wall2
+                    wall = rnd.choice(walls)
                     if st['villas'] and dc > 0.45:
                         k.house(cx, cy, w * 0.7, d * 0.7, 1 + (rnd.random() < 0.4), rot=rot, wall=wall)
                     else:
                         k.house(cx, cy, w * 0.94, d * 0.92, floors, rot=rot, wall=wall)
+                        if rnd.random() < 0.3:                                   # L-shaped wing into the courtyard
+                            ix, iy = place(x + w / 2, yy + (d * 0.7 if side == 0 else -d * 0.7))
+                            k.house(ix, iy, w * 0.45, d * 0.6, max(1, floors - 1), rot=rot, wall=wall)
+                        # rooftop clutter: tanks, units, stair huts
+                        h = floors * 3.2 + 0.25
+                        for _ in range(rnd.randint(1, 3)):
+                            ox, oy = rnd.uniform(-w * 0.3, w * 0.3), rnd.uniform(-d * 0.3, d * 0.3)
+                            rx, ry = place(x + w / 2 + ox, yy + oy)
+                            box(rx, ry, h, rnd.uniform(0.8, 2.2), rnd.uniform(0.8, 1.8), rnd.uniform(0.6, 1.6), k.metal if rnd.random() < 0.6 else k.white, rot=rot)
                 x += w + rnd.uniform(0.3, 1.5)
             if by1 - by0 > 2 * d + 8 and rnd.random() < 0.5:                       # something in the courtyard
                 cx, cy = place((bx0 + bx1) / 2, (by0 + by1) / 2)
