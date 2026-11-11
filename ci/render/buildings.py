@@ -11,7 +11,7 @@ os.makedirs(OUT, exist_ok=True)
 SIZE = int(os.environ.get('SIZE', '384'))
 SAMPLES = int(os.environ.get('SAMPLES', '48'))
 FRAME = 46.0            # metres across the sprite; one city plot
-ELEV, AZIM = 62, 0      # same 3/4 view as the units, light from the north-west like the satellite map
+ELEV, AZIM = 76, 0      # nearly straight down like the satellite city under it, with a hint of facades; shadows to the north-west like Sentinel-2's morning sun
 
 # ---------- regional styles: same buildings, different architecture ----------
 REGIONS = {
@@ -175,9 +175,10 @@ class Kit:
         s.water = mat((0.10, 0.22, 0.30), rough=0.08, noise=0)
         s.red = mat((0.70, 0.12, 0.10), rough=0.6, noise=0.05)
 
-    def lot(s, sx, sy, m=None):
-        # paved plot the building stands on; the game feathers its edge into the city
-        box(0, 0, 0, sx, sy, 0.08, m or s.concrete, bevel=0.02)
+    def lot(s, sx, sy, m=None, force=False):
+        # no slab under buildings: the real city streets show around them, so nothing looks pasted on.
+        # Only functional ground (runways, harbours) is modelled; shadows land on the map through the shadow catcher.
+        if force: box(0, 0, 0, sx, sy, 0.08, m or s.concrete, bevel=0.02)
 
     def house(s, x, y, sx, sy, floors, rot=0, wall=None, roof=None, flat=False):
         h = floors * 3.2; wall = wall or s.wall

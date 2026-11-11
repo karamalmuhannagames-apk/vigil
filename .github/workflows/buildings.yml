@@ -63,8 +63,11 @@ jobs:
                   for L in range(1, 6):
                       f = f'art/buildings/{t}_{r}_{L}.png'
                       if os.path.exists(f):
-                          im = Image.open(f).convert('RGBA').resize((T, T), Image.LANCZOS)
-                          sheet.alpha_composite(im, ((L - 1) * T, i * T))
+                          try:
+                              im = Image.open(f).convert('RGBA').resize((T, T), Image.LANCZOS)
+                              sheet.alpha_composite(im, ((L - 1) * T, i * T))
+                          except Exception as e:
+                              print('bad image', f, e); os.remove(f)
               sheet.convert('RGB').save(f'art/buildings/sheet_{r}.jpg', quality=90)
           EOF
           git config user.name "vigil-art"

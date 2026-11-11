@@ -22,7 +22,7 @@ Y_N, Y_S = miller(LAT_N), miller(LAT_S)
 H = int(round(W * (Y_N - Y_S) / (2 * np.pi)))
 # magnifiers: centre (lon, lat), radius in map units, strength. Monotonic (no folding) while strength < 2.
 # Europe and the Middle East have many small countries close together; the oceans and Siberia give room.
-MAGS = [(14, 49, 0.22, 0.7), (42, 30, 0.22, 0.45), (35.4, 32.2, 0.06, 1.3), (50.5, 26.5, 0.05, 0.9), (106, 14, 0.16, 0.3), (-72, 12, 0.12, 0.3)] if os.environ.get('WARP', '1') == '1' else []
+MAGS = [(14, 49, 0.22, 0.7), (42, 30, 0.22, 0.45), (35.3, 32.0, 0.055, 1.9), (50.5, 26.5, 0.05, 1.4), (106, 14, 0.16, 0.3), (-72, 12, 0.12, 0.3)] if os.environ.get('WARP', '1') == '1' else []
 def base_xy(lon, lat):
     return np.radians(lon), miller(np.clip(lat, LAT_S - 5, LAT_N + 5))
 MAGP = [(*base_xy(lo, la), r, s) for lo, la, r, s in MAGS]
