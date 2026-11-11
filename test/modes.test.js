@@ -25,3 +25,13 @@ test('owner rules for countries', () => {
 test('pay to win cannot be switched on', () => {
   assert.throws(() => resolveMode({ id: 'bad', monetisation: { payToWin: true } }));
 });
+
+import { DOCTRINES, doctrineFactor } from '../core/doctrines.js';
+test('every doctrine sums to zero (no region stronger overall)', () => {
+  for (const [id, d] of Object.entries(DOCTRINES)) {
+    const sum = Object.values(d.mod).reduce((s, m) => s + m.atk + m.def, 0);
+    assert.equal(sum, 0, id);
+  }
+  assert.equal(doctrineFactor('mena', 'drone', 'europe', 'armour'), 1.1 * 0.95);
+  assert.equal(doctrineFactor('mena', 'drone', 'europe', 'armour', false), 1);
+});
