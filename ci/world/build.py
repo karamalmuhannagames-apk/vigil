@@ -567,7 +567,7 @@ def shared_borders(label, n_labels, same_group=None):
                 ty, tx = b[0] - a[0], b[1] - a[1]; L = math.hypot(ty, tx) or 1
                 best = -1
                 for sgn in (1, -1):
-                    py, px = int(round(yy + sgn * tx / L * 1.6)), int(round(xx - sgn * ty / L * 1.6))
+                    py, px = int(round(yy + sgn * tx / L * 2.2)), int(round(xx - sgn * ty / L * 2.2))
                     if 0 <= py < nsub.shape[0] and 0 <= px < nsub.shape[1]:
                         v = nsub[py, px]
                         if v != ci: best = v
@@ -586,7 +586,13 @@ def shared_borders(label, n_labels, same_group=None):
             arr = measure.approximate_polygon(np.array(ln), tolerance=0.45)
             if len(arr) >= 2: out.append({'a': int(a), 'b': int(b), 'p': [round(float(v), 1) for xy in arr for v in xy]})
     return out
-borders_out = shared_borders(nation, len(ids))
+# thin gaps between neighbouring countries (polygon rasterising) would hide their shared border: fill them first
+_land = nation >= 0
+_gap = ndi.binary_closing(_land, structure=np.ones((5, 5)), iterations=1) & ~_land
+_, (_iy, _ix) = ndi.distance_transform_edt(~_land, return_indices=True)
+nation_f = nation.copy(); nation_f[_gap] = nation[_iy[_gap], _ix[_gap]]
+print('border gaps filled', int(_gap.sum()))
+borders_out = shared_borders(nation_f, len(ids))
 json.dump(borders_out, open(os.path.join(OUT, 'borders.json'), 'w'), separators=(',', ':'))
 print('border segments', len(borders_out))
 pcountry = [p['country'] for p in prov_meta]
