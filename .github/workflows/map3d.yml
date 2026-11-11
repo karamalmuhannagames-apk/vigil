@@ -48,4 +48,4 @@ jobs:
           git config user.name "vigil-art"
           git config user.email "noreply@github.com"
           git add art/map3d art/map/ocean_normals.png
-          git diff --cached --quiet || (git commit -m "Art: 3D map render" && git pull --rebase origin main && git push)
+          git diff --cached --quiet || (git commit -m "Art: 3D map render" && git pull --rebase -X theirs origin main && git push)

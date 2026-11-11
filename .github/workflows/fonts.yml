@@ -50,4 +50,4 @@ jobs:
           git config user.name "vigil-art"
           git config user.email "noreply@github.com"
           git add app/fonts
-          git diff --cached --quiet || (git commit -m "Fonts: free Arabic candidates (SIL OFL)" && git pull --rebase origin main && git push)
+          git diff --cached --quiet || (git commit -m "Fonts: free Arabic candidates (SIL OFL)" && git pull --rebase -X theirs origin main && git push)

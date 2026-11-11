@@ -37,4 +37,4 @@ jobs:
           git config user.email "noreply@github.com"
           rm -f art/world/preview.jpg
           git add art/world
-          git diff --cached --quiet || (git commit -m "World: real map build" && git pull --rebase origin main && git push)
+          git diff --cached --quiet || (git commit -m "World: real map build" && git pull --rebase -X theirs origin main && git push)

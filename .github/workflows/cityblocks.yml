@@ -53,4 +53,4 @@ jobs:
           git config user.name "vigil-art"
           git config user.email "noreply@github.com"
           git add art/cityblocks
-          git diff --cached --quiet || (git commit -m "Art: city blocks per region" && git pull --rebase origin main && git push)
+          git diff --cached --quiet || (git commit -m "Art: city blocks per region" && git pull --rebase -X theirs origin main && git push)

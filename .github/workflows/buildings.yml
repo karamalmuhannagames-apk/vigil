@@ -73,4 +73,4 @@ jobs:
           git config user.name "vigil-art"
           git config user.email "noreply@github.com"
           git add art/buildings
-          git diff --cached --quiet || (git commit -m "Art: city buildings, 4 regions x 5 levels" && git pull --rebase origin main && git push)
+          git diff --cached --quiet || (git commit -m "Art: city buildings, 4 regions x 5 levels" && git pull --rebase -X theirs origin main && git push)

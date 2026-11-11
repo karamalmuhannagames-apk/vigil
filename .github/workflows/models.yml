@@ -22,7 +22,7 @@ jobs:
           git config user.name "vigil-art"
           git config user.email "noreply@github.com"
           git add art/models/candidates.json
-          git diff --cached --quiet || (git commit -m "Art: model candidates" && git pull --rebase origin main && git push)
+          git diff --cached --quiet || (git commit -m "Art: model candidates" && git pull --rebase -X theirs origin main && git push)
 
   render:
     needs: search
@@ -65,4 +65,4 @@ jobs:
           git config user.name "vigil-art"
           git config user.email "noreply@github.com"
           git add art/units art/models/CREDITS.json
-          git diff --cached --quiet || (git commit -m "Art: unit icons from artist models (CC0/CC-BY, credited)" && git pull --rebase origin main && git push)
+          git diff --cached --quiet || (git commit -m "Art: unit icons from artist models (CC0/CC-BY, credited)" && git pull --rebase -X theirs origin main && git push)
