@@ -38,6 +38,12 @@ jobs:
           get 'changa/OFL.txt' Changa-OFL.txt
           get 'elmessiri/ElMessiri%5Bwght%5D.ttf' ElMessiri.ttf
           get 'elmessiri/OFL.txt' ElMessiri-OFL.txt
+          # Kufam: heavy Kufi for country names and headers (SIL OFL) — from the designer's repository
+          for u in https://raw.githubusercontent.com/originaltype/kufam/master/fonts/variable/Kufam%5Bwght%5D.ttf \
+                   https://raw.githubusercontent.com/google/fonts/main/ofl/kufam/Kufam%5Bwght%5D.ttf; do
+            curl -sSfL -o Kufam.ttf "$u" && echo "got Kufam from $u" && break
+          done
+          curl -sSfL -o Kufam-OFL.txt https://raw.githubusercontent.com/google/fonts/main/ofl/kufam/OFL.txt || true
           ls -la
       - name: Save
         run: |

@@ -16,16 +16,16 @@ ELEV, AZIM = 76, 0      # nearly straight down like the satellite city under it,
 # ---------- regional styles: same buildings, different architecture ----------
 REGIONS = {
     # Middle East and North Africa: sand stone, flat roofs with parapets, domes, white water tanks
-    'gulf':    dict(wall=(0.78, 0.68, 0.52), wall2=(0.88, 0.84, 0.76), roof=(0.80, 0.74, 0.62), roof_kind='flat',
+    'gulf':    dict(wall=(0.66, 0.57, 0.43), wall2=(0.72, 0.68, 0.60), roof=(0.64, 0.58, 0.48), roof_kind='flat',
                     accent=(0.20, 0.42, 0.40), metal=(0.72, 0.72, 0.70), ground=(0.70, 0.62, 0.48), green=(0.30, 0.38, 0.18), dome=True),
     # Europe: light render, red-brown tiled pitched roofs, grey slate on industry
-    'europe':  dict(wall=(0.80, 0.77, 0.70), wall2=(0.62, 0.56, 0.50), roof=(0.48, 0.20, 0.13), roof_kind='gable',
+    'europe':  dict(wall=(0.66, 0.63, 0.57), wall2=(0.52, 0.47, 0.42), roof=(0.48, 0.20, 0.13), roof_kind='gable',
                     accent=(0.25, 0.28, 0.32), metal=(0.50, 0.53, 0.56), ground=(0.40, 0.42, 0.36), green=(0.22, 0.36, 0.16), dome=False),
     # East and South Asia: grey concrete, blue and teal metal roofs
-    'asia':    dict(wall=(0.70, 0.71, 0.70), wall2=(0.82, 0.82, 0.80), roof=(0.18, 0.40, 0.55), roof_kind='shallow',
+    'asia':    dict(wall=(0.58, 0.59, 0.58), wall2=(0.66, 0.66, 0.64), roof=(0.18, 0.40, 0.55), roof_kind='shallow',
                     accent=(0.62, 0.16, 0.12), metal=(0.58, 0.62, 0.64), ground=(0.46, 0.46, 0.42), green=(0.20, 0.38, 0.18), dome=False),
     # Americas, Africa south of the Sahara, Oceania: white and grey big boxes, flat roofs full of machinery
-    'americas':dict(wall=(0.74, 0.74, 0.72), wall2=(0.55, 0.55, 0.54), roof=(0.86, 0.86, 0.84), roof_kind='flat',
+    'americas':dict(wall=(0.62, 0.62, 0.60), wall2=(0.48, 0.48, 0.47), roof=(0.66, 0.66, 0.64), roof_kind='flat',
                     accent=(0.55, 0.36, 0.18), metal=(0.60, 0.62, 0.62), ground=(0.44, 0.44, 0.40), green=(0.24, 0.36, 0.16), dome=False),
 }
 MAXLEVEL = {'hospital': 3}
@@ -40,7 +40,7 @@ def reset():
     s.render.image_settings.file_format = 'PNG'; s.render.image_settings.color_mode = 'RGBA'
     vt = [i.identifier for i in s.view_settings.bl_rna.properties['view_transform'].enum_items]
     s.view_settings.view_transform = 'AgX' if 'AgX' in vt else 'Filmic'
-    s.view_settings.exposure = -0.75
+    s.view_settings.exposure = -1.25   # satellite roofs are mid-tones, never paper white
     for look in ('AgX - Medium High Contrast', 'AgX - Punchy', 'Medium High Contrast'):
         try: s.view_settings.look = look; break
         except Exception: pass
@@ -170,7 +170,9 @@ class Kit:
         s.green = mat(R['green'], rough=1, noise=0.35, scale=2)
         s.olive = mat((0.28, 0.30, 0.20), rough=0.8, noise=0.2)
         s.sand = mat((0.62, 0.55, 0.40), rough=1, noise=0.3, scale=4)
-        s.white = mat((0.72, 0.72, 0.70), rough=0.5, noise=0.06)
+        s.white = mat((0.62, 0.62, 0.60), rough=0.5, noise=0.08)
+        # industrial metal roof: ribbed grey with streaks of grime
+        s.indroof = mat((0.36, 0.39, 0.42), rough=0.45, metal=0.4, noise=0.3, scale=14)
         s.dark = mat((0.12, 0.12, 0.12), rough=0.8, noise=0.1)
         s.water = mat((0.10, 0.22, 0.30), rough=0.08, noise=0)
         s.red = mat((0.70, 0.12, 0.10), rough=0.6, noise=0.05)
@@ -223,8 +225,9 @@ class Kit:
         box(bx, by, 0.1, 1.4, 1.8, 1.7, s.olive, rot=rot)
 
     def fence(s, sx, sy):
-        for dx, dy, lx, ly in [(0, sy / 2, sx, 0.12), (0, -sy / 2, sx, 0.12), (sx / 2, 0, 0.12, sy), (-sx / 2, 0, 0.12, sy)]:
-            box(dx, dy, 0.08, lx, ly, 1.6, s.metal, bevel=0)
+        # thin wire fence: barely visible from above, like the real thing
+        for dx, dy, lx, ly in [(0, sy / 2, sx, 0.06), (0, -sy / 2, sx, 0.06), (sx / 2, 0, 0.06, sy), (-sx / 2, 0, 0.06, sy)]:
+            box(dx, dy, 0.08, lx, ly, 1.2, mat((0.45, 0.45, 0.43), noise=0), bevel=0)
 
 # ---------- the seven buildings; each level adds to the one before ----------
 def training_camp(k, L):
@@ -258,7 +261,8 @@ def factory(k, L):
     for fx, fy, fw, fd in halls:
         w, d = sx * fw, sy * fd
         box(fx * sx, fy * sy, 0.08, w, d, 6.0, k.wall2)
-        sawtooth(fx * sx, fy * sy, 6.08, w, d, max(3, int(w / 3)), 1.6, k.roof if k.R['roof_kind'] != 'gable' else mat((0.40, 0.42, 0.44), noise=0.12), k.glass)
+        sawtooth(fx * sx, fy * sy, 6.08, w, d, max(3, int(d / 2.2)), 2.0, k.indroof, k.glass)
+        for j in range(3): box(fx * sx - w * 0.3 + j * w * 0.3, fy * sy + d * 0.3, 8.1, 1.0, 0.8, 0.6, k.metal)   # roof fans
     for i in range(min(L, 3)):                                                                  # chimneys grow with level
         cyl(-sx * 0.42 + i * 2.2, sy * 0.38, 0.08, 0.8, 10 + L * 3, mat((0.50, 0.45, 0.42), noise=0.2))
         cyl(-sx * 0.42 + i * 2.2, sy * 0.38, 10 + L * 3 + 0.08, 0.85, 1.2, k.red)
