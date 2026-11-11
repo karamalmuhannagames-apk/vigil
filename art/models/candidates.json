@@ -2739,18 +2739,6 @@
    "thumb": "https://media.sketchfab.com/models/361991c9874d4680931b3e0d23500e43/thumbnails/f44f44fff19d48619319f39f2d07aa7b/7ec242d43dbb4be79e4aceb55170f0f2.jpeg"
   },
   {
-   "uid": "4655f17bd4b5491d8f602b6c32c43e4c",
-   "name": "1985.112 Basin with Inscribed Figures",
-   "licence": "cc0",
-   "author": "Cleveland Museum of Art",
-   "author_url": "https://sketchfab.com/clevelandart",
-   "url": "https://sketchfab.com/3d-models/none-4655f17bd4b5491d8f602b6c32c43e4c",
-   "likes": 167,
-   "faces": 45000,
-   "query": "c-17",
-   "thumb": "https://media.sketchfab.com/models/4655f17bd4b5491d8f602b6c32c43e4c/thumbnails/22b1a14cad474ba8846bc886c368b53a/b43da05a217b4a0c91c0a634a88a2269.jpeg"
-  },
-  {
    "uid": "0ea680cbc9f244978e3fab3793dd5a77",
    "name": "C17",
    "licence": "by",
@@ -2761,6 +2749,18 @@
    "faces": 21930,
    "query": "c-17",
    "thumb": "https://media.sketchfab.com/models/0ea680cbc9f244978e3fab3793dd5a77/thumbnails/e4f6e2c91e7c4d959ace02078ee198f6/d099edabdccd4303bdd2d558cc61b9dc.jpeg"
+  },
+  {
+   "uid": "4655f17bd4b5491d8f602b6c32c43e4c",
+   "name": "1985.112 Basin with Inscribed Figures",
+   "licence": "cc0",
+   "author": "Cleveland Museum of Art",
+   "author_url": "https://sketchfab.com/clevelandart",
+   "url": "https://sketchfab.com/3d-models/none-4655f17bd4b5491d8f602b6c32c43e4c",
+   "likes": 167,
+   "faces": 45000,
+   "query": "c-17",
+   "thumb": "https://media.sketchfab.com/models/4655f17bd4b5491d8f602b6c32c43e4c/thumbnails/22b1a14cad474ba8846bc886c368b53a/b43da05a217b4a0c91c0a634a88a2269.jpeg"
   },
   {
    "uid": "f5fae27c4270472fac399055699facb4",
