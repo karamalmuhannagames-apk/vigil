@@ -12,6 +12,12 @@ must be better, never different for its own sake; calm land; space for cities an
 2. [ ] Borders: every land border drawn (Iraq–Saudi, Iran–Iraq, Egypt–Libya ...), light line with dark edge, like CoN.
 3. [ ] Land balance: compare Iraq, Iran, Algeria and India with CoN at matched px/km (study §1). Plains calm, mountains
        only on real ranges, woods as few clumps. Measure texture contrast; it must be close to CoN's.
+3b. [ ] Provinces like CoN (owner, 23:53): every province clearly bordered all round and easy to tell apart; lines are
+       clean straight-segment polygons (CoN style), not wiggly admin lines; province counts per country close to CoN
+       (Iraq, Iran, Algeria, Europe: many mid-size provinces; compare counts with the CoN screenshots, not just Australia).
+       Visible from country zoom, stronger at province zoom.
+3c. [ ] Keep every relation feature we built: border style by relation when zooming to a border (passage dashed, enemy
+       red glow, ally soft), relation colours, own/ally/stranger/enemy. Check each still works after the rebuild.
 4. [ ] Cities: dense dark patches sized by room; names and capitals never dropped; landmarks only on capitals.
 5. [ ] Names: CoN size (city ~48 px, country names by area up to ~90 px), country names until region zoom, cities after.
 6. [ ] Sea: coastal band and deep water colours, soft edge, depth patches, calm ripples, coast rim.
