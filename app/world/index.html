@@ -105,6 +105,7 @@ async function buildTile(z, tx, ty, C) {
       if (m < 170) {                                            // sea: coastal grey-blue or deep blue, ripples, land shadow
         const base = bd[q] > 127 || m > 0 ? SEA.coast : SEA.deep, k = L * wave[wr + gx % WN];
         sr = base[0] * k; sg = base[1] * k; sb = base[2] * k;
+        if (m > 14) { const e = 1 - 0.55 * Math.min(1, (m - 14) / 50); sr *= e; sg *= e; sb *= e; }   // thin dark rim along every coast
         if (m < 86) { d[q] = sr; d[q + 1] = sg; d[q + 2] = sb; d[q + 3] = 255; continue; }
       }
       if (n < 0) {                                              // land by the smooth mask but sea by the id image: borrow a neighbour's id
@@ -252,7 +253,7 @@ function pip(g, rel, r) {
 // ---------- country names: big, printed on the land at world zoom ----------
 let countryLabels = [];
 function drawCountryNames(s, sw, sh) {
-  const a = 1 - smooth(0.32, 0.55, view.z);
+  const a = 1 - smooth(0.6, 0.9, view.z);
   if (a <= 0) return [];
   const dpr = devicePixelRatio;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -511,8 +512,8 @@ function drawBorders(s, sw, sh) {
   const groups = {foreign: [], neutral: [], passage: [], enemy: []};
   for (const b of borders) {
     if (b.bb[2] < x0 || b.bb[0] > x1 || b.bb[3] < y0 || b.bb[1] > y1) continue;
-    const k = borderKind(b.a, b.b); if (k === 'ally' || k === 'me') continue;
-    (groups[k] || groups.neutral).push(b);
+    const k = borderKind(b.a, b.b);
+    (groups[k] || groups.foreign).push(b);
   }
   const path = list => { ctx.beginPath(); for (const b of list) { const p = b.p; ctx.moveTo((p[0] - view.x) * s + sw / 2, (p[1] - view.y) * s + sh / 2); for (let i = 2; i < p.length; i += 2) ctx.lineTo((p[i] - view.x) * s + sw / 2, (p[i + 1] - view.y) * s + sh / 2); } };
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
@@ -528,8 +529,11 @@ function drawBorders(s, sw, sh) {
     }
     ctx.strokeStyle = `rgba(240,244,240,${0.32 * pv})`; ctx.lineWidth = 0.9 * dpr; ctx.stroke();
   }
-  path(groups.foreign); ctx.strokeStyle = 'rgba(235,240,245,0.45)'; ctx.lineWidth = 1 * dpr * thin; ctx.stroke();
-  path(groups.neutral); ctx.strokeStyle = 'rgba(245,247,250,0.9)'; ctx.lineWidth = 1.5 * dpr * thin; ctx.stroke();
+  // country borders: a light line with a soft dark edge, so they read on every colour of ground
+  const all = groups.foreign.concat(groups.neutral);
+  path(all); ctx.strokeStyle = 'rgba(4,8,10,0.38)'; ctx.lineWidth = 3.2 * dpr * thin; ctx.stroke();
+  path(groups.foreign); ctx.strokeStyle = 'rgba(226,232,234,0.72)'; ctx.lineWidth = 1.2 * dpr * thin; ctx.stroke();
+  path(groups.neutral); ctx.strokeStyle = 'rgba(240,244,246,0.92)'; ctx.lineWidth = 1.5 * dpr * thin; ctx.stroke();
   path(groups.passage); ctx.setLineDash([5 * dpr, 4 * dpr]); ctx.strokeStyle = 'rgba(245,247,250,0.9)'; ctx.lineWidth = 1.5 * dpr * thin; ctx.stroke(); ctx.setLineDash([]);
   path(groups.enemy); ctx.strokeStyle = 'rgba(255,40,40,0.25)'; ctx.lineWidth = 6 * dpr * thin; ctx.stroke();
   ctx.strokeStyle = 'rgba(255,60,55,0.95)'; ctx.lineWidth = 1.8 * dpr * thin; ctx.stroke();

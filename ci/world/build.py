@@ -506,6 +506,8 @@ if sat:
         else: relief = np.ones_like(L); rough = np.zeros_like(L)
         # forest as clumps: dense real forest keeps its own shape, everywhere else a few scattered woods
         cl = ndi.zoom(clump8[a0 // 8:a1 // 8 + 2], 8, order=1)[:a1 - a0, :M]
+        dry = np.clip((ndi.gaussian_filter(arid, 24) - 0.3) * 3, 0, 1)           # inside deserts: no satellite 'forest' (dark coasts, towns, oases)
+        forest = forest * (1 - dry)
         woods = np.clip((cl - 1.25) * 2.5, 0, 1) * (1 - 0.65 * arid)
         forest = np.clip(np.maximum(forest * np.clip((forest - 0.25) * 2.2, 0, 1) * np.clip(cl * 0.35 + 0.8, 0, 1), woods), 0, 1)
         rock = np.clip(np.maximum(rough * (1 - forest), snow), 0, 1)
