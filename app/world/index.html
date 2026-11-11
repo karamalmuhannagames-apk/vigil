@@ -57,7 +57,7 @@ Promise.all(['forest', 'forest_id', 'open', 'arid', 'rock', 'waves'].map(n => lo
   // waves: sea ripples, as a brightness texture around 1.0
   const WN = 512, wd = pixels(wv, WN, WN), wave = new Float32Array(WN * WN); let m = 0;
   for (let i = 0; i < WN * WN; i++) { wave[i] = wd[i * 4] * 0.3 + wd[i * 4 + 1] * 0.59 + wd[i * 4 + 2] * 0.11; m += wave[i]; }
-  m /= WN * WN; for (let i = 0; i < WN * WN; i++) wave[i] = 1 + (wave[i] / m - 1) * 0.55;
+  m /= WN * WN; for (let i = 0; i < WN * WN; i++) wave[i] = 1 + (wave[i] / m - 1) * 0.32;
   TEX = {FN, fl, fa, fv, open: one(op, 512), arid: one(ar, 512), rock: one(rk, 512), wave, WN};
   // open ocean with no tile: a deep-sea pattern built the same way
   const dc = document.createElement('canvas'); dc.width = dc.height = WN; const dg = dc.getContext('2d'), di = dg.createImageData(WN, WN);
@@ -116,7 +116,7 @@ async function buildTile(z, tx, ty, C) {
       v = v * (1 - rk) + rock[gi] * rk;
       const fi = fr + gx % FN, a = fa[fi];
       if (a) {                                                  // a tree (or its shadow) stands here if the forest is dense enough
-        const dens = bd[q] / 255, tv = fv[fi] / 255;
+        const dens = bd[q] / 255 + (open[(gi + 131 * 512 + 77) & 262143] - 158) * 0.006, tv = fv[fi] / 255;   // a little noise: forest edges never follow the data's pixel grid
         if (tv ? dens > tv : dens > 0.55) { const al = a / 255; v = v * (1 - al) + fl[fi] * al; }
       }
       const t = lut[n] || (lut[n] = LUT[relOf(n)]);
@@ -205,7 +205,7 @@ function draw() {
     // one rule for every name: centred right under its city (under the marker far away, under the town close up).
     // Only if that spot is taken may it sit beside the marker, right or left, level with it. Otherwise it waits.
     const fadeM = 1 - smooth(0.8, 1.25, view.z), near = smooth(1.25, 1.8, view.z);
-    const below = (fs * 0.4) * (1 - near) + (CR[p.kind] * s * 0.8 + fs * 0.9) * near;
+    const below = Math.max(fs * 0.4, markSize(p) * 0.42 + fs * 0.85);
     const spots = [[0, below, 'center']];
     
     let spot = null;
@@ -447,9 +447,44 @@ function cityPic(p, ci) {
   if (!e) { e = {pic: null}; cityPics.set(k, e); bakeCity(p, ci).then(pic => { e.pic = pic; draw(); }); }
   return e.pic;
 }
+// city miniatures: each city stands on the map as a small rendered model of itself (landmark for capitals)
+const markImg = {}, markTint = new Map();
+function markFor(art, kind, rel) {
+  const k = `${art}/${kind}/${rel}`;
+  if (markTint.has(k)) return markTint.get(k);
+  markTint.set(k, null);
+  const src = markImg[`${art}/${kind}`] || (markImg[`${art}/${kind}`] = img(`${ART_ROOT}citymarks/mark_${art}_${kind}.png`));
+  src.then(im => {
+    if (!im) return;
+    const c = document.createElement('canvas'); c.width = im.width; c.height = im.height;
+    const g = c.getContext('2d'); g.drawImage(im, 0, 0); const id = g.getImageData(0, 0, c.width, c.height), d = id.data, t = LUT[rel];
+    for (let q = 0; q < d.length; q += 4) {                     // same colour table as the land: one hue, light and dark
+      const i = (Math.min(255, (0.3 * d[q] + 0.59 * d[q + 1] + 0.11 * d[q + 2]) * 1.05) | 0) * 3;
+      d[q] = t[i]; d[q + 1] = t[i + 1]; d[q + 2] = t[i + 2];
+    }
+    g.putImageData(id, 0, 0); markTint.set(k, c); draw();
+  });
+  return null;
+}
+const MARK_ART = {gulf: 'gulf', europe: 'europe', asia: 'asia', americas: 'americas'};
+function markSize(p) {          // on-screen size of a city's miniature (0 = not shown at this zoom)
+  const dpr = devicePixelRatio, z = view.z;
+  const on = p.kind === 'capital' ? smooth(0.3, 0.45, z) : p.kind === 'major' ? smooth(0.6, 0.8, z) : smooth(1.1, 1.4, z);
+  const base = p.kind === 'capital' ? 58 : p.kind === 'major' ? 44 : 32;
+  return on * base * dpr * Math.min(1.6, Math.max(0.75, Math.pow(z, 0.35)));
+}
+function drawMarks(s, sw, sh) {
+  for (let ci = 0; ci < countries.length; ci++) for (const p of countries[ci].cities || []) {
+    const S = markSize(p); if (S < 4) continue;
+    const sx = (p.x - view.x) * s + sw / 2, sy = (p.y - view.y) * s + sh / 2;
+    if (sx < -S || sy < -S || sx > sw + S || sy > sh + S) continue;
+    const im = markFor(MARK_ART[countries[ci].art] || 'americas', p.kind, relOf(ci)); if (!im) continue;
+    ctx.drawImage(im, Math.round(sx - S / 2), Math.round(sy - S * 0.55), Math.round(S), Math.round(S));
+  }
+}
 function drawCities(s, sw, sh) {
   const show = smooth(0.9, 1.7, view.z);
-  if (show <= 0) return;
+  if (show <= 0) { drawMarks(s, sw, sh); return; }
   ctx.globalAlpha = show;
   for (let ci = 0; ci < countries.length; ci++) for (const p of countries[ci].cities || []) {
     const R = CR[p.kind] * s, sx = (p.x - view.x) * s + sw / 2, sy = (p.y - view.y) * s + sh / 2;
@@ -457,6 +492,7 @@ function drawCities(s, sw, sh) {
     const pic = cityPic(p, ci); if (pic) ctx.drawImage(pic, sx - R, sy - R, R * 2, R * 2);
   }
   ctx.globalAlpha = 1;
+  drawMarks(s, sw, sh);
 }
 
 // smooth vector borders, styled by relation: none with allies, dashed for passage, solid for strangers, red for enemies
