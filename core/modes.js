@@ -11,7 +11,7 @@ export const BASE = {
   countries: {
     playableMinKm2: 100000,                        // owner's rule: Oman-like and bigger are playable
     neutralMaxKm2: 6000,                           // Bahrain-like: neutral land, 2 free infantry, anyone can take it
-    alwaysPlayable: ['JOR', 'PSE'],
+    alwaysPlayable: ['JOR', 'PSE', 'GBR', 'KOR'],
     smallStateBonus: true,                         // small playable states get a starting bonus so they are fun
   },
   economy: { scale: 4, startMultiplier: 1, upkeep: true, worldMarket: true },

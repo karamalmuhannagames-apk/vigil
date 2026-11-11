@@ -104,7 +104,7 @@ for c in countries.values(): c['area_km2'] = round(geod_area(c))
 #   Oman-like and bigger: playable, plus Jordan and Palestine
 NEUTRAL_MAX = float(os.environ.get('NEUTRAL_MAX', '6000'))
 PLAYABLE_MIN = float(os.environ.get('PLAYABLE_MIN', '100000'))
-ALWAYS_PLAYABLE = {'JOR', 'PSE'}
+ALWAYS_PLAYABLE = {'JOR', 'PSE', 'GBR', 'KOR'}
 for c in countries.values():
     a = c['area_km2']
     c['class'] = 'playable' if (a >= PLAYABLE_MIN or c['iso'] in ALWAYS_PLAYABLE) else ('neutral' if a < NEUTRAL_MAX else 'ai')
