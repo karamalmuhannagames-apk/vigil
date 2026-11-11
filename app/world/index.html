@@ -71,6 +71,12 @@ async function buildTile(z, tx, ty) {
     d[q + 1] = d[q + 1] * k + (lo[1] + (hi[1] - lo[1]) * t) * (1 - k);
     d[q + 2] = d[q + 2] * k + (lo[2] + (hi[2] - lo[2]) * t) * (1 - k);
   }
+  // soft coastline: land pixels next to the sea get partial cover, so coasts stay smooth when zoomed in
+  for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+    const q = (y * w + x) * 4; if (d[q + 3] === 0) continue;
+    const n = (d[q - 4 + 3] === 0) + (d[q + 4 + 3] === 0) + (d[q - w * 4 + 3] === 0) + (d[q + w * 4 + 3] === 0);
+    if (n) d[q + 3] = 255 - n * 40;
+  }
   g.putImageData(id, 0, 0); sg.putImageData(sid, 0, 0);
   return {land: anyLand ? landC : null, sea: anySea ? seaC : null};
 }
@@ -128,6 +134,7 @@ function draw() {
   for (const [c, px, py, ox, oy, sc] of vis) if (c.sea) put(c.sea, px, py, ox, oy, sc);
   ctx.globalCompositeOperation = 'source-over';
   for (const [c, px, py, ox, oy, sc] of vis) if (c.land) put(c.land, px, py, ox, oy, sc);
+  drawCities(s, sw, sh);
   drawBorders(s, sw, sh);
   // cities: most important first; a label that would overlap one already placed is skipped (no clutter, ever)
   ctx.textAlign = 'center';
@@ -148,15 +155,128 @@ function draw() {
     if (placed.some(b => box[0] - pad < b[2] && box[2] + pad > b[0] && box[1] - pad < b[3] && box[3] + pad > b[1])) continue;
     placed.push(box);
     ctx.globalAlpha = show;
-    const r = (p.kind === 'capital' ? 4 : 3) * dpr;
+    const r = (p.kind === 'capital' ? 4 : 3) * dpr * (1 - smooth(0.9, 1.7, view.z));
     ctx.fillStyle = p.kind === 'capital' ? '#ffd34d' : '#f4f6f2'; ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.lineWidth = dpr;
-    ctx.beginPath(); ctx.arc(sx, sy, r, 0, 7); ctx.fill(); ctx.stroke();
+    if (r > 0.5) { ctx.beginPath(); ctx.arc(sx, sy, r, 0, 7); ctx.fill(); ctx.stroke(); }
     const fs = (p.kind === 'capital' ? 14 : 12) * dpr;
     ctx.font = p.kind === 'capital' ? `800 ${fs}px Kufam, Alexandria, system-ui` : `600 ${fs}px Alexandria, system-ui`; ctx.lineWidth = 3 * dpr; ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgb(12,16,20)';   // opaque halo: no dark blobs where Arabic letters join
-    ctx.strokeText(p.name_ar, sx, sy - r - 4 * dpr); ctx.fillStyle = '#f4f6f2'; ctx.fillText(p.name_ar, sx, sy - r - 4 * dpr);
+    const near = smooth(0.9, 1.7, view.z), ly = (sy - r - 4 * dpr) * (1 - near) + (sy + CR[p.kind] * s * 0.8 + fs) * near;   // close up the name sits under the town
+    ctx.strokeText(p.name_ar, sx, ly); ctx.fillStyle = '#f4f6f2'; ctx.fillText(p.name_ar, sx, ly);
   }
   ctx.globalAlpha = 1;
   document.getElementById('hud').textContent = `zoom ${view.z.toFixed(2)} · tiles z${z}`;
+}
+
+
+// ---------- cities on the real map ----------
+// Each city is a small baked picture: regional city blocks inside a soft, irregular outline, the main
+// buildings of a capital set in, coloured with the same relation ramp as its land. Far away it melts into a
+// marker; close up it is a real town sitting in the terrain (not a sticker).
+const ART_ROOT = DATA + '../';
+const CR = {capital: 15, major: 11, minor: 8};          // city radius in world px (map scale is exaggerated for play)
+const cityPics = new Map(), blockImg = {}, bldImg = {};
+function img(src) { return new Promise(r => { const i = new Image(); i.onload = () => r(i); i.onerror = () => r(null); i.src = src; }); }
+async function blocksFor(art) {
+  if (!blockImg[art]) blockImg[art] = Promise.all([1, 2, 3, 4].map(k => img(`${ART_ROOT}cityblocks/block_${art}_${k}.png`))).then(a => a.filter(Boolean));
+  return blockImg[art];
+}
+async function building(type, art, L) {
+  const k = `${type}_${art}_${L}`;
+  if (!(k in bldImg)) bldImg[k] = img(`${ART_ROOT}buildings/${k}.png`);
+  return bldImg[k];
+}
+function hash(s) { let h = 2166136261; for (const ch of s) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return (h >>> 0) / 4294967296; }
+async function bakeCity(p, ci) {
+  const c = countries[ci], art = c.art || 'americas', rel = relOf(ci), ramp = RAMP[rel];
+  const N = 320, R = N / 2;
+  const cv2 = document.createElement('canvas'); cv2.width = cv2.height = N;
+  const g = cv2.getContext('2d', {willReadFrequently: true});
+  const bl = await blocksFor(art);
+  const seed = hash(p.name_en || p.name_ar);
+  if (bl.length) {
+    g.save(); g.translate(R, R); g.rotate(seed * 6.283); g.drawImage(bl[Math.floor(seed * bl.length)], -R * 1.2, -R * 1.2, R * 2.4, R * 2.4); g.restore();
+  }
+  // main buildings in the heart of capitals and big cities
+  const set = p.kind === 'capital' ? [['factory', 3], ['airport', 2], ['training_camp', 2], ['hospital', 1]] : p.kind === 'major' ? [['factory', 1], ['training_camp', 1]] : [];
+  for (let k = 0; k < set.length; k++) {
+    const b = await building(set[k][0], art, set[k][1]); if (!b) continue;
+    const a = seed * 6.283 + k * 1.7, rr = k === 0 ? 0 : R * 0.36, sz = R * 0.62;
+    g.drawImage(b, R + Math.cos(a) * rr - sz / 2, R + Math.sin(a) * rr - sz / 2, sz, sz);
+  }
+  // same colour ramp as the land around it
+  const id = g.getImageData(0, 0, N, N), d = id.data;
+  for (let q = 0; q < d.length; q += 4) {
+    const t = Math.min(1, Math.max(0, ((0.3 * d[q] + 0.59 * d[q + 1] + 0.11 * d[q + 2]) / 255 - 0.14) / 0.6));
+    const k = Math.max(ramp.keep, 0.25), lo = ramp.lo, hi = ramp.hi;    // cities keep a little more of their own colour
+    d[q] = d[q] * k + (lo[0] + (hi[0] - lo[0]) * t) * (1 - k);
+    d[q + 1] = d[q + 1] * k + (lo[1] + (hi[1] - lo[1]) * t) * (1 - k);
+    d[q + 2] = d[q + 2] * k + (lo[2] + (hi[2] - lo[2]) * t) * (1 - k);
+  }
+  g.putImageData(id, 0, 0);
+  // soft irregular outline: dense centre, broken suburbs
+  const m = document.createElement('canvas'); m.width = m.height = N; const mg = m.getContext('2d');
+  const grd = mg.createRadialGradient(R, R, R * 0.15, R, R, R * 0.95);
+  grd.addColorStop(0, 'rgba(0,0,0,1)'); grd.addColorStop(0.55, 'rgba(0,0,0,0.85)'); grd.addColorStop(1, 'rgba(0,0,0,0)');
+  mg.fillStyle = grd; mg.fillRect(0, 0, N, N);
+  let rs = seed * 1000;
+  const rnd = () => { rs = (rs * 9301 + 49297) % 233280; return rs / 233280; };
+  mg.globalCompositeOperation = 'destination-out';
+  for (let k = 0; k < 70; k++) {                                   // gaps in the outskirts
+    const a = rnd() * 6.283, rr = R * (0.55 + rnd() * 0.45), s2 = R * (0.06 + rnd() * 0.12);
+    mg.beginPath(); mg.arc(R + Math.cos(a) * rr, R + Math.sin(a) * rr, s2, 0, 7); mg.fill();
+  }
+  mg.globalCompositeOperation = 'source-over';
+  for (let k = 0; k < 10; k++) {                                   // and a few lobes reaching out along roads
+    const a = rnd() * 6.283, rr = R * (0.5 + rnd() * 0.3), s2 = R * (0.08 + rnd() * 0.08);
+    mg.globalAlpha = 0.7; mg.beginPath(); mg.arc(R + Math.cos(a) * rr, R + Math.sin(a) * rr, s2, 0, 7); mg.fill();
+  }
+  // a town never spills into the sea or across a border: keep only its own country's land
+  const own = await ownLand(p, ci, N);
+  if (own) { mg.globalCompositeOperation = 'destination-in'; mg.drawImage(own, 0, 0, N, N); mg.globalCompositeOperation = 'source-over'; }
+  g.globalCompositeOperation = 'destination-in'; g.filter = 'blur(2px)'; g.drawImage(m, 0, 0); g.filter = 'none';
+  // built-up ground darkens slightly around the city so it settles into the terrain
+  const out = document.createElement('canvas'); out.width = out.height = N; const og = out.getContext('2d');
+  const hal = og.createRadialGradient(R, R, R * 0.3, R, R, R);
+  hal.addColorStop(0, 'rgba(10,14,12,0.35)'); hal.addColorStop(1, 'rgba(10,14,12,0)');
+  og.fillStyle = hal; og.fillRect(0, 0, N, N); og.drawImage(cv2, 0, 0);
+  return out;
+}
+// country ids around a city, read from the sharpest id tiles (2 px per world px)
+const idTiles = new Map();
+function idTile(tx, ty) {
+  const k = `${tx}_${ty}`;
+  if (!idTiles.has(k)) idTiles.set(k, (manifest && !manifest[4]?.has(k)) ? Promise.resolve(null) : img(`${DATA}tiles/4/${k}_n.png`));
+  return idTiles.get(k);
+}
+async function ownLand(p, ci, N) {
+  const R = CR[p.kind], x0 = (p.x - R) * 2, y0 = (p.y - R) * 2, n = Math.ceil(R * 4);
+  const c = document.createElement('canvas'); c.width = c.height = n;
+  const g = c.getContext('2d', {willReadFrequently: true});
+  for (let ty = Math.floor(y0 / T); ty <= Math.floor((y0 + n) / T); ty++)
+    for (let tx = Math.floor(x0 / T); tx <= Math.floor((x0 + n) / T); tx++) {
+      const im = await idTile(tx, ty); if (im) g.drawImage(im, tx * T - x0, ty * T - y0);
+    }
+  const id = g.getImageData(0, 0, n, n), d = id.data;
+  for (let q = 0; q < d.length; q += 4) { const v = d[q] + d[q + 1] * 256 - 1; d[q + 3] = v === ci ? 255 : 0; }
+  g.putImageData(id, 0, 0);
+  return c;
+}
+function cityPic(p, ci) {
+  const k = `${gen}/${p.name_en}/${ci}`;
+  let e = cityPics.get(k);
+  if (!e) { e = {pic: null}; cityPics.set(k, e); bakeCity(p, ci).then(pic => { e.pic = pic; draw(); }); }
+  return e.pic;
+}
+function drawCities(s, sw, sh) {
+  const show = smooth(0.9, 1.7, view.z);
+  if (show <= 0) return;
+  ctx.globalAlpha = show;
+  for (let ci = 0; ci < countries.length; ci++) for (const p of countries[ci].cities || []) {
+    const R = CR[p.kind] * s, sx = (p.x - view.x) * s + sw / 2, sy = (p.y - view.y) * s + sh / 2;
+    if (sx < -R || sy < -R || sx > sw + R || sy > sh + R) continue;
+    const pic = cityPic(p, ci); if (pic) ctx.drawImage(pic, sx - R, sy - R, R * 2, R * 2);
+  }
+  ctx.globalAlpha = 1;
 }
 
 // smooth vector borders, styled by relation: none with allies, dashed for passage, solid for strangers, red for enemies
@@ -190,7 +310,7 @@ let drag = null, pinch = null;
 cv.addEventListener('wheel', e => { e.preventDefault(); zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.0015)); }, {passive: false});
 function zoomAt(cx, cy, k) {
   const wx = (cx - innerWidth / 2) / view.z + view.x, wy = (cy - innerHeight / 2) / view.z + view.y;
-  view.z = Math.min(4, Math.max(0.08, view.z * k));
+  view.z = Math.min(7, Math.max(0.08, view.z * k));
   view.x = wx - (cx - innerWidth / 2) / view.z; view.y = wy - (cy - innerHeight / 2) / view.z; draw();
 }
 cv.addEventListener('pointerdown', e => drag = {x: e.clientX, y: e.clientY});
