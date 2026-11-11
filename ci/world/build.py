@@ -401,3 +401,46 @@ if sat:
                 si.crop(box).save(os.path.join(d, f'{tx // T}_{ty // T}.jpg'), quality=86)
                 ni.crop(box).save(os.path.join(d, f'{tx // T}_{ty // T}_n.png'), optimize=True)
     print('tiles written')
+
+# ---------- smooth vector borders: shared segments between two countries (no coastlines) ----------
+# Drawn live by the game as anti-aliased lines, styled by relation, crisp at every zoom.
+from skimage import measure
+segs = collections.defaultdict(list)
+pad = 2
+for ci in range(len(ids)):
+    m = nation == ci
+    if not m.any(): continue
+    ys, xs = np.where(m)
+    y0, y1, x0, x1 = max(ys.min() - pad, 0), min(ys.max() + pad + 1, H), max(xs.min() - pad, 0), min(xs.max() + pad + 1, W)
+    sub = m[y0:y1, x0:x1].astype(np.float32)
+    nsub = nation[y0:y1, x0:x1]
+    for cont in measure.find_contours(ndi.gaussian_filter(sub, 0.7), 0.5):
+        # neighbour across the line: sample just outside the contour
+        cur, owner_prev = [], None
+        for k in range(len(cont)):
+            yy, xx = cont[k]
+            # outward normal from the local tangent
+            a = cont[max(k - 1, 0)]; b = cont[min(k + 1, len(cont) - 1)]
+            ty, tx = b[0] - a[0], b[1] - a[1]; L = math.hypot(ty, tx) or 1
+            best = -1
+            for sgn in (1, -1):
+                py, px = int(round(yy + sgn * tx / L * 1.6)), int(round(xx - sgn * ty / L * 1.6))
+                if 0 <= py < nsub.shape[0] and 0 <= px < nsub.shape[1]:
+                    v = nsub[py, px]
+                    if v != ci: best = v
+            if best >= 0 and best > ci:            # each shared border once (lower id draws it)
+                if owner_prev not in (None, best) and len(cur) > 1:
+                    segs[(ci, owner_prev)].append(cur); cur = []
+                cur.append((xx + x0, yy + y0)); owner_prev = best
+            else:
+                if len(cur) > 1: segs[(ci, owner_prev)].append(cur)
+                cur, owner_prev = [], None
+        if len(cur) > 1: segs[(ci, owner_prev)].append(cur)
+borders_out = []
+for (a, b), lines in segs.items():
+    for ln in lines:
+        arr = measure.approximate_polygon(np.array(ln), tolerance=0.45)
+        if len(arr) >= 2:
+            borders_out.append({'a': int(a), 'b': int(b), 'p': [round(float(v), 1) for xy in arr for v in xy]})
+json.dump(borders_out, open(os.path.join(OUT, 'borders.json'), 'w'), separators=(',', ':'))
+print('border segments', len(borders_out), 'points', sum(len(x['p']) // 2 for x in borders_out))

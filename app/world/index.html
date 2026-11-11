@@ -57,19 +57,6 @@ async function buildTile(z, tx, ty) {
     d[q + 1] = d[q + 1] * (1 - a) + Math.min(255, cc[1] * L * 255) * a;
     d[q + 2] = d[q + 2] * (1 - a) + Math.min(255, cc[2] * L * 255) * a;
   }
-  // borders by relation: none with allies, dashed white for passage, solid white for strangers, red for enemies
-  const thick = z >= 2 ? 1 : 0;
-  for (let y = 1; y < h; y++) for (let x = 1; x < w; x++) {
-    const p = y * w + x, a = nid[p]; let b = nid[p - 1]; if (b === a) b = nid[p - w];
-    if (b === a || a < 0 || b < 0) continue;
-    const ia = countries[a]?.iso, ib = countries[b]?.iso;
-    const other = ia === ME ? b : ib === ME ? a : -1;
-    const kind = other < 0 ? 'neutral' : relOf(other);
-    if (kind === 'ally') continue;
-    if (kind === 'passage' && ((tx * T + x + ty * T + y) >> 2) % 2) continue;
-    const col = kind === 'enemy' ? [230, 40, 40] : [245, 247, 244];
-    for (const o of thick ? [p, p - 1, p - w] : [p]) { const q = o * 4; d[q] = col[0]; d[q + 1] = col[1]; d[q + 2] = col[2]; }
-  }
   g.putImageData(id, 0, 0);
   return c;
 }
@@ -106,19 +93,24 @@ function draw() {
       if (sc === 1) ctx.drawImage(c, px, py, c.width * f * s, c.height * f * s);
       else ctx.drawImage(c, ox, oy, T / 2, T / 2, px, py, T * f * s, T * f * s);
     }
+  drawBorders(s, sw, sh);
   // cities: most important first; a label that would overlap one already placed is skipped (no clutter, ever)
   ctx.textAlign = 'center';
   const placed = [];
   for (const p of cityOrder) {
+    // when names appear: big playable capitals first, small and computer-run countries only closer in
     const big = p.area >= 300000;
-    const show = p.kind === 'capital' ? smooth(big ? 0.1 : 0.22, big ? 0.16 : 0.32, view.z) : p.kind === 'major' ? smooth(0.4, 0.6, view.z) : smooth(0.9, 1.2, view.z);
+    const capAt = p.cls === 'neutral' ? 1.2 : p.cls === 'ai' ? 0.7 : big ? 0.12 : 0.3;
+    const show = p.kind === 'capital' ? smooth(capAt, capAt * 1.5, view.z) : p.kind === 'major' ? smooth(0.55, 0.8, view.z) : smooth(1.1, 1.5, view.z);
     if (!show) continue;
     const sx = (p.x - view.x) * s + sw / 2, sy = (p.y - view.y) * s + sh / 2;
     if (sx < -100 || sy < -50 || sx > sw + 100 || sy > sh + 50) continue;
     const fs0 = (p.kind === 'capital' ? 14 : 12) * dpr;
     ctx.font = `700 ${fs0}px system-ui`;
     const tw = ctx.measureText(p.name_ar).width, box = [sx - tw / 2 - 4 * dpr, sy - fs0 - 10 * dpr, sx + tw / 2 + 4 * dpr, sy + 5 * dpr];
-    if (placed.some(b => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1])) continue;
+    // a phone screen is small: keep generous breathing room around every name
+    const pad = 14 * dpr;
+    if (placed.some(b => box[0] - pad < b[2] && box[2] + pad > b[0] && box[1] - pad < b[3] && box[3] + pad > b[1])) continue;
     placed.push(box);
     ctx.globalAlpha = show;
     const r = (p.kind === 'capital' ? 4 : 3) * dpr;
@@ -130,6 +122,32 @@ function draw() {
   }
   ctx.globalAlpha = 1;
   document.getElementById('hud').textContent = `zoom ${view.z.toFixed(2)} · tiles z${z}`;
+}
+
+// smooth vector borders, styled by relation: none with allies, dashed for passage, solid for strangers, red for enemies
+let borders = [];
+function borderKind(a, b) {
+  const ia = countries[a]?.iso, ib = countries[b]?.iso;
+  if (ia !== ME && ib !== ME) return 'foreign';
+  return relOf(ia === ME ? b : a);
+}
+function drawBorders(s, sw, sh) {
+  const dpr = devicePixelRatio;
+  const x0 = view.x - sw / 2 / s, x1 = view.x + sw / 2 / s, y0 = view.y - sh / 2 / s, y1 = view.y + sh / 2 / s;
+  const groups = {foreign: [], neutral: [], passage: [], enemy: []};
+  for (const b of borders) {
+    if (b.bb[2] < x0 || b.bb[0] > x1 || b.bb[3] < y0 || b.bb[1] > y1) continue;
+    const k = borderKind(b.a, b.b); if (k === 'ally' || k === 'me') continue;
+    (groups[k] || groups.neutral).push(b);
+  }
+  const path = list => { ctx.beginPath(); for (const b of list) { const p = b.p; ctx.moveTo((p[0] - view.x) * s + sw / 2, (p[1] - view.y) * s + sh / 2); for (let i = 2; i < p.length; i += 2) ctx.lineTo((p[i] - view.x) * s + sw / 2, (p[i + 1] - view.y) * s + sh / 2); } };
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  const thin = Math.min(1, 0.6 + view.z * 0.5);
+  path(groups.foreign); ctx.strokeStyle = 'rgba(235,240,245,0.45)'; ctx.lineWidth = 1 * dpr * thin; ctx.stroke();
+  path(groups.neutral); ctx.strokeStyle = 'rgba(245,247,250,0.9)'; ctx.lineWidth = 1.5 * dpr * thin; ctx.stroke();
+  path(groups.passage); ctx.setLineDash([5 * dpr, 4 * dpr]); ctx.strokeStyle = 'rgba(245,247,250,0.9)'; ctx.lineWidth = 1.5 * dpr * thin; ctx.stroke(); ctx.setLineDash([]);
+  path(groups.enemy); ctx.strokeStyle = 'rgba(255,40,40,0.25)'; ctx.lineWidth = 6 * dpr * thin; ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,60,55,0.95)'; ctx.lineWidth = 1.8 * dpr * thin; ctx.stroke();
 }
 
 function resize() { cv.width = innerWidth * devicePixelRatio; cv.height = innerHeight * devicePixelRatio; draw(); }
@@ -149,11 +167,16 @@ window.mapView = (x, y, z) => { view = {x, y, z}; draw(); };
 window.setRelations = (me, rel) => { ME = me; REL = rel; gen++; cache.clear(); draw(); };
 window.tilesPending = () => [...cache.values()].filter(e => !e.canvas && !e.failed).length;
 
+fetch(DATA + 'borders.json').then(r => r.ok ? r.json() : []).then(bs => {
+  borders = bs.map(b => { let a = 1e9, c = 1e9, d = -1e9, e = -1e9; for (let i = 0; i < b.p.length; i += 2) { a = Math.min(a, b.p[i]); d = Math.max(d, b.p[i]); c = Math.min(c, b.p[i + 1]); e = Math.max(e, b.p[i + 1]); } return {...b, bb: [a, c, d, e]}; });
+  draw();
+}, () => 0);
 fetch(DATA + 'world.json').then(r => r.json()).then(j => {
   world = j; [W, H] = j.size; countries = j.countries; countries.forEach(c => byIso[c.iso] = c);
   const rank = {capital: 0, major: 1, minor: 2};
-  cityOrder = countries.flatMap(c => (c.cities || []).map(p => ({...p, area: c.area_km2})))
-    .sort((a, b) => rank[a.kind] - rank[b.kind] || b.area - a.area || b.pop - a.pop);
+  const crank = {playable: 0, ai: 1, neutral: 2};
+  cityOrder = countries.flatMap(c => (c.cities || []).map(p => ({...p, area: c.area_km2, cls: c.class})))
+    .sort((a, b) => rank[a.kind] - rank[b.kind] || crank[a.cls] - crank[b.cls] || b.area - a.area || b.pop - a.pop);
   const cap = (byIso[ME].cities || [])[0] || {x: W / 2, y: H / 2};
   view = {x: cap.x, y: cap.y, z: 0.5};
   addEventListener('resize', resize); resize();

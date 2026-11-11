@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Tools
-        run: pip install -q numpy scipy pillow pyproj
+        run: pip install -q numpy scipy pillow pyproj scikit-image
       - name: Download free public-domain data (Natural Earth, NASA Blue Marble)
         run: |
           mkdir -p data && cd data
