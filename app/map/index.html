@@ -71,10 +71,43 @@ function bakeWorld(cityStrength) {
     d[q + 2] = d[q + 2] * (1 - a) + Math.min(255, c[2] * L * 255) * a;
   }
   g.putImageData(id, 0, 0);
+  if (cityStrength >= 1) drawBuildings(g);
   g.drawImage(outlines, 0, 0);
   g.drawImage(borders, 0, 0);
   return w;
 }
+
+// buildings: one pre-rendered sprite per type, level and regional style, set into the city's plots.
+// The finished city is baked once, so every mix of buildings and levels is its own picture.
+const BUILD = {
+  capital: [['factory', 3], ['airport', 2], ['training_camp', 2], ['hospital', 1], ['bunker', 3], ['industry', 2]],
+  major: [['training_camp', 1], ['bunker', 2], ['industry', 1], ['factory', 1]],
+  minor: [['bunker', 1], ['industry', 1]],
+};
+const SPR = {};
+function sprite(type, L) { return SPR[`${type}_${ART}_${L}`]; }
+function drawBuildings(g) {
+  for (const c of cities) {
+    const R = 95 * SIZE[c.kind], sz = R * 0.72;
+    const [r0, g0, b0] = COL[relOf(c.nation)].c;
+    (BUILD[c.kind] || []).forEach(([type, L], k) => {
+      const img = sprite(type, L), pl = c.plots[k]; if (!img || !pl) return;
+      const t = document.createElement('canvas'); t.width = t.height = Math.ceil(sz);
+      const tg = t.getContext('2d');
+      tg.drawImage(img, 0, 0, sz, sz);
+      tg.globalCompositeOperation = 'source-atop';                 // a hint of the owner's colour so it belongs to the city
+      tg.fillStyle = `rgba(${r0 * 255},${g0 * 255},${b0 * 255},0.18)`; tg.fillRect(0, 0, sz, sz);
+      tg.globalCompositeOperation = 'destination-in';              // soft edge: the lot melts into the streets
+      const f = tg.createRadialGradient(sz / 2, sz / 2, sz * 0.32, sz / 2, sz / 2, sz * 0.5);
+      f.addColorStop(0, 'rgba(0,0,0,1)'); f.addColorStop(1, 'rgba(0,0,0,0)');
+      tg.fillStyle = f; tg.fillRect(0, 0, sz, sz);
+      c.used = (c.used || 0) | (1 << k);
+      g.drawImage(t, c.x + pl[0] * R - sz / 2, c.y + pl[1] * R - sz / 2);
+    });
+  }
+}
+const ART = 'gulf';
+const SPRITE_NAMES = [...new Set(Object.values(BUILD).flat().map(([t, L]) => `${t}_${ART}_${L}`))];
 
 function bakeBorders() {
   // nation borders by relation to me: ally none, passage dashed white, neutral solid white, enemy red with a glow
@@ -118,7 +151,8 @@ function draw() {
   const plotsOn = smooth(1.1, 1.5, view.z);
   if (plotsOn > 0) {
     ctx.globalAlpha = plotsOn;
-    for (const c of cities) if (c.nation === ME) for (const [px, py, s] of c.plots) {   // you only build in your own cities
+    for (const c of cities) if (c.nation === ME) for (const [k, [px, py, s]] of c.plots.entries()) {   // you only build in your own cities
+      if (c.used & (1 << k)) continue;                                                   // only empty plots show a lot outline
       const R = 95 * SIZE[c.kind], x = c.x + px * R, y = c.y + py * R, w = s * R;
       ctx.fillStyle = 'rgba(235,238,230,0.16)'; ctx.fillRect(x - w, y - w * 0.7, w * 2, w * 1.4);
       ctx.strokeStyle = 'rgba(245,248,240,0.75)'; ctx.lineWidth = 1 / view.z;
@@ -163,8 +197,8 @@ cv.addEventListener('touchend', () => pinch = null);
 window.mapView = (x, y, z) => { view = {x, y, z}; draw(); };
 window.setRelations = r => { REL = r; borders = bakeBorders(); near = bakeWorld(1); far = bakeWorld(0.45); draw(); };
 
-Promise.all([load('land.jpg'), load('city_atlas.png'), load('nations.png'), load('outlines.png'), fetch('political.json').then(r => r.json())])
-.then(async ([l, a, n, o, p]) => {
+Promise.all([...SPRITE_NAMES.map(n => new Promise(r => { const i = new Image(); i.onload = () => { SPR[n] = i; r(); }; i.onerror = r; i.src = 'b/' + n + '.png'; })), load('land.jpg'), load('city_atlas.png'), load('nations.png'), load('outlines.png'), fetch('political.json').then(r => r.json())])
+.then(async (all) => { const [l, a, n, o, p] = all.slice(SPRITE_NAMES.length);
   land = l; atlas = a; outlines = o; pol = p;
   const nc = mk(), ng = nc.getContext('2d'); ng.drawImage(n, 0, 0);
   const nd = ng.getImageData(0, 0, S, S).data; nationId = new Int16Array(S * S);
@@ -182,7 +216,7 @@ Promise.all([load('land.jpg'), load('city_atlas.png'), load('nations.png'), load
     }
     mg.putImageData(mi, 0, 0);
     const n = {capital: 6, major: 4, minor: 3}[q.city], plots = [];
-    for (let k = 0; k < n; k++) { const ang = k / n * Math.PI * 2 + i; const r = k === 0 ? 0 : 0.42; plots.push([Math.cos(ang) * r, Math.sin(ang) * r, 0.13]); }
+    for (let k = 0; k < n; k++) { const ang = (k - 1) / (n - 1) * Math.PI * 2 + i * 0.7; const r = k === 0 ? 0 : 0.56; plots.push([Math.cos(ang) * r, Math.sin(ang) * r, 0.13]); }
     return {x: q.centre[0], y: q.centre[1], kind: q.city, nation: q.nation, mask: m, plots, name: NAMES[i % NAMES.length]};
   });
   borders = bakeBorders(); near = bakeWorld(1); far = bakeWorld(0.45);
