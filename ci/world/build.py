@@ -385,22 +385,122 @@ for nm, (lo, la) in {'europe': (10, 50), 'mideast': (42, 28), 'levant': (36, 32)
     pim.crop((x - 1000, y - 700, x + 1000, y + 700)).save(os.path.join(OUT, f'crop_{nm}.jpg'), quality=88)
 print('done')
 
-# ---------- tiles for the game: satellite + country ids, 512 px, 4 zoom levels ----------
+# ---------- tiles for the game ----------
+# Land is graded into one natural green terrain (like CoN): real satellite detail and relief, with every
+# region textured (forest canopy, fields, dry scrub, hills). The game recolours it per relation with
+# shadow-to-highlight ramps, so the terrain always shows through and nothing looks painted on.
+# Sea pixels carry a light/shadow code (128 = no change): the land's shadow falls on the water and
+# shallows are lighter. The game lays this over its animated waves.
 if sat:
-    T = 512
-    simg = Image.fromarray(img); nimg = Image.open(os.path.join(OUT, 'nations.png'))
+    T = 512; M = 2 * W; MH = 2 * H
+    nat4 = (raster([(i + 1, countries[a]['geoms']) for i, a in enumerate(ids)], (M, MH)) - 1).astype(np.int16)
+    if os.path.exists(lakes_f):
+        nat4[raster([(1, [f['geometry'] for f in load('ne_10m_lakes.geojson') if (f['properties'].get('scalerank') or 0) <= 3])], (M, MH)) > 0] = -1
+    lf = (nat4 >= 0).astype(np.float32)
+    shallow = np.clip(ndi.gaussian_filter(lf, 26) * 2.0, 0, 1) ** 1.4
+    dsh = 9
+    shadow = np.zeros_like(lf); shadow[dsh:, dsh:] = lf[:-dsh, :-dsh]              # sun from the north-west
+    shadow = ndi.gaussian_filter(shadow, 5)
+    S4 = np.asarray(Image.open(sat).convert('RGB')); sh4, sw4 = S4.shape[:2]
+    relief_f = os.path.join(DATA, 'world.relief.jpg')
+    HS = np.asarray(Image.open(relief_f).convert('L')) if os.path.exists(relief_f) else None
+    hs_mid = float(np.median(HS[::16, ::16])) / 255 if HS is not None else 0.5
+    print('relief', HS is not None, hs_mid)
+    PD = 1024
+    def detail(names):
+        out = []
+        for nm in names:
+            f = os.path.join('art/sat', nm + '.jpg')
+            if not os.path.exists(f): continue
+            a = np.asarray(Image.open(f).convert('RGB').resize((PD, PD), Image.LANCZOS)).astype(np.float32) / 255
+            a = a - ndi.gaussian_filter(a, (40, 40, 0))                              # fine structure only
+            a = a / (a.std() + 1e-6) * 0.055
+            a = np.concatenate([np.concatenate([a, a[:, ::-1]], 1), np.concatenate([a[::-1], a[::-1, ::-1]], 1)], 0)   # mirror tile: no seams
+            out.append(a)
+        return out
+    D = {'forest': detail(['forest', 'forest2']), 'farm': detail(['farmland', 'farmland2', 'grass']), 'arid': detail(['scrub']), 'rock': detail(['hills'])}
+    def dsample(lst, yy, xx, k=0):
+        if not lst: return 0
+        a = lst[k % len(lst)]
+        return a[np.ix_((yy + 311 * k) % (2 * PD), (xx + 173 * k) % (2 * PD))]
+    big = ndi.zoom(ndi.gaussian_filter(np.random.default_rng(9).random((MH // 64 + 2, M // 64 + 2)), 1.5), 64, order=1)[:MH, :M]
+    big = (big - big.mean()) / big.std()
+    half = np.zeros((H, W, 3), np.uint8)
+    manifest = {str(z): [] for z in range(5)}
+    d4 = os.path.join(OUT, 'tiles', '4'); os.makedirs(d4, exist_ok=True)
+    MARG = 128
+    def write_tile(d, z, tx, ty, rgb, nid):
+        if not ((nid >= 0).any() or (np.abs(rgb.astype(np.int16) - 128).max() > 6)): return
+        Image.fromarray(rgb).save(os.path.join(d, f'{tx}_{ty}.jpg'), quality=88)
+        v = nid.astype(np.int32) + 1
+        Image.fromarray(np.dstack([v % 256, v // 256, np.zeros_like(v)]).astype(np.uint8)).save(os.path.join(d, f'{tx}_{ty}_n.png'), optimize=True)
+        manifest[str(z)].append(f'{tx}_{ty}')
+    for ty in range(0, MH, T):
+        a0, a1 = max(0, ty - MARG), min(MH, ty + T + MARG)
+        py, px = np.mgrid[a0:a1, 0:M].astype(np.float64)
+        lon, lat = from_px(px / 2 + 0.25, py / 2 + 0.25)
+        sx = np.clip(((lon + 180) / 360 * sw4).astype(np.int32), 0, sw4 - 1)
+        sy = np.clip(((90 - lat) / 180 * sh4).astype(np.int32), 0, sh4 - 1)
+        del py, px, lon, lat
+        c = S4[sy, sx].astype(np.float32) / 255
+        r, g, b = c[..., 0], c[..., 1], c[..., 2]
+        L = 0.3 * r + 0.59 * g + 0.11 * b
+        veg = np.clip((g - 0.92 * r) * 9 + 0.25, 0, 1)
+        forest = veg * np.clip((0.26 - L) * 9, 0, 1)
+        farm = veg * (1 - forest)
+        arid = (1 - veg) * np.clip((L - 0.22) * 5, 0, 1)
+        snow = np.clip((c.min(-1) - 0.72) * 6, 0, 1)
+        rock = np.clip(1 - veg - arid, 0, 1)
+        # large-scale brightness flattened (deserts and forests end up in one family), local contrast kept
+        Lb = ndi.gaussian_filter(L, 36) + 0.04
+        Ln = np.clip(0.44 * (L / Lb) ** 1.15 * (Lb / 0.3) ** 0.22, 0, 1.2)
+        if HS is not None:
+            h = HS[np.clip((sy.astype(np.float64) * HS.shape[0] / sh4).astype(np.int32), 0, HS.shape[0] - 1),
+                   np.clip((sx.astype(np.float64) * HS.shape[1] / sw4).astype(np.int32), 0, HS.shape[1] - 1)].astype(np.float32) / 255
+            Ln *= np.clip(1 + 1.25 * (h - hs_mid), 0.5, 1.4)                            # real hills and mountains
+            rough = np.clip(np.abs(h - hs_mid) * 5, 0, 1)
+        else: rough = rock
+        yy, xx = np.arange(a0, a1), np.arange(M)
+        mix = (big[a0:a1] > 0)[..., None]
+        det = (forest[..., None] * dsample(D['forest'], yy, xx, 0) * 1.5
+               + farm[..., None] * np.where(mix, dsample(D['farm'], yy, xx, 0), dsample(D['farm'], yy, xx, 1)) * 1.2
+               + arid[..., None] * dsample(D['arid'], yy, xx, 0) * 1.0
+               + rough[..., None] * dsample(D['rock'], yy, xx, 0) * 0.9) * (1 - snow[..., None])
+        t = np.clip((Ln + det.mean(-1) * 2.2 - 0.16) / 0.62, 0, 1)[..., None]
+        lo = np.array([0.105, 0.255, 0.115], np.float32); hi = np.array([0.56, 0.72, 0.36], np.float32)
+        col = lo + (hi - lo) * t
+        col += arid[..., None] * np.array([0.085, 0.03, -0.03], np.float32) * (0.4 + t)   # dry land: olive and straw
+        col += forest[..., None] * np.array([-0.03, -0.01, 0.005], np.float32)            # forest: deeper, cooler green
+        col += (det - det.mean(-1, keepdims=True)) * 1.6                                    # field colours
+        col = col * (1 - snow[..., None]) + (0.62 + 0.3 * t) * snow[..., None]
+        out = (np.clip(col, 0, 1) * 255).astype(np.uint8)
+        k0 = ty - a0; rows = min(T, MH - ty)
+        out = out[k0:k0 + rows]
+        nidr = nat4[ty:ty + rows]
+        seam = nidr < 0
+        v = 128 - 82 * shadow[ty:ty + rows] + 30 * shallow[ty:ty + rows]
+        s2 = shallow[ty:ty + rows]
+        code = np.dstack([v - 7 * s2, v + 4 * s2, v + 11 * s2])
+        out = np.where(seam[..., None], np.clip(code, 0, 255).astype(np.uint8), out)
+        for tx in range(0, M, T):
+            write_tile(d4, 4, tx // T, ty // T, out[:, tx:tx + T], nidr[:, tx:tx + T])
+        hr = np.asarray(Image.fromarray(out).resize((W, rows // 2), Image.LANCZOS))
+        half[ty // 2:ty // 2 + rows // 2] = hr
+        print('tile row', ty // T, flush=True)
+    del S4, shadow, shallow, lf
+    nat3 = nat4[::2, ::2]
     for z in range(4):
-        f = 2 ** (3 - z)
-        w, h = W // f, H // f
-        si = simg.resize((w, h), Image.LANCZOS) if f > 1 else simg
-        ni = nimg.resize((w, h), Image.NEAREST) if f > 1 else nimg
+        f = 2 ** (3 - z); w, h = W // f, H // f
+        si = Image.fromarray(half).resize((w, h), Image.LANCZOS) if f > 1 else Image.fromarray(half)
+        ni = nat3[::f, ::f][:h, :w]
+        sa = np.asarray(si)
         d = os.path.join(OUT, 'tiles', str(z)); os.makedirs(d, exist_ok=True)
         for ty in range(0, h, T):
             for tx in range(0, w, T):
-                box = (tx, ty, min(tx + T, w), min(ty + T, h))
-                si.crop(box).save(os.path.join(d, f'{tx // T}_{ty // T}.jpg'), quality=86)
-                ni.crop(box).save(os.path.join(d, f'{tx // T}_{ty // T}_n.png'), optimize=True)
-    print('tiles written')
+                write_tile(d, z, tx // T, ty // T, sa[ty:ty + T, tx:tx + T], ni[ty:ty + T, tx:tx + T])
+    json.dump(manifest, open(os.path.join(OUT, 'tiles', 'tiles.json'), 'w'), separators=(',', ':'))
+    print('tiles written', {z: len(v) for z, v in manifest.items()})
+    del nat4
 
 # ---------- smooth vector borders: shared segments between two countries (no coastlines) ----------
 # Drawn live by the game as anti-aliased lines, styled by relation, crisp at every zoom.

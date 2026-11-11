@@ -6,7 +6,7 @@ from PIL import Image
 
 OUT = sys.argv[1]
 TILE, NX, NY = 2048, 8, 4
-LAYERS = ['BlueMarble_NextGeneration', 'BlueMarble_ShadedRelief']
+LAYERS = sys.argv[2].split(',') if len(sys.argv) > 2 else ['BlueMarble_NextGeneration', 'BlueMarble_ShadedRelief']
 BASE = 'https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi'
 
 def get(layer, lat0, lon0, lat1, lon1):

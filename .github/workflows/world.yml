@@ -24,10 +24,12 @@ jobs:
           for f in ne_10m_admin_0_countries_pse ne_10m_admin_0_countries ne_10m_admin_1_states_provinces ne_10m_populated_places ne_10m_lakes ne_10m_rivers_lake_centerlines; do
             curl -sSfL -o $f.geojson $NE/$f.geojson && echo "got $f" || echo "missing $f"
           done
-          cd .. && python3 ci/world/fetch_sat.py data/world.sat.jpg || echo "satellite download failed"; cd data
+          cd .. && python3 ci/world/fetch_sat.py data/world.sat.jpg || echo "satellite download failed"
+          python3 ci/world/fetch_sat.py data/relief.tmp.jpg ASTER_GDEM_Greyscale_Shaded_Relief || echo "relief download failed"
+          [ -f data/relief.tmp.jpg ] && mv data/relief.tmp.jpg data/world.relief.jpg; cd data
           ls -la
       - name: Build the map
-        run: W=8192 python3 ci/world/build.py data art/world
+        run: rm -rf art/world/tiles && W=8192 python3 ci/world/build.py data art/world
       - name: Save
         run: |
           ls -la art/world

@@ -23,18 +23,21 @@ const DATA = new URLSearchParams(location.search).get('data') || '../../art/worl
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const T = 512;
 let W, H, world, countries = [], byIso = {}, cityOrder = [];
-const COL = {
-  me:      {c: [0.28, 0.54, 0.20], a: 0.64},
-  ally:    {c: [0.40, 0.66, 0.38], a: 0.62},
-  passage: {c: [0.11, 0.28, 0.13], a: 0.80},
-  neutral: {c: [0.13, 0.21, 0.21], a: 0.86},   // strangers: CoN's deep blue-green slate (sampled from CoN)
-  enemy:   {c: [0.34, 0.035, 0.05], a: 0.84},
+// Relation colours as shadow -> highlight ramps measured from CoN screenshots. The terrain's own light and
+// dark runs through the ramp, so forests, fields and hills stay visible in every colour.
+// keep = how much of the natural terrain colour stays (own land is shown nearly as it is).
+const RAMP = {
+  me:      {lo: [26, 66, 30],   hi: [146, 190, 96],  keep: 0.75},
+  ally:    {lo: [84, 104, 62],  hi: [188, 204, 146], keep: 0.15},   // pale olive, like Algeria in CoN
+  passage: {lo: [12, 44, 22],   hi: [70, 118, 62],   keep: 0.10},
+  neutral: {lo: [8, 24, 20],    hi: [64, 84, 76],    keep: 0.0},    // deep blue-green slate
+  enemy:   {lo: [30, 4, 4],     hi: [142, 40, 34],   keep: 0.0},    // blood red, terrain showing through
 };
 let ME = 'JOR';
 let REL = {SAU: 'ally', EGY: 'ally', IRQ: 'passage', IRN: 'enemy'};   // everyone else: neutral (dark slate)
 const relOf = i => { const iso = countries[i]?.iso; return iso === ME ? 'me' : (REL[iso] || 'neutral'); };
 let view = {x: 0, y: 0, z: 1};
-let wavePat = null;
+let wavePat = null, manifest = null, ZMAX = 3;
 load('waves.jpg').then(img => { wavePat = ctx.createPattern(img, 'repeat'); draw(); });
 // gentle wave motion: a light redraw loop (about 12 frames a second, paused when the app is hidden)
 setInterval(() => { if (!document.hidden && world && view.z > 0.15) draw(); }, 83);
@@ -46,31 +49,30 @@ function load(src) { return new Promise((r, j) => { const i = new Image(); i.onl
 async function buildTile(z, tx, ty) {
   const [sat, nat] = await Promise.all([load(`${DATA}tiles/${z}/${tx}_${ty}.jpg`), load(`${DATA}tiles/${z}/${tx}_${ty}_n.png`)]);
   const w = sat.width, h = sat.height;
-  const c = document.createElement('canvas'); c.width = w; c.height = h;
-  const g = c.getContext('2d', {willReadFrequently: true});
+  const mkc = () => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+  const landC = mkc(), g = landC.getContext('2d', {willReadFrequently: true});
   g.drawImage(nat, 0, 0); const nd = g.getImageData(0, 0, w, h).data;
   g.drawImage(sat, 0, 0); const id = g.getImageData(0, 0, w, h), d = id.data;
-  const nid = new Int16Array(w * h);
-  for (let p = 0; p < w * h; p++) nid[p] = nd[p * 4] + nd[p * 4 + 1] * 256 - 1;
+  const seaC = mkc(), sg = seaC.getContext('2d'), sid = sg.createImageData(w, h), sd = sid.data;
   const lut = {};
+  let anySea = false, anyLand = false;
   for (let p = 0, q = 0; p < w * h; p++, q += 4) {
-    const n = nid[p];
+    const n = nd[q] + nd[q + 1] * 256 - 1;
     if (n < 0) {
-      // sea: let the animated waves show through; coastal shallows keep a light, clear tint
-      const shallow = Math.min(1, Math.max(0, (d[q + 1] - 88) / 52));
-      d[q + 3] = Math.round(shallow * 150);
+      // sea: this pixel is a light/shadow code laid over the waves (land shadow on the water, lighter shallows)
+      sd[q] = d[q]; sd[q + 1] = d[q + 1]; sd[q + 2] = d[q + 2]; sd[q + 3] = 255; d[q + 3] = 0; anySea = true;
       continue;
     }
-    const s = lut[n] || (lut[n] = COL[relOf(n)]);
-    // brightness kept but squeezed, so bright deserts and dark forests take the same colour family
-    const L = Math.min(1.35, Math.max(0.6, 0.45 + 0.55 * (0.3 * d[q] + 0.59 * d[q + 1] + 0.11 * d[q + 2]) / 255 / 0.36));
-    const a = s.a, cc = s.c;
-    d[q] = d[q] * (1 - a) + Math.min(255, cc[0] * L * 255) * a;
-    d[q + 1] = d[q + 1] * (1 - a) + Math.min(255, cc[1] * L * 255) * a;
-    d[q + 2] = d[q + 2] * (1 - a) + Math.min(255, cc[2] * L * 255) * a;
+    anyLand = true;
+    const r = lut[n] || (lut[n] = RAMP[relOf(n)]);
+    const t = Math.min(1, Math.max(0, ((0.3 * d[q] + 0.59 * d[q + 1] + 0.11 * d[q + 2]) / 255 - 0.2) / 0.5));
+    const k = r.keep, lo = r.lo, hi = r.hi;
+    d[q]     = d[q]     * k + (lo[0] + (hi[0] - lo[0]) * t) * (1 - k);
+    d[q + 1] = d[q + 1] * k + (lo[1] + (hi[1] - lo[1]) * t) * (1 - k);
+    d[q + 2] = d[q + 2] * k + (lo[2] + (hi[2] - lo[2]) * t) * (1 - k);
   }
-  g.putImageData(id, 0, 0);
-  return c;
+  g.putImageData(id, 0, 0); sg.putImageData(sid, 0, 0);
+  return {land: anyLand ? landC : null, sea: anySea ? seaC : null};
 }
 
 function tileFor(z, tx, ty) {
@@ -78,6 +80,7 @@ function tileFor(z, tx, ty) {
   let e = cache.get(k);
   if (!e) {
     e = {canvas: null}; cache.set(k, e);
+    if (manifest && !manifest[z]?.has(`${tx}_${ty}`)) { e.canvas = {land: null, sea: null}; return e.canvas; }   // open sea: waves only
     buildTile(z, tx, ty).then(c => { e.canvas = c; draw(); }, () => { e.failed = true; });
     if (cache.size > 220) { const old = cache.keys().next().value; cache.delete(old); }
   }
@@ -91,31 +94,38 @@ function draw() {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   // the sea: CoN-like blue with real wave ripples, anchored to the map and drifting slowly
   if (wavePat) {
-    const ws = 0.48 * devicePixelRatio;                    // ripples keep a natural on-screen size at every zoom
-    const t = performance.now() / 1000;
-    wavePat.setTransform(new DOMMatrix([ws, 0, 0, ws, -view.x * s % (512 * ws) + t * 6, -view.y * s % (512 * ws) + t * 3]));   // pans with the map, drifts slowly
+    const ws = Math.max(0.3 * devicePixelRatio, Math.min(1.1 * devicePixelRatio, s * 0.42));   // waves grow as you zoom in, within natural limits
+    const t = performance.now() / 1000, P = 512 * ws;
+    const mod = (v) => ((v % P) + P) % P;
+    wavePat.setTransform(new DOMMatrix([ws, 0, 0, ws, mod(-view.x * s + sw / 2 + t * 5 * ws), mod(-view.y * s + sh / 2 + t * 1.6 * ws)]));
     ctx.fillStyle = wavePat;
-  } else ctx.fillStyle = '#2a4d67';
+  } else ctx.fillStyle = '#2e4f66';
   ctx.fillRect(0, 0, sw, sh);
   // far away the ripples would shimmer: fade them to the calm sea colour
   const calm = 1 - smooth(0.15, 0.45, view.z);
-  if (calm > 0) { ctx.globalAlpha = calm; ctx.fillStyle = '#2a4d67'; ctx.fillRect(0, 0, sw, sh); ctx.globalAlpha = 1; }
+  if (calm > 0) { ctx.globalAlpha = calm; ctx.fillStyle = '#2e4f66'; ctx.fillRect(0, 0, sw, sh); ctx.globalAlpha = 1; }
   // zoom level: full resolution (3) when close, coarser tiles when far
-  const z = Math.max(0, Math.min(3, Math.round(3 + Math.log2(view.z))));
-  const f = 2 ** (3 - z);                     // world px per tile px
+  const z = Math.max(0, Math.min(ZMAX, Math.round(3 + Math.log2(view.z) + 0.25)));
+  const f = 2 ** (3 - z);                     // world px per tile px (0.5 at the sharpest level)
   const x0 = view.x - sw / 2 / s, y0 = view.y - sh / 2 / s, x1 = view.x + sw / 2 / s, y1 = view.y + sh / 2 / s;
   ctx.imageSmoothingQuality = 'high';
+  const vis = [];
   for (let ty = Math.max(0, Math.floor(y0 / (T * f))); ty * T * f < Math.min(H, y1); ty++)
     for (let tx = Math.max(0, Math.floor(x0 / (T * f))); tx * T * f < Math.min(W, x1); tx++) {
-      let c = tileFor(z, tx, ty), zz = z, ox = 0, oy = 0, sc = 1;
+      let c = tileFor(z, tx, ty), ox = 0, oy = 0, sc = 1;
       // while a sharp tile loads, show the coarser parent so the map never has holes
-      if (!c && z > 0) { const p = cache.get(`${gen}/${z - 1}/${tx >> 1}/${ty >> 1}`); if (p?.canvas) { c = p.canvas; zz = z - 1; ox = (tx & 1) * T / 2; oy = (ty & 1) * T / 2; sc = 2; } }
+      if (!c && z > 0) { const p = cache.get(`${gen}/${z - 1}/${tx >> 1}/${ty >> 1}`); if (p?.canvas) { c = p.canvas; ox = (tx & 1) * T / 2; oy = (ty & 1) * T / 2; sc = 2; } }
       if (!c) continue;
-      const wx = tx * T * f, wy = ty * T * f;
-      const px = (wx - view.x) * s + sw / 2, py = (wy - view.y) * s + sh / 2;
-      if (sc === 1) ctx.drawImage(c, px, py, c.width * f * s, c.height * f * s);
-      else ctx.drawImage(c, ox, oy, T / 2, T / 2, px, py, T * f * s, T * f * s);
+      vis.push([c, (tx * T * f - view.x) * s + sw / 2, (ty * T * f - view.y) * s + sh / 2, ox, oy, sc]);
     }
+  const put = (img, px, py, ox, oy, sc) => {
+    if (sc === 1) ctx.drawImage(img, px, py, img.width * f * s, img.height * f * s);
+    else ctx.drawImage(img, ox, oy, T / 2, T / 2, px, py, T * f * s, T * f * s);
+  };
+  ctx.globalCompositeOperation = 'hard-light';                      // light and shadow on the water
+  for (const [c, px, py, ox, oy, sc] of vis) if (c.sea) put(c.sea, px, py, ox, oy, sc);
+  ctx.globalCompositeOperation = 'source-over';
+  for (const [c, px, py, ox, oy, sc] of vis) if (c.land) put(c.land, px, py, ox, oy, sc);
   drawBorders(s, sw, sh);
   // cities: most important first; a label that would overlap one already placed is skipped (no clutter, ever)
   ctx.textAlign = 'center';
@@ -189,12 +199,14 @@ cv.addEventListener('touchend', () => pinch = null);
 window.mapView = (x, y, z) => { view = {x, y, z}; draw(); };
 window.setRelations = (me, rel) => { ME = me; REL = rel; gen++; cache.clear(); draw(); };
 window.tilesPending = () => [...cache.values()].filter(e => !e.canvas && !e.failed).length;
+window.world_ = () => world;
 
 fetch(DATA + 'borders.json').then(r => r.ok ? r.json() : []).then(bs => {
   borders = bs.map(b => { let a = 1e9, c = 1e9, d = -1e9, e = -1e9; for (let i = 0; i < b.p.length; i += 2) { a = Math.min(a, b.p[i]); d = Math.max(d, b.p[i]); c = Math.min(c, b.p[i + 1]); e = Math.max(e, b.p[i + 1]); } return {...b, bb: [a, c, d, e]}; });
   draw();
 }, () => 0);
-fetch(DATA + 'world.json').then(r => r.json()).then(j => {
+fetch(DATA + 'world.json').then(r => r.json()).then(async j => {
+  try { const m = await (await fetch(DATA + 'tiles/tiles.json')).json(); manifest = {}; for (const k in m) manifest[k] = new Set(m[k]); ZMAX = Math.max(...Object.keys(m).map(Number)); } catch (e) {}
   world = j; [W, H] = j.size; countries = j.countries; countries.forEach(c => byIso[c.iso] = c);
   const rank = {capital: 0, major: 1, minor: 2};
   const crank = {playable: 0, ai: 1, neutral: 2};
