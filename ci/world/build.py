@@ -219,10 +219,6 @@ a1 = raster([(i + 1, [f['geometry']]) for i, (a3, f) in enumerate(a1_list)], (W,
 a1[~land] = -1
 province = np.full((H, W), -1, np.int32)
 prov_meta = []
-def target_prov(c):
-    n = len(c['cities'])
-    if c['class'] == 'neutral': return 1
-    return int(max(n + 1, round(n * 1.6)))
 for ci, a3 in enumerate(ids):
     c = countries[a3]
     m = nation == ci
@@ -248,25 +244,32 @@ for ci, a3 in enumerate(ids):
     for k, p in enumerate(cities):
         r = reg[int(np.clip(p['y'] - y0, 0, y1 - y0 - 1)), int(np.clip(p['x'] - x0, 0, x1 - x0 - 1))]
         city_reg.setdefault(int(r), []).append(k)
-    # merge smallest regions into the smallest neighbour until the target count (never two city regions together)
-    tgt = target_prov(c)
+    # provinces like CoN: start from the real states/provinces (keeps their names and where people live),
+    # merge the tiny ones, split the huge ones into a few clean pieces (straight edges, like CoN's provinces)
+    kpx = (c.get('area_km2') or 1) / max(1, int(sub_m.sum()))              # km2 per pixel for this country
+    carea = c.get('area_km2') or 0
+    tiny = max(4000.0, carea / 70) / kpx
+    big = min(700000.0, max(40000.0, carea / 14)) / kpx
+    tgt_max = max(len(c['cities']) + 1, min(int(round(carea / 15000)), 90))
+    if c['class'] == 'neutral': tiny, big, tgt_max = 1e18, 1e18, 1
     areas = collections.Counter(reg[reg >= 0].ravel().tolist())
     a1_px = dict(areas)
     members = {r: [labs[r]] for r in areas if r < len(labs) and labs[r] >= 0}   # which real states/provinces each region holds
     named_by_city = {}
+    suffix = {}
     def neighbours(r):
         mm = reg == r
         ring = ndi.binary_dilation(mm, iterations=2) & ~mm & (reg >= 0)
         return collections.Counter(reg[ring].tolist())
     guard = 0
-    while len(areas) > tgt and guard < 2000:
+    while len(areas) > 1 and guard < 3000:
         guard += 1
         r = min(areas, key=lambda k: areas[k] + (10 ** 12 if k in city_reg else 0))
+        if not (areas[r] < tiny or len(areas) > tgt_max): break
         nb = neighbours(r)
         opts = [n for n in nb if not (n in city_reg and r in city_reg)]
         if not opts:
             if r in city_reg: break
-            # island with no neighbour: join the nearest region
             others = [k for k in areas if k != r]
             if not others: break
             opts = [others[0]]
@@ -274,6 +277,36 @@ for ci, a3 in enumerate(ids):
         reg[reg == r] = n; areas[n] += areas.pop(r)
         members.setdefault(n, []).extend(members.pop(r, []))
         if r in city_reg: city_reg[n] = city_reg.pop(r)
+    # split huge regions into k compact pieces (k-means on the pixels: straight borders between the pieces)
+    DIRS = [('North', 'الشمالية'), ('South', 'الجنوبية'), ('East', 'الشرقية'), ('West', 'الغربية'), ('Central', 'الوسطى')]
+    for r in list(areas):
+        if areas[r] <= big * 1.25: continue
+        k = int(min(8, np.ceil(areas[r] / big)))
+        rr = np.argwhere(reg == r).astype(np.float64)
+        rng_ = np.random.default_rng(int(r) + 7)
+        cen = rr[rng_.choice(len(rr), k, replace=False)]
+        for _ in range(12):
+            own_ = np.argmin(((rr[::7, None, :] - cen[None]) ** 2).sum(-1), 1)
+            for j in range(k):
+                sel = rr[::7][own_ == j]
+                if len(sel): cen[j] = sel.mean(0)
+        own_ = np.argmin(((rr[:, None, :] - cen[None]) ** 2).sum(-1), 1)
+        mid = rr.mean(0)
+        nxt = reg.max() + 1
+        for j in range(k):
+            sel = rr[own_ == j].astype(np.int64)
+            dy, dx = cen[j] - mid
+            d = 4 if np.hypot(dy, dx) < np.sqrt(len(rr)) * 0.15 else (0 if -dy > abs(dx) else 1 if dy > abs(dx) else 2 if dx > 0 else 3)
+            if j == 0: suffix[int(r)] = d; continue
+            reg[sel[:, 0], sel[:, 1]] = nxt
+            members[nxt] = list(members.get(r, [])); suffix[nxt] = d
+            # a city inside this piece moves with it
+            for kk in list(city_reg.get(r, [])):
+                q = cities[kk]
+                if reg[int(np.clip(q['y'] - y0, 0, y1 - y0 - 1)), int(np.clip(q['x'] - x0, 0, x1 - x0 - 1))] == nxt:
+                    city_reg[r].remove(kk); city_reg.setdefault(nxt, []).append(kk)
+            nxt += 1
+        if r in city_reg and not city_reg[r]: city_reg.pop(r)
     # split regions holding 2+ cities between those cities (nearest city wins)
     for r, ks in list(city_reg.items()):
         if len(ks) < 2: continue
@@ -304,6 +337,8 @@ for ci, a3 in enumerate(ids):
             if mem:
                 best = a1_list[min(mem, key=fame)][1]['properties']
                 pname_en = best.get('name_en') or best.get('name'); pname_ar = best.get('name_ar') or pname_en
+                if int(r) in suffix and not ks:
+                    de, da = DIRS[suffix[int(r)]]; pname_en = f'{de} {pname_en}'; pname_ar = f'{pname_ar} {da}'
             else:
                 pname_en, pname_ar = c['name_en'], c['name_ar']
         prov_meta.append({'id': pid, 'country': a3, 'name_en': pname_en, 'name_ar': pname_ar, 'centre': [round(float(cx + x0), 1), round(float(cy + y0), 1)],
@@ -547,7 +582,7 @@ if sat:
 # ---------- smooth vector borders: shared segments between two countries (no coastlines) ----------
 # Drawn live by the game as anti-aliased lines, styled by relation, crisp at every zoom.
 from skimage import measure
-def shared_borders(label, n_labels, same_group=None):
+def shared_borders(label, n_labels, same_group=None, tol=0.45):
     """Smooth contour segments shared by two labels (never coastlines). same_group(a, b) filters pairs."""
     segs = collections.defaultdict(list)
     pad = 2
@@ -583,7 +618,7 @@ def shared_borders(label, n_labels, same_group=None):
     out = []
     for (a, b), lines in segs.items():
         for ln in lines:
-            arr = measure.approximate_polygon(np.array(ln), tolerance=0.45)
+            arr = measure.approximate_polygon(np.array(ln), tolerance=tol)
             if len(arr) >= 2: out.append({'a': int(a), 'b': int(b), 'p': [round(float(v), 1) for xy in arr for v in xy]})
     return out
 # thin gaps between neighbouring countries (polygon rasterising) would hide their shared border: fill them first
@@ -596,6 +631,6 @@ borders_out = shared_borders(nation_f, len(ids))
 json.dump(borders_out, open(os.path.join(OUT, 'borders.json'), 'w'), separators=(',', ':'))
 print('border segments', len(borders_out))
 pcountry = [p['country'] for p in prov_meta]
-pb = shared_borders(province, len(prov_meta), lambda a, b: pcountry[a] == pcountry[b])
+pb = shared_borders(province, len(prov_meta), lambda a, b: pcountry[a] == pcountry[b], tol=2.2)   # clean straight segments, like CoN's provinces
 json.dump([[round(v) if False else v for v in x['p']] for x in pb], open(os.path.join(OUT, 'province_lines.json'), 'w'), separators=(',', ':'))
 print('province lines', len(pb))
