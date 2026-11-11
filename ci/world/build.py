@@ -450,7 +450,7 @@ if sat:
     half = np.zeros((H, W, 3), np.uint8)
     manifest = {str(z): [] for z in range(5)}
     d4 = os.path.join(OUT, 'tiles', '4'); os.makedirs(d4, exist_ok=True)
-    MARG = 128
+    MARG = 200                     # wider than the 4-sigma reach of the brightness blur: no lines between strips
     def write_tile(d, z, tx, ty, rgb, nid):
         if not ((nid >= 0).any() or (np.abs(rgb.astype(np.int16) - 128).max() > 6)): return
         Image.fromarray(rgb).save(os.path.join(d, f'{tx}_{ty}.jpg'), quality=88)
