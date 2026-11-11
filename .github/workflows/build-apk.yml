@@ -1,9 +1,7 @@
 name: Build APK
 
 on:
-  push:
-    branches: [main]
-    paths: ['app/**', 'core/**', 'android/**', 'test/**', '.github/workflows/build-apk.yml']
+  # manual for now: the app is being rebuilt around the real world map; runs when a build is wanted
   workflow_dispatch:
 
 permissions:
