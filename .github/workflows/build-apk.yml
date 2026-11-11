@@ -3,7 +3,7 @@ name: Build APK
 on:
   push:
     branches: [main]
-    paths-ignore: ['ci/art/**', 'art/**', '.github/workflows/art.yml', 'README.md']
+    paths: ['app/**', 'core/**', 'android/**', 'test/**', '.github/workflows/build-apk.yml']
   workflow_dispatch:
 
 permissions:
@@ -37,6 +37,13 @@ jobs:
           for w in SemiBold Bold; do curl -fsSL "$base/rajdhani/Rajdhani-$w.ttf" -o "app/fonts/Rajdhani-$w.ttf" || echo "font Rajdhani-$w missing"; done
           for w in Medium Bold; do curl -fsSL "$base/tajawal/Tajawal-$w.ttf" -o "app/fonts/Tajawal-$w.ttf" || echo "font Tajawal-$w missing"; done
           ls -la app/fonts
+
+      - name: Signing key (from a secret if set, otherwise a throwaway test key)
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then echo "$KEYSTORE_B64" | base64 -d > android/vigil.keystore
+          else keytool -genkeypair -keystore android/vigil.keystore -storepass android -keypass android -alias vigil -keyalg RSA -keysize 2048 -validity 3650 -dname "CN=Vigil Test" -noprompt; fi
 
       - name: Copy the game into the Android app
         run: |

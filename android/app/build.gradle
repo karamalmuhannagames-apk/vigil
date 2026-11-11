@@ -11,12 +11,12 @@ android {
         versionName "0.1.${vCode}"
     }
     signingConfigs {
-        // One fixed key for every build, so each update installs over the last one.
+        // The key never lives in the repository: CI writes it from a secret, or makes a throwaway one.
         fixed {
-            storeFile file('../vigil.keystore')
-            storePassword 'vigil-dev'
-            keyAlias 'vigil'
-            keyPassword 'vigil-dev'
+            storeFile file(System.getenv('KEYSTORE_FILE') ?: '../vigil.keystore')
+            storePassword System.getenv('KEYSTORE_PASS') ?: 'android'
+            keyAlias System.getenv('KEY_ALIAS') ?: 'vigil'
+            keyPassword System.getenv('KEYSTORE_PASS') ?: 'android'
         }
     }
     buildTypes {

@@ -5,3 +5,6 @@ android/.gradle/
 android/build/
 android/app/src/main/assets/
 .DS_Store
+android/vigil.keystore
+*.jks
+*.keystore
