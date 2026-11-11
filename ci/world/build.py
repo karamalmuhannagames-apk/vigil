@@ -224,6 +224,9 @@ for ci, a3 in enumerate(ids):
     # merge smallest regions into the smallest neighbour until the target count (never two city regions together)
     tgt = target_prov(c)
     areas = collections.Counter(reg[reg >= 0].ravel().tolist())
+    a1_px = dict(areas)
+    members = {r: [labs[r]] for r in areas if r < len(labs) and labs[r] >= 0}   # which real states/provinces each region holds
+    named_by_city = {}
     def neighbours(r):
         mm = reg == r
         ring = ndi.binary_dilation(mm, iterations=2) & ~mm & (reg >= 0)
@@ -242,6 +245,7 @@ for ci, a3 in enumerate(ids):
             opts = [others[0]]
         n = min(opts, key=lambda k: areas[k])
         reg[reg == r] = n; areas[n] += areas.pop(r)
+        members.setdefault(n, []).extend(members.pop(r, []))
         if r in city_reg: city_reg[n] = city_reg.pop(r)
     # split regions holding 2+ cities between those cities (nearest city wins)
     for r, ks in list(city_reg.items()):
@@ -251,7 +255,7 @@ for ci, a3 in enumerate(ids):
         owner = np.argmin(((rr[:, None, :] - pts[None]) ** 2).sum(-1), 1)
         nxt = reg.max() + 1
         for j, k in enumerate(ks[1:], 1):
-            sel = rr[owner == j]; reg[sel[:, 0], sel[:, 1]] = nxt; city_reg[nxt] = [k]; nxt += 1
+            sel = rr[owner == j]; reg[sel[:, 0], sel[:, 1]] = nxt; city_reg[nxt] = [k]; named_by_city[nxt] = k; nxt += 1
         city_reg[r] = [ks[0]]
     plist = []
     for r in np.unique(reg[reg >= 0]):
@@ -261,7 +265,21 @@ for ci, a3 in enumerate(ids):
         cy, cx = ndi.center_of_mass(pm)
         ks = city_reg.get(int(r), [])
         if ks: cx, cy = cities[ks[0]]['x'] - x0, cities[ks[0]]['y'] - y0
-        prov_meta.append({'id': pid, 'country': a3, 'centre': [round(float(cx + x0), 1), round(float(cy + y0), 1)],
+        # real name: the better-known state/province it holds (Natural Earth label rank, then size);
+        # a piece split off for a second city takes that city's name
+        if int(r) in named_by_city:
+            q = cities[named_by_city[int(r)]]; pname_en, pname_ar = q['name_en'], q['name_ar']
+        else:
+            mem = members.get(int(r), [])
+            def fame(i):
+                pr = a1_list[i][1]['properties']
+                return (pr.get('labelrank') or 9, -(a1_px.get(labs.index(i), 0) if i in labs else 0))
+            if mem:
+                best = a1_list[min(mem, key=fame)][1]['properties']
+                pname_en = best.get('name_en') or best.get('name'); pname_ar = best.get('name_ar') or pname_en
+            else:
+                pname_en, pname_ar = c['name_en'], c['name_ar']
+        prov_meta.append({'id': pid, 'country': a3, 'name_en': pname_en, 'name_ar': pname_ar, 'centre': [round(float(cx + x0), 1), round(float(cy + y0), 1)],
                           'city': cities[ks[0]]['kind'] if ks else 'rural', 'city_name_en': cities[ks[0]]['name_en'] if ks else None,
                           'city_name_ar': cities[ks[0]]['name_ar'] if ks else None, 'px': int(pm.sum())})
         plist.append(pid)
