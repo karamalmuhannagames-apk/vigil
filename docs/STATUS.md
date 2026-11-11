@@ -18,8 +18,11 @@
 - Free fonts (SIL OFL) in `app/fonts`.
 
 ## Next steps, in order
-1. Check the latest world build: the faint straight line in the Saudi desert should be gone, canals visible;
-   compare enemy red with the CoN screenshots.
+1. Canals are in and visible (Suez checked). Two faint straight lines remain in flat desert (seen in Saudi Arabia):
+   a vertical one near 45 degrees east and a horizontal one near 31 degrees north. They are in the tile data, not the
+   renderer. Likely causes: the NASA relief mosaic joins (requests are 45 degree squares) and the 512-row strips in
+   `build.py` (check the brightness flattening `Lb` at strip edges). Fix: fetch relief with overlap or blend the
+   joins, and process strips with a wider margin. Then compare enemy red with the CoN screenshots.
 2. Put the detailed cities (app/map) onto the real world map (app/world): real city positions, regional style per country.
 3. Province outlines, glowing routes, unit and resource icons standing on the map (CoN's "game board" feel).
 4. Name plates and capital emblem from the research spec; country names curved along the country.

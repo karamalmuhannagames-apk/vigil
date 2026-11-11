@@ -119,8 +119,10 @@ function draw() {
       vis.push([c, (tx * T * f - view.x) * s + sw / 2, (ty * T * f - view.y) * s + sh / 2, ox, oy, sc]);
     }
   const put = (img, px, py, ox, oy, sc) => {
-    if (sc === 1) ctx.drawImage(img, px, py, img.width * f * s, img.height * f * s);
-    else ctx.drawImage(img, ox, oy, T / 2, T / 2, px, py, T * f * s, T * f * s);
+    // snap tiles to whole screen pixels so no hairline shows between them
+    const x0 = Math.round(px), y0 = Math.round(py);
+    if (sc === 1) ctx.drawImage(img, x0, y0, Math.round(px + img.width * f * s) - x0, Math.round(py + img.height * f * s) - y0);
+    else ctx.drawImage(img, ox, oy, T / 2, T / 2, x0, y0, Math.round(px + T * f * s) - x0, Math.round(py + T * f * s) - y0);
   };
   ctx.globalCompositeOperation = 'hard-light';                      // light and shadow on the water
   for (const [c, px, py, ox, oy, sc] of vis) if (c.sea) put(c.sea, px, py, ox, oy, sc);
