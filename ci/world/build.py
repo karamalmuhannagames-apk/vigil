@@ -500,7 +500,7 @@ if sat:
             # only real mountain ranges show: where the ground is rough over a wide area. Plains stay calm.
             hm = ndi.gaussian_filter(h, 10)
             hstd = np.sqrt(np.maximum(ndi.gaussian_filter(h * h, 10) - hm * hm, 0))
-            mnt = np.clip((hstd - 0.04) / 0.05, 0, 1)
+            mnt = np.clip((hstd - 0.05) / 0.05, 0, 1)
             relief = np.clip(1 + 2.4 * (h - hm) * mnt + 0.25 * (hm - hs_mid) * mnt, 0.45, 1.5)
             rough = mnt * np.clip(np.abs(h - hm) * 8, 0, 1)
         else: relief = np.ones_like(L); rough = np.zeros_like(L)
@@ -508,7 +508,7 @@ if sat:
         cl = ndi.zoom(clump8[a0 // 8:a1 // 8 + 2], 8, order=1)[:a1 - a0, :M]
         dry = np.clip((ndi.gaussian_filter(arid, 24) - 0.3) * 3, 0, 1)           # inside deserts: no satellite 'forest' (dark coasts, towns, oases)
         forest = forest * (1 - dry)
-        woods = np.clip((cl - 1.25) * 2.5, 0, 1) * (1 - 0.65 * arid)
+        woods = np.clip((cl - 1.6) * 2.5, 0, 1) * (1 - 0.75 * arid)          # a few scattered woods, not a carpet
         forest = np.clip(np.maximum(forest * np.clip((forest - 0.25) * 2.2, 0, 1) * np.clip(cl * 0.35 + 0.8, 0, 1), woods), 0, 1)
         rock = np.clip(np.maximum(rough * (1 - forest), snow), 0, 1)
         lum = np.clip(0.5 * relief * broad + 0.25 * snow, 0, 1)

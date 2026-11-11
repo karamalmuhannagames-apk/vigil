@@ -200,13 +200,13 @@ function draw() {
     if (!show) continue;
     const sx = (p.x - view.x) * s + sw / 2, sy = (p.y - view.y) * s + sh / 2;
     if (sx < -100 || sy < -50 || sx > sw + 100 || sy > sh + 50) continue;
-    const fs = (p.kind === 'capital' ? 15 : 12.5) * dpr;
+    const fs = (p.kind === 'capital' ? 17 : 14) * dpr;
     ctx.font = p.kind === 'capital' ? `700 ${fs}px Plex, system-ui` : `500 ${fs}px Plex, system-ui`;
     const tw = ctx.measureText(p.name_ar).width;
     // one rule for every name: centred right under its city (under the marker far away, under the town close up).
     // Only if that spot is taken may it sit beside the marker, right or left, level with it. Otherwise it waits.
     const fadeM = 1 - smooth(0.8, 1.25, view.z), near = smooth(1.25, 1.8, view.z);
-    const below = Math.max(fs * 0.4, (p.kind === 'capital' ? markSize(p) * 0.42 : CR[p.kind] * s * 0.55 * smooth(0.45, 0.75, view.z)) + fs * 0.85);
+    const below = Math.max(fs * 0.4, (p.kind === 'capital' ? markSize(p) * 0.42 : p.r * s * 0.55 * smooth(0.45, 0.75, view.z)) + fs * 0.85);
     const spots = [[0, below, 'center']];
     
     let spot = null;
@@ -432,7 +432,7 @@ function idTile(tx, ty) {
   return idTiles.get(k);
 }
 async function ownLand(p, ci, N) {
-  const R = CR[p.kind], x0 = (p.x - R) * 2, y0 = (p.y - R) * 2, n = Math.ceil(R * 4);
+  const R = p.r, x0 = (p.x - R) * 2, y0 = (p.y - R) * 2, n = Math.ceil(R * 4);
   const c = document.createElement('canvas'); c.width = c.height = n;
   const g = c.getContext('2d', {willReadFrequently: true});
   for (let ty = Math.floor(y0 / T); ty <= Math.floor((y0 + n) / T); ty++)
@@ -491,7 +491,7 @@ function drawCities(s, sw, sh) {
   if (show <= 0) { drawMarks(s, sw, sh); return; }
   ctx.globalAlpha = show;
   for (let ci = 0; ci < countries.length; ci++) for (const p of countries[ci].cities || []) {
-    const R = CR[p.kind] * s, sx = (p.x - view.x) * s + sw / 2, sy = (p.y - view.y) * s + sh / 2;
+    const R = p.r * s, sx = (p.x - view.x) * s + sw / 2, sy = (p.y - view.y) * s + sh / 2;
     if (sx < -R || sy < -R || sx > sw + R || sy > sh + R) continue;
     const pic = cityPic(p, ci); if (pic) ctx.drawImage(pic, sx - R, sy - R, R * 2, R * 2);
   }
@@ -519,7 +519,7 @@ function drawBorders(s, sw, sh) {
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   const thin = Math.min(1, 0.6 + view.z * 0.5);
   // province outlines: thin and quiet, like CoN's inner lines; they appear as you zoom in
-  const pv = smooth(0.35, 0.8, view.z);
+  const pv = smooth(0.45, 0.75, view.z);
   if (pv > 0 && provLines.length) {
     ctx.beginPath();
     for (const L of provLines) {
@@ -527,7 +527,8 @@ function drawBorders(s, sw, sh) {
       const p = L.p; ctx.moveTo((p[0] - view.x) * s + sw / 2, (p[1] - view.y) * s + sh / 2);
       for (let i = 2; i < p.length; i += 2) ctx.lineTo((p[i] - view.x) * s + sw / 2, (p[i + 1] - view.y) * s + sh / 2);
     }
-    ctx.strokeStyle = `rgba(240,244,240,${0.32 * pv})`; ctx.lineWidth = 0.9 * dpr; ctx.stroke();
+    ctx.strokeStyle = `rgba(4,8,10,${0.25 * pv})`; ctx.lineWidth = 2.4 * dpr; ctx.stroke();
+    ctx.strokeStyle = `rgba(232,238,236,${0.62 * pv})`; ctx.lineWidth = 1.0 * dpr; ctx.stroke();
   }
   // country borders: a light line with a soft dark edge, so they read on every colour of ground
   const all = groups.foreign.concat(groups.neutral);
@@ -579,6 +580,15 @@ fetch(DATA + 'world.json').then(r => r.json()).then(async j => {
     if (ps.length > 1 && Math.hypot(best.centre[0] - x, best.centre[1] - y) > Math.sqrt(best.px) * 0.8) { x = best.centre[0]; y = best.centre[1]; }
     return {name: c.name_ar, iso: c.iso, x, y, px: tot};
   }).filter(Boolean).sort((a, b) => b.px - a.px);
+  // each city's size: by importance, but never crowding its neighbours, and smaller in small countries,
+  // so Jordan or Lebanon keep open land between their towns
+  const allC = countries.flatMap(c => (c.cities || []).map(p => [p, c]));
+  for (const [p, c] of allC) {
+    let dmin = 1e9;
+    for (const [q] of allC) if (q !== p) dmin = Math.min(dmin, Math.hypot(q.x - p.x, q.y - p.y));
+    const fc = Math.min(1, Math.max(0.5, Math.sqrt(c.area_km2 || 1e5) / 550));
+    p.r = Math.max(4, Math.min(CR[p.kind] * fc, dmin * 0.36));
+  }
   cityOrder = countries.flatMap((c, ci) => (c.cities || []).map(p => ({...p, ci, area: c.area_km2, cls: c.class})))
     .sort((a, b) => rank[a.kind] - rank[b.kind] || crank[a.cls] - crank[b.cls] || b.area - a.area || b.pop - a.pop);
   setupArmies();
