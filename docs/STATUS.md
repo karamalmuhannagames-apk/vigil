@@ -23,9 +23,9 @@
    renderer. Likely causes: the NASA relief mosaic joins (requests are 45 degree squares) and the 512-row strips in
    `build.py` (check the brightness flattening `Lb` at strip edges). Fix: fetch relief with overlap or blend the
    joins, and process strips with a wider margin. Then compare enemy red with the CoN screenshots.
-2. Put the detailed cities (app/map) onto the real world map (app/world): real city positions, regional style per country.
-3. Province outlines, glowing routes, unit and resource icons standing on the map (CoN's "game board" feel).
-4. Name plates and capital emblem from the research spec; country names curved along the country.
+2. Done: detailed regional towns sit on the real world map at real city positions, clipped to their own land.
+3. Province outlines done. Still to do: glowing routes, unit and resource icons standing on the map (CoN's "game board" feel).
+4. Done: gold eight-pointed capital stars, relation-shaped city markers (rectangle friend, diamond enemy, square stranger), country names on the land at world zoom, labels that try four spots before hiding. Still to do: chamfered name plates; country names curved along the country.
 5. Decided: UK and South Korea are playable; fonts are Kufam (capitals) and Alexandria (cities). Still open: other countries under the Oman line (see
    `art/world/classes.md`), six doctrines or five, final font choice.
 6. Building models: more detail per level; remove real markings from unit models.
