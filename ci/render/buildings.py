@@ -40,16 +40,19 @@ def reset():
     s.render.image_settings.file_format = 'PNG'; s.render.image_settings.color_mode = 'RGBA'
     vt = [i.identifier for i in s.view_settings.bl_rna.properties['view_transform'].enum_items]
     s.view_settings.view_transform = 'AgX' if 'AgX' in vt else 'Filmic'
-    s.view_settings.exposure = -0.1
+    s.view_settings.exposure = -0.75
+    for look in ('AgX - Medium High Contrast', 'AgX - Punchy', 'Medium High Contrast'):
+        try: s.view_settings.look = look; break
+        except Exception: pass
     w = bpy.data.worlds.new('w'); s.world = w; w.use_nodes = True
     nt = w.node_tree; bg = nt.nodes['Background']
     hdri = os.environ.get('HDRI', 'tex/sky.hdr')
     if os.path.exists(hdri):
         env = nt.nodes.new('ShaderNodeTexEnvironment'); env.image = bpy.data.images.load(os.path.abspath(hdri))
-        nt.links.new(env.outputs['Color'], bg.inputs[0]); bg.inputs[1].default_value = 0.8
+        nt.links.new(env.outputs['Color'], bg.inputs[0]); bg.inputs[1].default_value = 0.45
     else:
         bg.inputs[0].default_value = (0.58, 0.66, 0.78, 1); bg.inputs[1].default_value = 0.6
-    sun = bpy.data.lights.new('sun', 'SUN'); sun.energy = 3.0; sun.angle = math.radians(4); sun.color = (1.0, 0.96, 0.9)
+    sun = bpy.data.lights.new('sun', 'SUN'); sun.energy = 2.6; sun.angle = math.radians(4); sun.color = (1.0, 0.96, 0.9)
     so = bpy.data.objects.new('sun', sun); s.collection.objects.link(so)
     so.rotation_euler = (math.radians(42), 0, math.radians(135))      # from the north-west
     bpy.ops.mesh.primitive_plane_add(size=400, location=(0, 0, 0))
@@ -116,13 +119,29 @@ def gable(x, y, z, sx, sy, h, m, rot=0, overhang=0.3):
     o.location = (x, y, z); o.rotation_euler.z = math.radians(rot)
     return _finish(o, m, 0)
 
+def prism(x0, x1, y0, y1, z, h, m):
+    # right-angle tooth: vertical face at x0 (height h), slope down to x1; extruded from y0 to y1
+    import bmesh
+    me = bpy.data.meshes.new('tooth'); bm = bmesh.new()
+    v = [bm.verts.new(p) for p in [(x0, y0, z), (x1, y0, z), (x0, y0, z + h), (x0, y1, z), (x1, y1, z), (x0, y1, z + h)]]
+    for f in [(0, 1, 2), (3, 5, 4), (0, 2, 5, 3), (1, 4, 5, 2), (0, 3, 4, 1)]: bm.faces.new([v[i] for i in f])
+    bm.normal_update(); bm.to_mesh(me); bm.free()
+    o = bpy.data.objects.new('tooth', me); bpy.context.collection.objects.link(o)
+    return _finish(o, m, 0)
+
 def sawtooth(x, y, z, sx, sy, n, h, m, glass):
-    # factory roof: row of north-facing skylight teeth
-    w = sx / n
+    # factory roof: teeth run across the hall, glass faces turned to the north light
+    d = sy / n
     for i in range(n):
-        cx = x - sx / 2 + w * (i + 0.5)
-        o = gable(cx, y, z, w, sy, h, m, rot=90, overhang=0.05)
-        box(cx + w * 0.22, y, z, w * 0.08, sy * 0.96, h * 0.85, glass, bevel=0)
+        y0 = y - sy / 2 + d * i
+        import bmesh
+        me = bpy.data.meshes.new('tooth'); bm = bmesh.new()
+        x0, x1 = x - sx / 2, x + sx / 2
+        v = [bm.verts.new(p) for p in [(x0, y0, z), (x0, y0 + d, z), (x0, y0 + d, z + h), (x1, y0, z), (x1, y0 + d, z), (x1, y0 + d, z + h)]]
+        for f in [(0, 1, 2), (3, 5, 4), (0, 3, 4, 1), (1, 4, 5, 2), (0, 2, 5, 3)]: bm.faces.new([v[k] for k in f])
+        bm.normal_update(); bm.to_mesh(me); bm.free()
+        o = bpy.data.objects.new('tooth', me); bpy.context.collection.objects.link(o); _finish(o, m, 0)
+        box(x, y0 + d - 0.04, z, sx * 0.97, 0.06, h * 0.92, glass, bevel=0)                   # skylight glass on the steep face
 
 def windows(x, y, z, sx, sy, sz, floors, m, side_axes='xy'):
     # thin dark strips around the facade: reads as windows from above at an angle
@@ -143,7 +162,7 @@ class Kit:
         s.rust = mat((0.42, 0.24, 0.14), rough=0.8, noise=0.25)
         s.glass = mat((0.10, 0.14, 0.18), rough=0.12, metal=0.3, noise=0)
         s.win = mat((0.08, 0.10, 0.12), rough=0.2, noise=0)
-        s.concrete = mat((0.55, 0.55, 0.52), rough=0.9, noise=0.18, scale=3)
+        s.concrete = mat((0.34, 0.34, 0.32), rough=0.9, noise=0.22, scale=3)
         s.asphalt = mat((0.16, 0.16, 0.16), rough=0.9, noise=0.2, scale=2)
         s.paint = mat((0.92, 0.92, 0.88), rough=0.6, noise=0)
         s.yellow = mat((0.85, 0.68, 0.12), rough=0.6, noise=0)
@@ -151,7 +170,7 @@ class Kit:
         s.green = mat(R['green'], rough=1, noise=0.35, scale=2)
         s.olive = mat((0.28, 0.30, 0.20), rough=0.8, noise=0.2)
         s.sand = mat((0.62, 0.55, 0.40), rough=1, noise=0.3, scale=4)
-        s.white = mat((0.90, 0.90, 0.88), rough=0.5, noise=0.05)
+        s.white = mat((0.72, 0.72, 0.70), rough=0.5, noise=0.06)
         s.dark = mat((0.12, 0.12, 0.12), rough=0.8, noise=0.1)
         s.water = mat((0.10, 0.22, 0.30), rough=0.08, noise=0)
         s.red = mat((0.70, 0.12, 0.10), rough=0.6, noise=0.05)
@@ -160,11 +179,11 @@ class Kit:
         # paved plot the building stands on; the game feathers its edge into the city
         box(0, 0, 0, sx, sy, 0.08, m or s.concrete, bevel=0.02)
 
-    def house(s, x, y, sx, sy, floors, rot=0, wall=None, roof=None):
+    def house(s, x, y, sx, sy, floors, rot=0, wall=None, roof=None, flat=False):
         h = floors * 3.2; wall = wall or s.wall
         box(x, y, 0.08, sx, sy, h, wall, rot=rot)
         if rot == 0: windows(x, y, 0.08, sx, sy, h, floors, s.win)
-        k = s.R['roof_kind']
+        k = 'flat' if flat else s.R['roof_kind']
         if k == 'gable':
             gable(x, y, h + 0.08, sx, sy, min(sx, sy) * 0.35, roof or s.roof, rot=rot if sx >= sy else rot + 90)
         elif k == 'shallow':
@@ -318,9 +337,10 @@ def hospital(k, L):
     sx = 18 + L * 6; sy = 16 + L * 5
     k.lot(sx, sy)
     floors = 1 + L
-    k.house(0, sy * 0.05, sx * 0.62, sy * 0.24, floors, wall=k.white)                             # main block
-    k.house(-sx * 0.22, sy * 0.05, sx * 0.16, sy * 0.62, floors, wall=k.white)                     # wings: H shape
-    k.house(sx * 0.22, sy * 0.05, sx * 0.16, sy * 0.62, floors, wall=k.white)
+    k.house(0, sy * 0.05, sx * 0.62, sy * 0.24, floors, wall=k.white, flat=True)                  # main block
+    k.house(-sx * 0.22, sy * 0.05, sx * 0.16, sy * 0.62, floors, wall=k.white, flat=True)          # wings: H shape
+    k.house(sx * 0.22, sy * 0.05, sx * 0.16, sy * 0.62, floors, wall=k.white, flat=True)
+    if k.R['dome']: cyl(0, -sy * 0.08, 0.08, 2.0, 4.0, k.wall2); sphere_cap(0, -sy * 0.08, 4.3, 2.0, k.accent)   # domed entrance hall
     h = floors * 3.2 + 0.25
     cyl(0, sy * 0.05, h, 1.6, 0.06, k.dark, verts=32)                                             # rooftop helipad, plain H
     box(-0.5, sy * 0.05, h + 0.06, 0.25, 1.6, 0.01, k.paint, bevel=0); box(0.5, sy * 0.05, h + 0.06, 0.25, 1.6, 0.01, k.paint, bevel=0)
