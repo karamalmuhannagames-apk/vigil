@@ -280,7 +280,7 @@ function drawCities(s, sw, sh) {
 }
 
 // smooth vector borders, styled by relation: none with allies, dashed for passage, solid for strangers, red for enemies
-let borders = [];
+let borders = [], provLines = [];
 function borderKind(a, b) {
   const ia = countries[a]?.iso, ib = countries[b]?.iso;
   if (ia !== ME && ib !== ME) return 'foreign';
@@ -298,6 +298,17 @@ function drawBorders(s, sw, sh) {
   const path = list => { ctx.beginPath(); for (const b of list) { const p = b.p; ctx.moveTo((p[0] - view.x) * s + sw / 2, (p[1] - view.y) * s + sh / 2); for (let i = 2; i < p.length; i += 2) ctx.lineTo((p[i] - view.x) * s + sw / 2, (p[i + 1] - view.y) * s + sh / 2); } };
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   const thin = Math.min(1, 0.6 + view.z * 0.5);
+  // province outlines: thin and quiet, like CoN's inner lines; they appear as you zoom in
+  const pv = smooth(0.35, 0.8, view.z);
+  if (pv > 0 && provLines.length) {
+    ctx.beginPath();
+    for (const L of provLines) {
+      if (L.bb[2] < x0 || L.bb[0] > x1 || L.bb[3] < y0 || L.bb[1] > y1) continue;
+      const p = L.p; ctx.moveTo((p[0] - view.x) * s + sw / 2, (p[1] - view.y) * s + sh / 2);
+      for (let i = 2; i < p.length; i += 2) ctx.lineTo((p[i] - view.x) * s + sw / 2, (p[i + 1] - view.y) * s + sh / 2);
+    }
+    ctx.strokeStyle = `rgba(240,244,240,${0.32 * pv})`; ctx.lineWidth = 0.9 * dpr; ctx.stroke();
+  }
   path(groups.foreign); ctx.strokeStyle = 'rgba(235,240,245,0.45)'; ctx.lineWidth = 1 * dpr * thin; ctx.stroke();
   path(groups.neutral); ctx.strokeStyle = 'rgba(245,247,250,0.9)'; ctx.lineWidth = 1.5 * dpr * thin; ctx.stroke();
   path(groups.passage); ctx.setLineDash([5 * dpr, 4 * dpr]); ctx.strokeStyle = 'rgba(245,247,250,0.9)'; ctx.lineWidth = 1.5 * dpr * thin; ctx.stroke(); ctx.setLineDash([]);
@@ -323,6 +334,8 @@ window.setRelations = (me, rel) => { ME = me; REL = rel; gen++; cache.clear(); d
 window.tilesPending = () => [...cache.values()].filter(e => !e.canvas && !e.failed).length;
 window.world_ = () => world;
 
+const bbox = p => { let a = 1e9, c = 1e9, d = -1e9, e = -1e9; for (let i = 0; i < p.length; i += 2) { a = Math.min(a, p[i]); d = Math.max(d, p[i]); c = Math.min(c, p[i + 1]); e = Math.max(e, p[i + 1]); } return [a, c, d, e]; };
+fetch(DATA + 'province_lines.json').then(r => r.ok ? r.json() : []).then(ls => { provLines = ls.map(p => ({p, bb: bbox(p)})); draw(); }, () => 0);
 fetch(DATA + 'borders.json').then(r => r.ok ? r.json() : []).then(bs => {
   borders = bs.map(b => { let a = 1e9, c = 1e9, d = -1e9, e = -1e9; for (let i = 0; i < b.p.length; i += 2) { a = Math.min(a, b.p[i]); d = Math.max(d, b.p[i]); c = Math.min(c, b.p[i + 1]); e = Math.max(e, b.p[i + 1]); } return {...b, bb: [a, c, d, e]}; });
   draw();
