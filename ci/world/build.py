@@ -396,6 +396,19 @@ if sat:
     nat4 = (raster([(i + 1, countries[a]['geoms']) for i, a in enumerate(ids)], (M, MH)) - 1).astype(np.int16)
     if os.path.exists(lakes_f):
         nat4[raster([(1, [f['geometry'] for f in load('ne_10m_lakes.geojson') if (f['properties'].get('scalerank') or 0) <= 3])], (M, MH)) > 0] = -1
+    # canals and narrow straits: far too thin to see at world scale, so they are cut a few pixels wide.
+    # Ships can sail through them, and whoever holds the land can close them.
+    CANALS = {'suez': [(32.31, 31.30), (32.33, 30.80), (32.36, 30.45), (32.56, 30.20), (32.56, 29.90)],
+              'panama': [(-79.93, 9.40), (-79.80, 9.18), (-79.62, 9.02), (-79.53, 8.88)],
+              'bosphorus': [(29.14, 41.25), (29.05, 41.05), (28.98, 40.98)],
+              'dardanelles': [(26.18, 40.02), (26.40, 40.20), (26.72, 40.42)],
+              'kiel': [(9.12, 53.88), (9.45, 54.10), (9.80, 54.28), (10.16, 54.38)]}
+    cim = Image.new('L', (M, MH), 0); cd_ = ImageDraw.Draw(cim)
+    for nm, pts in CANALS.items():
+        xs, ys = to_px([q[0] for q in pts], [q[1] for q in pts])
+        cd_.line(list(zip((xs * 2).tolist(), (ys * 2).tolist())), fill=255, width=5, joint='curve')
+    nat4[np.asarray(cim) > 0] = -1
+    del cim
     lf = (nat4 >= 0).astype(np.float32)
     shallow = np.clip(ndi.gaussian_filter(lf, 26) * 2.0, 0, 1) ** 1.4
     dsh = 9
