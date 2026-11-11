@@ -37,13 +37,13 @@ def broadleaf(seed):
     bm = bmesh.new()
     rnd = random.Random(seed)
     for k in range(rnd.randint(3, 5)):                     # a crown is a few leafy lobes
-        m = bmesh.ops.create_icosphere(bm, subdivisions=2, radius=rnd.uniform(0.45, 0.7))
+        m = bmesh.ops.create_icosphere(bm, subdivisions=3, radius=rnd.uniform(0.5, 0.75))
         off = Vector((rnd.uniform(-0.35, 0.35), rnd.uniform(-0.35, 0.35), rnd.uniform(-0.1, 0.25)))
         for v in m['verts']:
             v.co += off
     for v in bm.verts:
         n = noise.noise(v.co * 3.1 + Vector((seed, 0, 0)))
-        v.co += v.co.normalized() * n * 0.12
+        v.co += v.co.normalized() * n * 0.06
         v.co.z *= 0.75
     me = bpy.data.meshes.new(f'broad{seed}'); bm.to_mesh(me); bm.free()
     for p in me.polygons: p.use_smooth = True
@@ -52,7 +52,7 @@ def broadleaf(seed):
 def conifer(seed):
     bm = bmesh.new(); rnd = random.Random(seed)
     for k, (r, z) in enumerate([(0.75, 0.0), (0.55, 0.55), (0.32, 1.05)]):
-        m = bmesh.ops.create_cone(bm, cap_ends=True, segments=9, radius1=r * rnd.uniform(0.9, 1.1), radius2=0.02, depth=0.9)
+        m = bmesh.ops.create_cone(bm, cap_ends=True, segments=16, radius1=r * rnd.uniform(0.9, 1.1), radius2=0.02, depth=0.9)
         for v in m['verts']:
             v.co.z += z + 0.45
             v.co.x += noise.noise(v.co * 4 + Vector((seed, 1, 0))) * 0.05
@@ -69,7 +69,7 @@ def mat_look():
     bsdf.inputs['Specular IOR Level'].default_value = 0.15
     info = N.new('ShaderNodeObjectInfo')
     ramp = N.new('ShaderNodeValToRGB')
-    ramp.color_ramp.elements[0].color = (0.42, 0.42, 0.42, 1); ramp.color_ramp.elements[1].color = (0.72, 0.72, 0.72, 1)
+    ramp.color_ramp.elements[0].color = (0.30, 0.30, 0.30, 1); ramp.color_ramp.elements[1].color = (0.50, 0.50, 0.50, 1)
     L.new(info.outputs['Random'], ramp.inputs['Fac'])
     tex = N.new('ShaderNodeTexNoise'); tex.inputs['Scale'].default_value = 9.0; tex.inputs['Detail'].default_value = 6
     bump = N.new('ShaderNodeBump'); bump.inputs['Strength'].default_value = 0.6
@@ -100,13 +100,13 @@ def ok(x, y, r):
         for j in range(gy - 2, gy + 3):
             for (tx, ty, tr) in grid.get((i % 50, j % 50), []):
                 dx = (x - tx + S / 2) % S - S / 2; dy = (y - ty + S / 2) % S - S / 2
-                if dx * dx + dy * dy < ((r + tr) * 0.62) ** 2: return False
+                if dx * dx + dy * dy < ((r + tr) * 0.5) ** 2: return False
     return True
 tries = 0
-while tries < 60000:
+while tries < 120000:
     tries += 1
     x, y = random.random() * S, random.random() * S
-    con = pnoise(x * 0.7 + 13, y * 0.7) > 0.25                    # conifer stands in patches
+    con = pnoise(x * 0.7 + 13, y * 0.7) > 0.45                    # conifer stands in patches
     r = random.uniform(0.75, 1.0) if con else random.uniform(0.85, 1.5)
     if not ok(x, y, r): continue
     grid.setdefault((int(x // cell) % 50, int(y // cell) % 50), []).append((x, y, r))
@@ -137,12 +137,12 @@ ground = bpy.context.active_object
 ground.is_shadow_catcher = True
 
 # sun from the north-west (game north is +y), a soft sky for the shadow side
-sun = bpy.data.lights.new('sun', 'SUN'); sun.energy = 4.2; sun.angle = math.radians(4)
+sun = bpy.data.lights.new('sun', 'SUN'); sun.energy = 3.0; sun.angle = math.radians(3)
 so = bpy.data.objects.new('sun', sun); sc.collection.objects.link(so)
-so.rotation_euler = (math.radians(48), 0, math.radians(135))          # light comes from the north-west
+so.rotation_euler = (math.radians(55), 0, math.radians(135))          # light comes from the north-west
 world = bpy.data.worlds.new('w'); sc.world = world; world.use_nodes = True
 world.node_tree.nodes['Background'].inputs['Color'].default_value = (0.55, 0.62, 0.75, 1)
-world.node_tree.nodes['Background'].inputs['Strength'].default_value = 0.55
+world.node_tree.nodes['Background'].inputs['Strength'].default_value = 0.9
 
 cam = bpy.data.cameras.new('cam'); cam.type = 'ORTHO'; cam.ortho_scale = S
 co = bpy.data.objects.new('cam', cam); sc.collection.objects.link(co)
