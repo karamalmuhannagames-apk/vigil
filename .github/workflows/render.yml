@@ -35,8 +35,10 @@ jobs:
           ./blender/blender -b -P ci/render/units.py -- art/render > blender.log 2>&1 || true
           grep -E "rendered|Error|Traceback|line " blender.log || true
           if grep -q Traceback blender.log; then exit 1; fi
+          ./blender/blender -b -P ci/render/city_tex.py -- art/citytex > city.log 2>&1 || true
+          grep -E "rendered|Traceback|Error" city.log || true
       - name: Check output
-        run: ls -la art/render && test $(ls art/render/*.png | wc -l) -ge 8
+        run: ls -la art/render && test $(ls art/render/*.png | wc -l) -ge 8 && ls art/citytex
       - uses: actions/upload-artifact@v4
         with:
           name: renders
@@ -45,5 +47,5 @@ jobs:
         run: |
           git config user.name "vigil-art"
           git config user.email "noreply@github.com"
-          git add art/render
+          git add art/render art/citytex
           git diff --cached --quiet || (git commit -m "Art: 3D icon renders" && git pull --rebase origin main && git push)
