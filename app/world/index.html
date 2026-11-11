@@ -136,37 +136,103 @@ function draw() {
   for (const [c, px, py, ox, oy, sc] of vis) if (c.land) put(c.land, px, py, ox, oy, sc);
   drawCities(s, sw, sh);
   drawBorders(s, sw, sh);
+  drawCountryNames(s, sw, sh);
   // cities: most important first; a label that would overlap one already placed is skipped (no clutter, ever)
   ctx.textAlign = 'center';
   const placed = [];
   for (const p of cityOrder) {
     // when names appear: big playable capitals first, small and computer-run countries only closer in
     const big = p.area >= 300000;
-    const capAt = p.cls === 'neutral' ? 1.2 : p.cls === 'ai' ? 0.7 : big ? 0.12 : 0.3;
+    const capAt = p.cls === 'neutral' ? 1.2 : p.cls === 'ai' ? 0.7 : big ? 0.4 : 0.5;   // at world zoom the country names speak
     const show = p.kind === 'capital' ? smooth(capAt, capAt * 1.5, view.z) : p.kind === 'major' ? smooth(0.55, 0.8, view.z) : smooth(1.1, 1.5, view.z);
     if (!show) continue;
     const sx = (p.x - view.x) * s + sw / 2, sy = (p.y - view.y) * s + sh / 2;
     if (sx < -100 || sy < -50 || sx > sw + 100 || sy > sh + 50) continue;
     const fs0 = (p.kind === 'capital' ? 14 : 12) * dpr;
     ctx.font = p.kind === 'capital' ? `800 ${fs0}px Kufam, Alexandria, system-ui` : `600 ${fs0}px Alexandria, system-ui`;
-    const tw = ctx.measureText(p.name_ar).width, box = [sx - tw / 2 - 4 * dpr, sy - fs0 - 10 * dpr, sx + tw / 2 + 4 * dpr, sy + 5 * dpr];
-    // a phone screen is small: keep generous breathing room around every name
-    const pad = 14 * dpr;
-    if (placed.some(b => box[0] - pad < b[2] && box[2] + pad > b[0] && box[1] - pad < b[3] && box[3] + pad > b[1])) continue;
-    placed.push(box);
+    const tw = ctx.measureText(p.name_ar).width, base = [sx - tw / 2 - 4 * dpr, sy - fs0 - 10 * dpr, sx + tw / 2 + 4 * dpr, sy + 5 * dpr];
+    // a phone screen is small: keep breathing room around every name. If the usual spot (above) is taken,
+    // try below, then the sides, before giving up — so a capital like Jerusalem is never lost next to Amman.
+    const side = tw / 2 + 12 * dpr, low = fs0 + 16 * dpr;
+    let off = null;
+    for (const [dx, dy, pad] of [[0, 0, 14 * dpr], [0, low, 8 * dpr], [side, low / 2, 8 * dpr], [-side, low / 2, 8 * dpr]]) {
+      const box = [base[0] + dx, base[1] + dy, base[2] + dx, base[3] + dy];
+      if (box[0] < 0 || box[2] > sw) { if (dx) continue; }
+      if (placed.some(b => box[0] - pad < b[2] && box[2] + pad > b[0] && box[1] - pad < b[3] && box[3] + pad > b[1])) continue;
+      placed.push(box); off = [dx, dy]; break;
+    }
+    if (!off) continue;
+    // the marker itself also takes room, so nothing is written over a star
+    placed.push([sx - 7 * dpr, sy - 7 * dpr, sx + 7 * dpr, sy + 7 * dpr]);
     ctx.globalAlpha = show;
-    const r = (p.kind === 'capital' ? 4 : 3) * dpr * (1 - smooth(0.9, 1.7, view.z));
-    ctx.fillStyle = p.kind === 'capital' ? '#ffd34d' : '#f4f6f2'; ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.lineWidth = dpr;
-    if (r > 0.5) { ctx.beginPath(); ctx.arc(sx, sy, r, 0, 7); ctx.fill(); ctx.stroke(); }
+    // marker: shape says the relation (rectangle friend, diamond enemy, square stranger), colour backs it up;
+    // capitals get an eight-pointed star (two squares, Kufi geometry). It fades as the real town appears.
+    const fadeM = 1 - smooth(0.8, 1.25, view.z);   // marker leaves before the name slides under the town
+    const rel = relOf(p.ci);
+    if (fadeM > 0.02) {
+      ctx.save(); ctx.translate(Math.round(sx), Math.round(sy)); ctx.globalAlpha = show * fadeM;
+      if (p.kind === 'capital') star(ctx, 8 * dpr, '#F2C14E');
+      else pip(ctx, rel, (p.kind === 'major' ? 3.6 : 2.9) * dpr);
+      ctx.restore(); ctx.globalAlpha = show;
+    }
+    const r = (p.kind === 'capital' ? 7 : 4.5) * dpr * fadeM;
     const fs = (p.kind === 'capital' ? 14 : 12) * dpr;
-    ctx.font = p.kind === 'capital' ? `800 ${fs}px Kufam, Alexandria, system-ui` : `600 ${fs}px Alexandria, system-ui`; ctx.lineWidth = 3 * dpr; ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgb(12,16,20)';   // opaque halo: no dark blobs where Arabic letters join
-    const near = smooth(0.9, 1.7, view.z), ly = (sy - r - 4 * dpr) * (1 - near) + (sy + CR[p.kind] * s * 0.8 + fs) * near;   // close up the name sits under the town
-    ctx.strokeText(p.name_ar, sx, ly); ctx.fillStyle = '#f4f6f2'; ctx.fillText(p.name_ar, sx, ly);
+    ctx.font = p.kind === 'capital' ? `800 ${fs}px Kufam, Alexandria, system-ui` : `600 ${fs}px Alexandria, system-ui`; ctx.lineWidth = (p.kind === 'capital' ? 0.22 : 0.26) * fs; ctx.lineJoin = 'round'; ctx.strokeStyle = '#070B11';   // opaque halo first: no dark blobs where Arabic letters join
+    const near = smooth(1.25, 1.8, view.z), ly = Math.round((sy - r - 4 * dpr) * (1 - near) + (sy + CR[p.kind] * s * 0.8 + fs) * near);   // close up the name sits under the town
+    const lx = Math.round(sx + off[0]), ly2 = ly + off[1];
+    ctx.strokeText(p.name_ar, lx, ly2); ctx.fillStyle = '#F4EEDD'; ctx.fillText(p.name_ar, lx, ly2);
   }
   ctx.globalAlpha = 1;
   document.getElementById('hud').textContent = `zoom ${view.z.toFixed(2)} · tiles z${z}`;
 }
 
+
+
+// ---------- markers ----------
+const REL_COL = {me: '#9BC96B', ally: '#D2DCA6', passage: '#5E9A5A', neutral: '#A9B1BA', enemy: '#E0522A'};
+function star(g, r, fill) {                      // eight-pointed star: two squares, one turned 45 degrees
+  g.beginPath();
+  for (let k = 0; k < 16; k++) { const a = k * Math.PI / 8 - Math.PI / 2, rr = k % 2 ? r * 0.62 : r; g.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+  g.closePath(); g.lineJoin = 'miter'; g.lineWidth = r * 0.3; g.strokeStyle = '#070B11'; g.stroke(); g.fillStyle = fill; g.fill();
+}
+function pip(g, rel, r) {
+  g.beginPath();
+  if (rel === 'enemy') { g.moveTo(0, -r * 1.25); g.lineTo(r * 1.25, 0); g.lineTo(0, r * 1.25); g.lineTo(-r * 1.25, 0); g.closePath(); }
+  else if (rel === 'neutral') g.rect(-r, -r, 2 * r, 2 * r);
+  else g.rect(-r * 1.35, -r * 0.85, 2.7 * r, 1.7 * r);
+  g.lineWidth = r * 0.45; g.strokeStyle = '#070B11'; g.stroke(); g.fillStyle = REL_COL[rel] || '#A9B1BA'; g.fill();
+}
+
+// ---------- country names: big, printed on the land at world zoom ----------
+let countryLabels = [];
+function drawCountryNames(s, sw, sh) {
+  const a = 1 - smooth(0.32, 0.55, view.z);
+  if (a <= 0) return;
+  const dpr = devicePixelRatio;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const placed = [];
+  for (const L of countryLabels) {
+    const span = Math.sqrt(L.px) * s;                       // rough width of the country on screen
+    const mine = L.iso === ME;
+    let size = Math.max(mine ? 12 : 0, Math.min(24, span * 0.16)) * dpr;   // your own country is always named
+    if (size < 10 * dpr) continue;
+    ctx.font = `800 ${size}px Kufam, Alexandria, system-ui`;
+    let w = ctx.measureText(L.name).width;
+    const fit = span * 1.05 * dpr;                            // a name never runs far past its own land
+    if (w > fit && !mine) { size *= fit / w; w = fit; if (size < 10 * dpr) continue; ctx.font = `800 ${size}px Kufam, Alexandria, system-ui`; }
+    const sx = Math.round((L.x - view.x) * s + sw / 2), sy = Math.round((L.y - view.y) * s + sh / 2);
+    if (sx + w / 2 < 0 || sy < -40 || sx - w / 2 > sw || sy > sh + 40) continue;
+    const box = [sx - w / 2 - 4 * dpr, sy - size * 0.55, sx + w / 2 + 4 * dpr, sy + size * 0.55];
+    if (placed.some(b => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1])) continue;
+    placed.push(box);
+    // printed on the land like a map title: spaced, quiet, never a sticker
+    ctx.globalAlpha = 0.8 * a;
+    ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(2 * dpr, size * 0.16); ctx.strokeStyle = 'rgba(7,11,17,0.85)';
+    ctx.strokeText(L.name, sx, sy);
+    ctx.fillStyle = '#EFE6CF'; ctx.fillText(L.name, sx, sy);
+  }
+  ctx.globalAlpha = 1; ctx.textBaseline = 'alphabetic';
+}
 
 // ---------- cities on the real map ----------
 // Each city is a small baked picture: regional city blocks inside a soft, irregular outline, the main
@@ -345,7 +411,18 @@ fetch(DATA + 'world.json').then(r => r.json()).then(async j => {
   world = j; [W, H] = j.size; countries = j.countries; countries.forEach(c => byIso[c.iso] = c);
   const rank = {capital: 0, major: 1, minor: 2};
   const crank = {playable: 0, ai: 1, neutral: 2};
-  cityOrder = countries.flatMap(c => (c.cities || []).map(p => ({...p, area: c.area_km2, cls: c.class})))
+  // country name anchor: area-weighted centre of its provinces, but never in the sea between islands
+  const byC = {};
+  for (const pr of j.provinces) (byC[pr.country] = byC[pr.country] || []).push(pr);
+  countryLabels = countries.map(c => {
+    const ps = byC[c.iso] || []; if (!ps.length) return null;
+    const tot = ps.reduce((a, p) => a + p.px, 0);
+    let x = ps.reduce((a, p) => a + p.centre[0] * p.px, 0) / tot, y = ps.reduce((a, p) => a + p.centre[1] * p.px, 0) / tot;
+    const best = ps.reduce((b, p) => (Math.hypot(p.centre[0] - x, p.centre[1] - y) / Math.sqrt(p.px) < Math.hypot(b.centre[0] - x, b.centre[1] - y) / Math.sqrt(b.px) ? p : b), ps[0]);
+    if (ps.length > 1 && Math.hypot(best.centre[0] - x, best.centre[1] - y) > Math.sqrt(best.px) * 0.8) { x = best.centre[0]; y = best.centre[1]; }
+    return {name: c.name_ar, iso: c.iso, x, y, px: tot};
+  }).filter(Boolean).sort((a, b) => b.px - a.px);
+  cityOrder = countries.flatMap((c, ci) => (c.cities || []).map(p => ({...p, ci, area: c.area_km2, cls: c.class})))
     .sort((a, b) => rank[a.kind] - rank[b.kind] || crank[a.cls] - crank[b.cls] || b.area - a.area || b.pop - a.pop);
   const cap = (byIso[ME].cities || [])[0] || {x: W / 2, y: H / 2};
   view = {x: cap.x, y: cap.y, z: 0.5};
