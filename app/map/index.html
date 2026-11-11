@@ -32,39 +32,81 @@ const COL = {
 const SIZE = {capital: 1.0, major: 0.74, minor: 0.52};
 const NAMES = ['النور', 'سمرقند', 'الواحة', 'بيرق', 'تلال', 'الصخرة', 'المرسى', 'قرطبة', 'ريحان', 'الشمس', 'الساحل', 'الجبل', 'زيتون', 'الفرات', 'النخيل', 'الحصن', 'مدينة الماء', 'الوادي', 'السهل', 'الربيع', 'الأمل', 'الخليج', 'المنارة', 'العقبة', 'الريان', 'البحيرة', 'الصفاء', 'النجمة', 'الياسمين', 'الرمال', 'الشروق', 'الغروب', 'المحيط', 'السلام', 'الريف'];
 let land, atlas, nationsImg, outlines, pol, cities = [], nationId, provinceOf;
-let near, far, borders;
+let near, far, borders, hiCities = [];
 let view = {x: 0, y: 0, z: 0.45};
 const load = src => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = src; });
 const relOf = n => n === ME ? 'me' : (REL[n] || 'neutral');
 const mk = () => { const c = document.createElement('canvas'); c.width = c.height = S; return c; };
 
-function bakeWorld(cityStrength) {
-  const w = mk(), g = w.getContext('2d');
-  g.drawImage(land, 0, 0);
-  cities.forEach((c, i) => {
+function drawCity(g, c, i, cityStrength, k = 1) {
     const R = 95 * SIZE[c.kind];
     // built-up ground around the city: slightly darker, wide and soft, so fields fade into suburbs
     const h = g.createRadialGradient(c.x, c.y, R * 0.3, c.x, c.y, R * 1.6);
     h.addColorStop(0, `rgba(30,30,28,${0.30 * cityStrength})`); h.addColorStop(1, 'rgba(30,30,28,0)');
     g.fillStyle = h; g.beginPath(); g.arc(c.x, c.y, R * 1.6, 0, 7); g.fill();
     // the city itself: light concrete streets painted into the ground, clipped to its own province
-    const t = document.createElement('canvas'); t.width = t.height = Math.ceil(R * 2);
+    const t = document.createElement('canvas'); t.width = t.height = Math.ceil(R * 2 * k);
     const tg = t.getContext('2d');
+    tg.scale(k, k);
     tg.translate(R, R); tg.rotate((i % 4) * Math.PI / 2); tg.translate(-R, -R);
     const blk = cityStrength >= 1 && BLOCKS.length ? BLOCKS[i % BLOCKS.length] : null;
     if (blk) {
       // close up: sharp city blocks in the region's style, shaped by the satellite city's own outline
       tg.drawImage(blk, 0, 0, R * 2, R * 2);
       tg.globalCompositeOperation = 'destination-in';
+      tg.filter = `blur(${1.2 * k}px)`;                 // soft outline: no blocky mosaic at the edges
       tg.drawImage(atlas, (i % 6) * 384, 0, 384, 384, 0, 0, R * 2, R * 2);
+      tg.filter = 'none';
       tg.globalCompositeOperation = 'source-over';
     } else tg.drawImage(atlas, (i % 6) * 384, 0, 384, 384, 0, 0, R * 2, R * 2);
     tg.setTransform(1, 0, 0, 1, 0, 0);
     tg.globalCompositeOperation = 'destination-in';
-    const M = c.mask.width / 2; tg.drawImage(c.mask, M - R + (c.x - Math.round(c.x)), M - R + (c.y - Math.round(c.y)), R * 2, R * 2, 0, 0, R * 2, R * 2);   // city ends at its province border
-    g.globalAlpha = (blk ? 0.95 : 0.72) * cityStrength; g.drawImage(t, c.x - R, c.y - R); g.globalAlpha = 1;
-  });
-  if (cityStrength >= 1) drawBuildings(g);   // buildings go in BEFORE the colour pass: same grading as the streets around them
+    tg.filter = `blur(${0.8 * k}px)`;
+    const M = c.mask.width / 2; tg.drawImage(c.mask, M - R + (c.x - Math.round(c.x)), M - R + (c.y - Math.round(c.y)), R * 2, R * 2, 0, 0, R * 2 * k, R * 2 * k);
+    tg.filter = 'none';   // city ends at its province border
+    g.globalAlpha = (blk ? 0.95 : 0.72) * cityStrength; g.drawImage(t, c.x - R, c.y - R, R * 2, R * 2); g.globalAlpha = 1;
+}
+
+// close up, each city is baked on its own canvas at 4x detail (streets and buildings stay sharp),
+// coloured with exactly the same pass as the land, and feathered into the map around it
+const Q = 4;
+function bakeCityHi(c, i) {
+  const R = 95 * SIZE[c.kind], RR = R * 1.45, n = Math.ceil(RR * 2 * Q);
+  const cv2 = document.createElement('canvas'); cv2.width = cv2.height = n;
+  const g = cv2.getContext('2d', {willReadFrequently: true});
+  const ox = c.x - RR, oy = c.y - RR;
+  g.setTransform(Q, 0, 0, Q, -ox * Q, -oy * Q);
+  g.imageSmoothingQuality = 'high';
+  g.drawImage(land, 0, 0);
+  drawCity(g, c, i, 1, Q);
+  drawBuildings(g, [c]);
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  const id = g.getImageData(0, 0, n, n), d = id.data;
+  for (let y = 0, q = 0; y < n; y++) {
+    const wy = Math.min(S - 1, Math.max(0, Math.floor(oy + y / Q)));
+    for (let x = 0; x < n; x++, q += 4) {
+      const wx = Math.min(S - 1, Math.max(0, Math.floor(ox + x / Q)));
+      const nn = nationId[wy * S + wx]; if (nn < 0) continue;
+      const wet = Math.min(1, Math.max(0, (d[q + 2] - Math.max(d[q], d[q + 1]) + 4) / 14)); if (wet >= 1) continue;
+      const cc = COL[relOf(nn)].c, a = COL[relOf(nn)].a * (1 - wet);
+      const L = 0.45 + 0.55 * (0.3 * d[q] + 0.59 * d[q + 1] + 0.11 * d[q + 2]) / 255 / 0.36;
+      d[q] = d[q] * (1 - a) + Math.min(255, cc[0] * L * 255) * a;
+      d[q + 1] = d[q + 1] * (1 - a) + Math.min(255, cc[1] * L * 255) * a;
+      d[q + 2] = d[q + 2] * (1 - a) + Math.min(255, cc[2] * L * 255) * a;
+    }
+  }
+  g.putImageData(id, 0, 0);
+  g.globalCompositeOperation = 'destination-in';
+  const f = g.createRadialGradient(n / 2, n / 2, n * 0.36, n / 2, n / 2, n * 0.5);
+  f.addColorStop(0, 'rgba(0,0,0,1)'); f.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = f; g.fillRect(0, 0, n, n);
+  return {canvas: cv2, x: ox, y: oy, size: RR * 2};
+}
+
+function bakeWorld(cityStrength) {
+  const w = mk(), g = w.getContext('2d');
+  g.drawImage(land, 0, 0);
+  cities.forEach((c, i) => drawCity(g, c, i, cityStrength));
   // colour pass over everything at once
   const id = g.getImageData(0, 0, S, S), d = id.data;
   const lut = {}; for (const n of new Set(nationId)) if (n >= 0) lut[n] = COL[relOf(n)];
@@ -93,23 +135,23 @@ const BUILD = {
 };
 const SPR = {};
 function sprite(type, L) { return SPR[`${type}_${ART}_${L}`]; }
-function drawBuildings(g) {
-  for (const c of cities) {
+function drawBuildings(g, list = cities) {
+  for (const c of list) {
     const R = 95 * SIZE[c.kind], sz = R * 0.72;
     const [r0, g0, b0] = COL[relOf(c.nation)].c;
     (BUILD[c.kind] || []).forEach(([type, L], k) => {
       const img = sprite(type, L), pl = c.plots[k]; if (!img || !pl) return;
-      const t = document.createElement('canvas'); t.width = t.height = Math.ceil(sz);
+      const t = document.createElement('canvas'); t.width = t.height = Math.ceil(sz * Q);
       const tg = t.getContext('2d');
-      // match the satellite city: a touch softer, calmer colours, same contrast as the streets
-      tg.filter = 'blur(0.35px) saturate(0.8) contrast(0.92) brightness(0.96)';
-      tg.drawImage(img, 0, 0, sz, sz); tg.filter = 'none';
+      // calmer colours and the same contrast as the streets around it
+      tg.filter = 'saturate(0.85) contrast(0.94) brightness(0.97)';
+      tg.drawImage(img, 0, 0, sz * Q, sz * Q); tg.filter = 'none';
       // seat it: built-up ground under a building is darker, so it sits IN the city, not on it
       const seat = g.createRadialGradient(c.x + pl[0] * R, c.y + pl[1] * R, sz * 0.1, c.x + pl[0] * R, c.y + pl[1] * R, sz * 0.55);
       seat.addColorStop(0, 'rgba(20,20,18,0.28)'); seat.addColorStop(1, 'rgba(20,20,18,0)');
       g.fillStyle = seat; g.fillRect(c.x + pl[0] * R - sz, c.y + pl[1] * R - sz, sz * 2, sz * 2);
       c.used = (c.used || 0) | (1 << k);
-      g.drawImage(t, c.x + pl[0] * R - sz / 2, c.y + pl[1] * R - sz / 2);
+      g.drawImage(t, c.x + pl[0] * R - sz / 2, c.y + pl[1] * R - sz / 2, sz, sz);
     });
   }
 }
@@ -155,6 +197,13 @@ function draw() {
   const detail = smooth(0.35, 0.9, view.z);
   ctx.drawImage(far, 0, 0);
   if (detail > 0) { ctx.globalAlpha = detail; ctx.drawImage(near, 0, 0); ctx.globalAlpha = 1; }
+  const sharp = smooth(0.8, 1.3, view.z);
+  if (sharp > 0 && hiCities.length) {
+    ctx.globalAlpha = sharp;
+    for (const h of hiCities) ctx.drawImage(h.canvas, h.x, h.y, h.size, h.size);
+    ctx.globalAlpha = 1;
+    ctx.drawImage(outlines, 0, 0); ctx.drawImage(borders, 0, 0);
+  }
   // building plots: cleared lots inside the city where buildings stand; they appear only when close
   const plotsOn = smooth(1.1, 1.5, view.z);
   if (plotsOn > 0) {
@@ -228,6 +277,7 @@ Promise.all([...[1, 2, 3, 4].map(k => new Promise(r => { const i = new Image(); 
     return {x: q.centre[0], y: q.centre[1], kind: q.city, nation: q.nation, mask: m, plots, name: NAMES[i % NAMES.length]};
   });
   borders = bakeBorders(); near = bakeWorld(1); far = bakeWorld(0.45);
+  hiCities = cities.map(bakeCityHi);
   const cap = cities.find(c => c.kind === 'capital' && c.nation === ME) || cities[0];
   view = {x: cap.x, y: cap.y, z: 0.45};
   addEventListener('resize', resize); resize();

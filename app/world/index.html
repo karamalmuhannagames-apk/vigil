@@ -27,13 +27,17 @@ const COL = {
   me:      {c: [0.28, 0.54, 0.20], a: 0.64},
   ally:    {c: [0.40, 0.66, 0.38], a: 0.62},
   passage: {c: [0.11, 0.28, 0.13], a: 0.80},
-  neutral: {c: [0.21, 0.27, 0.35], a: 0.78},   // strangers: blue-grey slate like CoN
+  neutral: {c: [0.13, 0.21, 0.21], a: 0.86},   // strangers: CoN's deep blue-green slate (sampled from CoN)
   enemy:   {c: [0.34, 0.035, 0.05], a: 0.84},
 };
 let ME = 'JOR';
 let REL = {SAU: 'ally', EGY: 'ally', IRQ: 'passage', IRN: 'enemy'};   // everyone else: neutral (dark slate)
 const relOf = i => { const iso = countries[i]?.iso; return iso === ME ? 'me' : (REL[iso] || 'neutral'); };
 let view = {x: 0, y: 0, z: 1};
+let wavePat = null;
+load('waves.jpg').then(img => { wavePat = ctx.createPattern(img, 'repeat'); draw(); });
+// gentle wave motion: a light redraw loop (about 12 frames a second, paused when the app is hidden)
+setInterval(() => { if (!document.hidden && world && view.z > 0.15) draw(); }, 83);
 const cache = new Map();   // key z/x/y -> {canvas} ; tinted tiles
 let gen = 0;               // bumps when relations change: tinted tiles rebuilt
 
@@ -50,7 +54,13 @@ async function buildTile(z, tx, ty) {
   for (let p = 0; p < w * h; p++) nid[p] = nd[p * 4] + nd[p * 4 + 1] * 256 - 1;
   const lut = {};
   for (let p = 0, q = 0; p < w * h; p++, q += 4) {
-    const n = nid[p]; if (n < 0) continue;
+    const n = nid[p];
+    if (n < 0) {
+      // sea: let the animated waves show through; coastal shallows keep a light, clear tint
+      const shallow = Math.min(1, Math.max(0, (d[q + 1] - 88) / 52));
+      d[q + 3] = Math.round(shallow * 150);
+      continue;
+    }
     const s = lut[n] || (lut[n] = COL[relOf(n)]);
     // brightness kept but squeezed, so bright deserts and dark forests take the same colour family
     const L = Math.min(1.35, Math.max(0.6, 0.45 + 0.55 * (0.3 * d[q] + 0.59 * d[q + 1] + 0.11 * d[q + 2]) / 255 / 0.36));
@@ -78,7 +88,18 @@ const smooth = (a, b, v) => Math.min(1, Math.max(0, (v - a) / (b - a)));
 function draw() {
   if (!world) return;
   const dpr = devicePixelRatio, sw = cv.width, sh = cv.height, s = view.z * dpr;
-  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#10283a'; ctx.fillRect(0, 0, sw, sh);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  // the sea: CoN-like blue with real wave ripples, anchored to the map and drifting slowly
+  if (wavePat) {
+    const ws = 0.48 * devicePixelRatio;                    // ripples keep a natural on-screen size at every zoom
+    const t = performance.now() / 1000;
+    wavePat.setTransform(new DOMMatrix([ws, 0, 0, ws, -view.x * s % (512 * ws) + t * 6, -view.y * s % (512 * ws) + t * 3]));   // pans with the map, drifts slowly
+    ctx.fillStyle = wavePat;
+  } else ctx.fillStyle = '#2a4d67';
+  ctx.fillRect(0, 0, sw, sh);
+  // far away the ripples would shimmer: fade them to the calm sea colour
+  const calm = 1 - smooth(0.15, 0.45, view.z);
+  if (calm > 0) { ctx.globalAlpha = calm; ctx.fillStyle = '#2a4d67'; ctx.fillRect(0, 0, sw, sh); ctx.globalAlpha = 1; }
   // zoom level: full resolution (3) when close, coarser tiles when far
   const z = Math.max(0, Math.min(3, Math.round(3 + Math.log2(view.z))));
   const f = 2 ** (3 - z);                     // world px per tile px
