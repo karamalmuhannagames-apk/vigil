@@ -79,35 +79,51 @@ async function buildTile(z, tx, ty, C) {
   const c = document.createElement('canvas'); c.width = c.height = C;
   const g = c.getContext('2d', {willReadFrequently: true});
   g.imageSmoothingEnabled = false; g.drawImage(natI, 0, 0, C, C); const nd = g.getImageData(0, 0, C, C).data;
+  // smooth land mask: the id image upscaled with smoothing, so coasts are clean curves, never pixel stairs
+  const N0 = natI.width, mc = document.createElement('canvas'); mc.width = mc.height = N0;
+  const mg = mc.getContext('2d', {willReadFrequently: true}); mg.drawImage(natI, 0, 0);
+  const mi = mg.getImageData(0, 0, N0, N0), md = mi.data;
+  for (let q = 0; q < md.length; q += 4) { const land = md[q] + md[q + 1] > 0; md[q] = md[q + 1] = md[q + 2] = land ? 255 : 0; md[q + 3] = 255; }
+  mg.putImageData(mi, 0, 0);
   g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+  g.drawImage(mc, 0, 0, C, C); const ms = g.getImageData(0, 0, C, C).data;
   g.drawImage(lumI, 0, 0, C, C); const ld = g.getImageData(0, 0, C, C).data;
   g.drawImage(bioI, 0, 0, C, C); const bd = g.getImageData(0, 0, C, C).data;
   const out = g.createImageData(C, C), d = out.data;
   const {FN, fl, fa, fv, open, arid, rock, wave, WN} = TEX;
   const gx0 = tx * C, gy0 = ty * C;
   const lut = {};
+  const idAt = (x, y) => { x = Math.max(0, Math.min(C - 1, x)); y = Math.max(0, Math.min(C - 1, y)); const q = (y * C + x) * 4; return nd[q] + nd[q + 1] * 256 - 1; };
   for (let y = 0; y < C; y++) {
     const gy = gy0 + y, fr = (gy % FN) * FN, gr = (gy & 511) * 512, wr = (gy % WN) * WN;
     for (let x = 0; x < C; x++) {
       const q = (y * C + x) * 4, gx = gx0 + x;
-      const n = nd[q] + nd[q + 1] * 256 - 1;
+      const m = ms[q];                                          // 0 sea .. 255 land, soft at the coast
+      let n = nd[q] + nd[q + 1] * 256 - 1;
       const L = ld[q] / 127.5;                                  // 1.0 = no extra light or shade
-      if (n < 0) {                                              // sea: coastal grey-blue or deep blue, ripples, land shadow
-        const base = bd[q] > 127 ? SEA.coast : SEA.deep, k = L * wave[wr + gx % WN];
-        d[q] = base[0] * k; d[q + 1] = base[1] * k; d[q + 2] = base[2] * k; d[q + 3] = 255;
-        continue;
+      let sr = 0, sg = 0, sb = 0;
+      if (m < 170) {                                            // sea: coastal grey-blue or deep blue, ripples, land shadow
+        const base = bd[q] > 127 || m > 0 ? SEA.coast : SEA.deep, k = L * wave[wr + gx % WN];
+        sr = base[0] * k; sg = base[1] * k; sb = base[2] * k;
+        if (m < 86) { d[q] = sr; d[q + 1] = sg; d[q + 2] = sb; d[q + 3] = 255; continue; }
+      }
+      if (n < 0) {                                              // land by the smooth mask but sea by the id image: borrow a neighbour's id
+        for (let r = 1; r < 6 && n < 0; r++) n = Math.max(idAt(x - r, y), idAt(x + r, y), idAt(x, y - r), idAt(x, y + r));
+        if (n < 0) { d[q] = sr; d[q + 1] = sg; d[q + 2] = sb; d[q + 3] = 255; continue; }
       }
       const gi = gr + (gx & 511), ar = bd[q + 1] / 255, rk = bd[q + 2] / 255;
       let v = open[gi] * (1 - ar) + arid[gi] * ar;
       v = v * (1 - rk) + rock[gi] * rk;
       const fi = fr + gx % FN, a = fa[fi];
       if (a) {                                                  // a tree (or its shadow) stands here if the forest is dense enough
-        const dens = bd[q] / 255 * 1.15, tv = fv[fi] / 255;
-        if (tv ? dens > tv : dens > 0.5) { const al = a / 255; v = v * (1 - al) + fl[fi] * al; }
+        const dens = bd[q] / 255, tv = fv[fi] / 255;
+        if (tv ? dens > tv : dens > 0.55) { const al = a / 255; v = v * (1 - al) + fl[fi] * al; }
       }
       const t = lut[n] || (lut[n] = LUT[relOf(n)]);
-      const i = Math.min(255, v * L) * 3;
-      d[q] = t[i | 0]; d[q + 1] = t[(i | 0) + 1]; d[q + 2] = t[(i | 0) + 2]; d[q + 3] = 255;
+      const i = (Math.min(255, v * L) | 0) * 3;
+      if (m >= 170) { d[q] = t[i]; d[q + 1] = t[i + 1]; d[q + 2] = t[i + 2]; }
+      else { const w = (m - 86) / 84; d[q] = sr + (t[i] - sr) * w; d[q + 1] = sg + (t[i + 1] - sg) * w; d[q + 2] = sb + (t[i + 2] - sb) * w; }
+      d[q + 3] = 255;
     }
   }
   g.putImageData(out, 0, 0);

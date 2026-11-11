@@ -454,9 +454,14 @@ if sat:
     # The game paints the ground itself from small textures (forest, fields, desert, rock), crisp at every zoom.
     # coastal water band (sea zones near the coast are lighter grey-blue, open ocean deep blue, hard edge)
     lf8 = lf[::8, ::8]
-    dist8 = ndi.distance_transform_edt(lf8 < 0.5)
-    coast8 = ndi.gaussian_filter((dist8 < 9).astype(np.float32), 2.0)            # about 170 km out, smooth outline
-    del dist8
+    lab8, nl8 = ndi.label(lf8 > 0.5)
+    big8 = np.isin(lab8, np.nonzero(np.bincount(lab8.ravel()) >= 40)[0][1:])      # islands smaller than ~15,000 km2 don't push the band out
+    near = (ndi.distance_transform_edt(~big8) < 13) | (ndi.distance_transform_edt(lf8 < 0.5) < 4)
+    deep = ~near
+    dl, nd_ = ndi.label(deep)
+    deep &= np.isin(dl, np.nonzero(np.bincount(dl.ravel()) >= 900)[0][1:])        # no small deep pockets inside enclosed seas
+    coast8 = ndi.gaussian_filter((~deep).astype(np.float32), 3.0)                 # coastal waters, soft-cornered outline
+    del lab8, dl
     half = np.zeros((H, W), np.uint8); halfb = np.zeros((H // 2, W // 2, 3), np.uint8)
     manifest = {str(z): [] for z in range(5)}
     d4 = os.path.join(OUT, 'tiles', '4'); os.makedirs(d4, exist_ok=True)

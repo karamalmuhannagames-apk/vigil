@@ -13,8 +13,8 @@ src = open(spec.origin).read().split('\nonly = set(')[0]
 G = {'__name__': 'bld', '__file__': spec.origin}
 exec(compile(src, spec.origin, 'exec'), G)
 reset, mat, box, cyl, sphere_cap, gable, Kit, REGIONS = G['reset'], G['mat'], G['box'], G['cyl'], G['sphere_cap'], G['gable'], G['Kit'], G['REGIONS']
-FRAME = 150.0
-ELEV = 52                      # a model on a table: you see roofs and facades
+FRAME = 118.0
+ELEV = 42                      # a model on a table: you see roofs and facades
 
 def cone(x, y, z, r, h, m, verts=16):
     bpy.ops.mesh.primitive_cone_add(vertices=verts, radius1=r, radius2=0.0, depth=h, location=(x, y, z + h / 2))
@@ -60,45 +60,41 @@ def pagoda(k, x, y, s=1.0):
 
 LANDMARK = {'gulf': mosque, 'europe': cathedral, 'americas': capitol, 'asia': pagoda}
 
-def skyline(k, R, rnd, n, hmax, spread, avoid=0):
-    glass = mat((0.42, 0.50, 0.56), 0.25, metal=0.3)
-    for i in range(n):
-        for _ in range(30):
-            a = rnd.random() * 6.283; d = avoid + rnd.random() ** 0.7 * spread
-            x, y = math.cos(a) * d, math.sin(a) * d * 0.9
-            if abs(x) < 70 and abs(y) < 70: break
-        f = 1 - d / (avoid + spread + 1)
-        h = 6 + hmax * f * rnd.uniform(0.5, 1.0)
-        w = rnd.uniform(7, 12); dd = rnd.uniform(7, 12)
-        m = glass if h > 30 and rnd.random() < 0.6 else (k.white if rnd.random() < 0.5 else mat(R['wall'], 0.7))
-        box(x, y, 0, w, dd, h, m, bevel=0.15)
-        if h > 18: box(x, y, h, w * 0.6, dd * 0.6, 1.4, k.white, bevel=0.1)
-
-def houses(k, R, rnd, n, spread, avoid=0):
+def fabric(k, R, rnd, radius, hc, he, clear=0.0, tall_glass=True):
+    """dense city on a street grid: tall in the middle, low at the edge, blocks touching, narrow streets"""
+    glass = mat((0.40, 0.48, 0.54), 0.25, metal=0.3); wall = mat(R['wall'], 0.75); wall2 = mat(R['wall2'], 0.75)
     roof = mat(R['roof'], 0.7)
-    for i in range(n):
-        a = rnd.random() * 6.283; d = avoid + rnd.random() * spread
-        x, y = math.cos(a) * d, math.sin(a) * d * 0.9
-        w, dd = rnd.uniform(6, 10), rnd.uniform(6, 9); h = rnd.uniform(3, 7)
-        rot = rnd.choice((0, 90)) + rnd.uniform(-8, 8)
-        box(x, y, 0, w, dd, h, mat(R['wall'], 0.75), bevel=0.12, rot=rot)
-        if R['roof_kind'] == 'gable': gable(x, y, h, w, dd, 2.6, roof, rot=rot, overhang=0.3)
-    for i in range(n // 2):
-        a = rnd.random() * 6.283; d = avoid + rnd.random() * spread * 1.1
-        k.plant(math.cos(a) * d, math.sin(a) * d * 0.9)
+    lot, street = 9.0, 2.6
+    n = int(radius / lot) + 1
+    for i in range(-n, n + 1):
+        for j in range(-n, n + 1):
+            x, y = i * lot + rnd.uniform(-0.6, 0.6), j * lot + rnd.uniform(-0.6, 0.6)
+            d = math.hypot(x, y) / radius
+            if d > 1 or math.hypot(x, y) < clear: continue
+            if d > 0.75 and rnd.random() < (d - 0.75) * 3: continue          # ragged edge
+            f = (1 - d) ** 1.6
+            h = he + (hc - he) * f * rnd.uniform(0.55, 1.0)
+            w = lot - street - rnd.uniform(0, 1.5); dd = lot - street - rnd.uniform(0, 1.5)
+            if h < 9 and R['roof_kind'] == 'gable':
+                box(x, y, 0, w, dd, h, wall, bevel=0.1); gable(x, y, h, w, dd, 2.4, roof, overhang=0.2)
+            else:
+                m = glass if (tall_glass and h > 26 and rnd.random() < 0.7) else (wall if rnd.random() < 0.6 else wall2)
+                box(x, y, 0, w, dd, h, m, bevel=0.12)
+                if h > 16: box(x, y, h, w * 0.55, dd * 0.55, 1.5, k.white, bevel=0.1)    # roof plant room
+    for _ in range(int(radius * 0.8)):                                     # trees in the street gaps at the edge
+        a = rnd.random() * 6.283; r = radius * rnd.uniform(0.7, 1.05)
+        k.plant(math.cos(a) * r, math.sin(a) * r)
 
 def mark(reg, kind):
     s = reset(); G['MATS'].clear()
     R = REGIONS[reg]; k = Kit(R); rnd = random.Random(hash((reg, kind)) & 0xffff)
     if kind == 'capital':
-        LANDMARK[reg](k, 0, 0, 1.0)
-        skyline(k, R, rnd, 14, 46 if reg != 'europe' else 22, 34, avoid=30)
-        houses(k, R, rnd, 16, 14, avoid=52)
+        LANDMARK[reg](k, 0, 0, 1.25)
+        fabric(k, R, rnd, 48, 40 if reg != 'europe' else 20, 5, clear=24)
     elif kind == 'major':
-        skyline(k, R, rnd, 12, 34 if reg != 'europe' else 16, 30, avoid=0)
-        houses(k, R, rnd, 14, 14, avoid=34)
+        fabric(k, R, rnd, 38, 34 if reg != 'europe' else 18, 4)
     else:
-        houses(k, R, rnd, 13, 26, avoid=0)
+        fabric(k, R, rnd, 24, 8, 3, tall_glass=False)
     cd = bpy.data.cameras.new('cam'); cd.type = 'ORTHO'; cd.ortho_scale = FRAME
     cam = bpy.data.objects.new('cam', cd); s.collection.objects.link(cam); s.camera = cam
     e = math.radians(ELEV); cam.location = (0, -math.cos(e) * 300, math.sin(e) * 300 + 12); cam.rotation_euler = (math.radians(90 - ELEV), 0, 0)
