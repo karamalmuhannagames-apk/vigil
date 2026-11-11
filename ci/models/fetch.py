@@ -44,11 +44,17 @@ QUERIES = {
     'minesweeper':['minesweeper', 'mine countermeasure ship'],
 }
 
-def get(url, token=None):
-    req = urllib.request.Request(url, headers={'User-Agent': 'vigil-game-art-pipeline'})
-    if token: req.add_header('Authorization', 'Token ' + token)
-    with urllib.request.urlopen(req, timeout=60) as r:
-        return r.read()
+def get(url, token=None, tries=6):
+    for i in range(tries):
+        req = urllib.request.Request(url, headers={'User-Agent': 'vigil-game-art-pipeline'})
+        if token: req.add_header('Authorization', 'Token ' + token)
+        try:
+            with urllib.request.urlopen(req, timeout=120) as r:
+                return r.read()
+        except urllib.error.HTTPError as e:
+            if e.code == 429 and i < tries - 1:
+                wait = 30 * (i + 1); print('rate limited, waiting', wait, 's'); time.sleep(wait); continue
+            raise
 
 def search():
     out = {}
@@ -84,7 +90,11 @@ def download():
     if not token: sys.exit('SKETCHFAB_TOKEN missing: add it as a repository secret')
     picks = json.load(open('ci/models/picks.json'))
     credits = []
+    old = json.load(open('art/models/CREDITS.json')) if os.path.exists('art/models/CREDITS.json') else []
+    credits = [c for c in old if os.path.exists(f"art/units/{c['unit']}_green.png") and not os.environ.get('FORCE')]
+    done = {c['unit'] for c in credits}
     for unit, uid in picks.items():
+        if unit in done: print('already rendered', unit); continue
         info = json.loads(get(f'{API}/models/{uid}'))
         lic = (info.get('license') or {}).get('slug')
         if lic not in OK_LICENCES:
@@ -98,7 +108,7 @@ def download():
                         'author_url': info['user'].get('profileUrl'), 'url': info.get('viewerUrl'),
                         'licence': 'CC0' if lic == 'cc0' else 'CC BY 4.0'})
         print('downloaded', unit, info['name'], lic)
-        time.sleep(1)
+        time.sleep(6)
     os.makedirs('art/models', exist_ok=True)
     json.dump(credits, open('art/models/CREDITS.json', 'w'), indent=1)
 
