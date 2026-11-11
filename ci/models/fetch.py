@@ -25,7 +25,7 @@ QUERIES = {
     'strike':     ['a-10', 'su-25', 'su-34'],
     'bomber':     ['b-52', 'tu-95', 'b-1 lancer', 'tu-160'],
     'stealth_b':  ['b-2 spirit', 'b-21'],
-    'awacs':      ['e-3 sentry', 'awacs', 'a-50'],
+    'awacs':      ['e-3 sentry awacs', 'e-2 hawkeye', 'a-50 mainstay', 'early warning aircraft', 'boeing 737 aew', 'saab erieye'],
     'mpa':        ['p-8 poseidon', 'p-3 orion'],
     'transport':  ['c-130', 'c-17', 'il-76'],
     'drone_recon':['global hawk', 'mq-1 predator', 'recon drone'],
