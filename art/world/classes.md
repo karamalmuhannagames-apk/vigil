@@ -1,0 +1,263 @@
+## playable (108)
+
+- Russia / روسيا (RUS): 16,953,104 km², 9 cities, 20 provinces, art europe
+- Canada / كندا (CAN): 9,945,629 km², 9 cities, 16 provinces, art americas
+- United States of America / الولايات المتحدة (USA): 9,464,228 km², 9 cities, 21 provinces, art americas
+- People's Republic of China / الصين (CHN): 9,375,234 km², 9 cities, 20 provinces, art asia
+- Brazil / البرازيل (BRA): 8,472,402 km², 9 cities, 20 provinces, art americas
+- Australia / أستراليا (AUS): 7,691,175 km², 9 cities, 12 provinces, art americas
+- India / الهند (IND): 3,152,833 km², 9 cities, 21 provinces, art asia
+- Argentina / الأرجنتين (ARG): 2,782,897 km², 9 cities, 21 provinces, art americas
+- Kazakhstan / كازاخستان (KAZ): 2,720,765 km², 9 cities, 16 provinces, art asia
+- Democratic Republic of the Congo / جمهورية الكونغو الديمقراطية (COD): 2,325,240 km², 9 cities, 13 provinces, art americas
+- Algeria / الجزائر (DZA): 2,308,858 km², 9 cities, 21 provinces, art gulf
+- Greenland / جرينلاند (GRL): 2,154,379 km², 9 cities, 11 provinces, art americas
+- Mexico / المكسيك (MEX): 1,957,847 km², 9 cities, 20 provinces, art americas
+- Saudi Arabia / السعودية (SAU): 1,921,725 km², 9 cities, 15 provinces, art gulf
+- Indonesia / إندونيسيا (IDN): 1,879,827 km², 9 cities, 20 provinces, art asia
+- Sudan / السودان (SDN): 1,844,738 km², 7 cities, 15 provinces, art gulf
+- Libya / ليبيا (LBY): 1,623,761 km², 9 cities, 20 provinces, art gulf
+- Iran / إيران (IRN): 1,622,498 km², 9 cities, 20 provinces, art gulf
+- Mongolia / منغوليا (MNG): 1,564,649 km², 9 cities, 20 provinces, art asia
+- Peru / بيرو (PER): 1,289,866 km², 9 cities, 21 provinces, art americas
+- Chad / تشاد (TCD): 1,266,282 km², 5 cities, 11 provinces, art americas
+- Mali / مالي (MLI): 1,252,724 km², 7 cities, 10 provinces, art americas
+- Angola / أنغولا (AGO): 1,244,654 km², 9 cities, 18 provinces, art americas
+- South Africa / جنوب أفريقيا (ZAF): 1,219,827 km², 9 cities, 11 provinces, art americas
+- Niger / النيجر (NER): 1,181,301 km², 5 cities, 9 provinces, art americas
+- Colombia / كولومبيا (COL): 1,135,118 km², 9 cities, 20 provinces, art americas
+- Ethiopia / إثيوبيا (ETH): 1,127,376 km², 6 cities, 11 provinces, art americas
+- Bolivia / بوليفيا (BOL): 1,086,811 km², 8 cities, 11 provinces, art americas
+- Mauritania / موريتانيا (MRT): 1,036,392 km², 6 cities, 14 provinces, art gulf
+- Egypt / مصر (EGY): 1,001,058 km², 5 cities, 11 provinces, art gulf
+- Tanzania / تنزانيا (TZA): 941,506 km², 7 cities, 15 provinces, art americas
+- Venezuela / فنزويلا (VEN): 912,684 km², 5 cities, 11 provinces, art americas
+- Nigeria / نيجيريا (NGA): 907,501 km², 7 cities, 15 provinces, art americas
+- Pakistan / باكستان (PAK): 872,939 km², 7 cities, 11 provinces, art gulf
+- Namibia / ناميبيا (NAM): 822,713 km², 5 cities, 11 provinces, art americas
+- Mozambique / موزمبيق (MOZ): 788,449 km², 8 cities, 12 provinces, art americas
+- Turkey / تركيا (TUR): 780,080 km², 8 cities, 18 provinces, art gulf
+- Zambia / زامبيا (ZMB): 751,915 km², 7 cities, 10 provinces, art americas
+- Chile / تشيلي (CHL): 736,593 km², 8 cities, 16 provinces, art americas
+- Morocco / المغرب (MAR): 682,240 km², 7 cities, 15 provinces, art gulf
+- Myanmar / ميانمار (MMR): 663,159 km², 5 cities, 11 provinces, art asia
+- Afghanistan / أفغانستان (AFG): 642,182 km², 6 cities, 13 provinces, art gulf
+- Somalia / الصومال (SOM): 639,222 km², 5 cities, 11 provinces, art gulf
+- France / فرنسا (FRA): 636,759 km², 8 cities, 18 provinces, art europe
+- South Sudan / جنوب السودان (SDS): 626,844 km², 0 cities, 2 provinces, art americas
+- Central African Republic / جمهورية أفريقيا الوسطى (CAF): 617,984 km², 5 cities, 11 provinces, art americas
+- Ukraine / أوكرانيا (UKR): 599,095 km², 5 cities, 11 provinces, art europe
+- Madagascar / مدغشقر (MDG): 592,984 km², 7 cities, 15 provinces, art americas
+- Kenya / كينيا (KEN): 582,302 km², 4 cities, 9 provinces, art americas
+- Botswana / بوتسوانا (BWA): 579,029 km², 4 cities, 9 provinces, art americas
+- Thailand / تايلاند (THA): 514,454 km², 6 cities, 13 provinces, art asia
+- Spain / إسبانيا (ESP): 506,884 km², 7 cities, 15 provinces, art europe
+- Turkmenistan / تركمانستان (TKM): 470,850 km², 4 cities, 5 provinces, art asia
+- Papua New Guinea / بابوا غينيا الجديدة (PNG): 465,147 km², 7 cities, 15 provinces, art americas
+- Cameroon / الكاميرون (CMR): 464,319 km², 3 cities, 7 provinces, art americas
+- Yemen / اليمن (YEM): 453,076 km², 4 cities, 10 provinces, art gulf
+- Uzbekistan / أوزبكستان (UZB): 447,830 km², 5 cities, 11 provinces, art asia
+- Sweden / السويد (SWE): 446,178 km², 7 cities, 15 provinces, art europe
+- Iraq / العراق (IRQ): 437,367 km², 6 cities, 13 provinces, art gulf
+- Paraguay / باراغواي (PRY): 399,901 km², 3 cities, 7 provinces, art americas
+- Zimbabwe / زيمبابوي (ZWE): 389,337 km², 4 cities, 9 provinces, art americas
+- Norway / النرويج (NOR): 382,067 km², 7 cities, 15 provinces, art europe
+- Japan / اليابان (JPN): 373,508 km², 6 cities, 13 provinces, art asia
+- Germany / ألمانيا (DEU): 357,674 km², 7 cities, 15 provinces, art europe
+- Republic of the Congo / جمهورية الكونغو (COG): 344,889 km², 3 cities, 7 provinces, art americas
+- Finland / فنلندا (FIN): 333,059 km², 5 cities, 11 provinces, art europe
+- Vietnam / فيتنام (VNM): 328,892 km², 4 cities, 9 provinces, art asia
+- Malaysia / ماليزيا (MYS): 327,885 km², 5 cities, 12 provinces, art asia
+- Ivory Coast / ساحل العاج (CIV): 320,677 km², 3 cities, 7 provinces, art americas
+- Poland / بولندا (POL): 313,431 km², 6 cities, 13 provinces, art europe
+- Oman / سلطنة عمان (OMN): 311,213 km², 2 cities, 4 provinces, art gulf
+- Italy / إيطاليا (ITA): 301,185 km², 6 cities, 13 provinces, art europe
+- Philippines / الفلبين (PHL): 293,291 km², 6 cities, 13 provinces, art asia
+- Burkina Faso / بوركينا فاسو (BFA): 272,769 km², 3 cities, 7 provinces, art americas
+- New Zealand / نيوزيلندا (NZL): 268,501 km², 6 cities, 13 provinces, art americas
+- Gabon / الغابون (GAB): 259,968 km², 3 cities, 7 provinces, art americas
+- Ecuador / الإكوادور (ECU): 255,014 km², 3 cities, 7 provinces, art americas
+- Guinea / غينيا (GIN): 244,302 km², 2 cities, 4 provinces, art americas
+- United Kingdom / المملكة المتحدة (GBR): 243,783 km², 6 cities, 13 provinces, art europe
+- Uganda / أوغندا (UGA): 241,854 km², 4 cities, 9 provinces, art americas
+- Ghana / غانا (GHA): 238,669 km², 2 cities, 4 provinces, art americas
+- Romania / رومانيا (ROU): 236,377 km², 4 cities, 9 provinces, art europe
+- Laos / لاوس (LAO): 228,114 km², 4 cities, 9 provinces, art asia
+- Guyana / غيانا (GUY): 211,214 km², 2 cities, 4 provinces, art americas
+- Belarus / بيلاروسيا (BLR): 207,499 km², 3 cities, 7 provinces, art europe
+- Kyrgyzstan / قيرغيزستان (KGZ): 198,990 km², 3 cities, 7 provinces, art asia
+- Senegal / السنغال (SEN): 196,224 km², 2 cities, 4 provinces, art americas
+- Syria / سوريا (SYR): 187,133 km², 3 cities, 7 provinces, art gulf
+- Cambodia / كمبوديا (KHM): 181,060 km², 3 cities, 7 provinces, art asia
+- Uruguay / الأوروغواي (URY): 177,342 km², 2 cities, 4 provinces, art americas
+- Tunisia / تونس (TUN): 156,612 km², 3 cities, 7 provinces, art gulf
+- Nepal / نيبال (NPL): 147,105 km², 2 cities, 4 provinces, art asia
+- Suriname / سورينام (SUR): 145,124 km², 1 cities, 3 provinces, art americas
+- Tajikistan / طاجيكستان (TJK): 142,238 km², 1 cities, 3 provinces, art asia
+- Bangladesh / بنغلاديش (BGD): 136,904 km², 1 cities, 3 provinces, art asia
+- Greece / اليونان (GRC): 131,353 km², 4 cities, 9 provinces, art europe
+- Nicaragua / نيكاراغوا (NIC): 128,685 km², 2 cities, 4 provinces, art americas
+- Eritrea / إريتريا (ERI): 122,538 km², 2 cities, 4 provinces, art gulf
+- North Korea / كوريا الشمالية (PRK): 122,379 km², 2 cities, 4 provinces, art asia
+- Malawi / مالاوي (MWI): 119,398 km², 3 cities, 7 provinces, art americas
+- Benin / بنين (BEN): 116,113 km², 2 cities, 4 provinces, art americas
+- Bulgaria / بلغاريا (BGR): 112,761 km², 2 cities, 4 provinces, art europe
+- Honduras / هندوراس (HND): 112,237 km², 2 cities, 4 provinces, art americas
+- Cuba / كوبا (CUB): 109,929 km², 3 cities, 7 provinces, art americas
+- Guatemala / غواتيمالا (GTM): 108,811 km², 1 cities, 3 provinces, art americas
+- Iceland / آيسلندا (ISL): 102,390 km², 4 cities, 9 provinces, art europe
+- Jordan / الأردن (JOR): 88,863 km², 2 cities, 4 provinces, art gulf
+- Palestine / فلسطين (PSE): 26,964 km², 1 cities, 3 provinces, art gulf
+
+## ai (60)
+
+- South Korea / كوريا الجنوبية (KOR): 98,544 km², 3 cities, 7 provinces, art asia
+- Liberia / ليبيريا (LBR): 95,298 km², 2 cities, 4 provinces, art americas
+- Hungary / المجر (HUN): 93,201 km², 3 cities, 7 provinces, art europe
+- Portugal / البرتغال (PRT): 91,391 km², 3 cities, 7 provinces, art europe
+- Serbia / صربيا (SRB): 88,542 km², 1 cities, 3 provinces, art europe
+- Azerbaijan / أذربيجان (AZE): 86,250 km², 2 cities, 4 provinces, art europe
+- Austria / النمسا (AUT): 83,993 km², 3 cities, 7 provinces, art europe
+- Czech Republic / التشيك (CZE): 78,759 km², 2 cities, 4 provinces, art europe
+- Panama / بنما (PAN): 74,530 km², 1 cities, 3 provinces, art americas
+- Sierra Leone / سيراليون (SLE): 71,612 km², 1 cities, 3 provinces, art americas
+- United Arab Emirates / الإمارات العربية المتحدة (ARE): 71,096 km², 1 cities, 3 provinces, art gulf
+- Georgia / جورجيا (GEO): 69,571 km², 2 cities, 4 provinces, art europe
+- Ireland / جمهورية أيرلندا (IRL): 69,445 km², 2 cities, 4 provinces, art europe
+- Sri Lanka / سريلانكا (LKA): 66,291 km², 1 cities, 3 provinces, art asia
+- Lithuania / ليتوانيا (LTU): 64,939 km², 2 cities, 4 provinces, art europe
+- Latvia / لاتفيا (LVA): 64,576 km², 2 cities, 4 provinces, art europe
+- Togo / توغو (TGO): 56,863 km², 2 cities, 4 provinces, art americas
+- Croatia / كرواتيا (HRV): 55,021 km², 3 cities, 7 provinces, art europe
+- Bosnia and Herzegovina / البوسنة والهرسك (BIH): 51,827 km², 1 cities, 3 provinces, art europe
+- Costa Rica / كوستاريكا (CRI): 51,151 km², 1 cities, 3 provinces, art americas
+- Slovakia / سلوفاكيا (SVK): 48,458 km², 3 cities, 7 provinces, art europe
+- Dominican Republic / جمهورية الدومينيكان (DOM): 48,440 km², 1 cities, 3 provinces, art americas
+- Estonia / إستونيا (EST): 45,819 km², 2 cities, 4 provinces, art europe
+- Denmark / الدنمارك (DNK): 42,696 km², 3 cities, 5 provinces, art europe
+- Switzerland / سويسرا (CHE): 41,436 km², 1 cities, 3 provinces, art europe
+- Bhutan / بوتان (BTN): 40,421 km², 1 cities, 3 provinces, art asia
+- Netherlands / هولندا (NLD): 37,398 km², 1 cities, 3 provinces, art europe
+- Taiwan / تايوان (TWN): 36,198 km², 1 cities, 3 provinces, art asia
+- Moldova / مولدوفا (MDA): 33,206 km², 1 cities, 3 provinces, art europe
+- Guinea-Bissau / غينيا بيساو (GNB): 32,830 km², 1 cities, 3 provinces, art americas
+- Belgium / بلجيكا (BEL): 30,670 km², 1 cities, 3 provinces, art europe
+- Lesotho / ليسوتو (LSO): 30,107 km², 1 cities, 3 provinces, art americas
+- Armenia / أرمينيا (ARM): 29,588 km², 1 cities, 3 provinces, art europe
+- Albania / ألبانيا (ALB): 28,336 km², 1 cities, 3 provinces, art europe
+- Solomon Islands / جزر سليمان (SLB): 27,199 km², 2 cities, 4 provinces, art americas
+- Burundi / بوروندي (BDI): 27,041 km², 1 cities, 3 provinces, art americas
+- Haiti / هايتي (HTI): 26,892 km², 1 cities, 3 provinces, art americas
+- Equatorial Guinea / غينيا الاستوائية (GNQ): 26,672 km², 2 cities, 4 provinces, art americas
+- North Macedonia / مقدونيا الشمالية (MKD): 25,385 km², 1 cities, 3 provinces, art europe
+- Rwanda / رواندا (RWA): 25,305 km², 1 cities, 3 provinces, art americas
+- Belize / بليز (BLZ): 22,299 km², 1 cities, 3 provinces, art americas
+- Djibouti / جيبوتي (DJI): 21,848 km², 1 cities, 3 provinces, art gulf
+- El Salvador / السلفادور (SLV): 20,539 km², 1 cities, 3 provinces, art americas
+- Slovenia / سلوفينيا (SVN): 20,327 km², 1 cities, 3 provinces, art europe
+- Fiji / فيجي (FJI): 18,930 km², 1 cities, 3 provinces, art americas
+- New Caledonia / كاليدونيا الجديدة (NCL): 18,841 km², 1 cities, 3 provinces, art americas
+- Kuwait / الكويت (KWT): 17,474 km², 1 cities, 3 provinces, art gulf
+- Eswatini / إسواتيني (SWZ): 17,112 km², 1 cities, 3 provinces, art americas
+- East Timor / تيمور الشرقية (TLS): 15,082 km², 1 cities, 3 provinces, art asia
+- Montenegro / الجبل الأسود (MNE): 13,727 km², 1 cities, 3 provinces, art europe
+- The Bahamas / باهاماس (BHS): 12,604 km², 1 cities, 3 provinces, art americas
+- Vanuatu / فانواتو (VUT): 12,297 km², 1 cities, 3 provinces, art americas
+- Falkland Islands / جزر فوكلاند (FLK): 11,597 km², 1 cities, 1 provinces, art americas
+- Qatar / قطر (QAT): 11,150 km², 1 cities, 3 provinces, art gulf
+- Jamaica / جامايكا (JAM): 11,033 km², 1 cities, 3 provinces, art americas
+- None / None (B13): 10,876 km², 0 cities, 2 provinces, art americas
+- The Gambia / غامبيا (GMB): 10,501 km², 1 cities, 3 provinces, art americas
+- Lebanon / لبنان (LBN): 10,022 km², 1 cities, 3 provinces, art gulf
+- Cyprus / قبرص (CYP): 9,056 km², 1 cities, 3 provinces, art europe
+- Puerto Rico / بورتوريكو (PRI): 9,006 km², 1 cities, 1 provinces, art americas
+
+## neutral (86)
+
+- Brunei / بروناي (BRN): 5,717 km², 1 cities, 1 provinces, art asia
+- Trinidad and Tobago / ترينيداد وتوباغو (TTO): 5,123 km², 1 cities, 1 provinces, art americas
+- Cape Verde / الرأس الأخضر (CPV): 3,927 km², 1 cities, 1 provinces, art americas
+- South Georgia and the South Sandwich Islands / جورجيا الجنوبية وجزر ساندويتش الجنوبية (SGS): 3,921 km², 1 cities, 1 provinces, art americas
+- None / None (B17): 3,401 km², 0 cities, 1 provinces, art americas
+- French Polynesia / بولينزيا الفرنسية (PYF): 3,337 km², 1 cities, 1 provinces, art americas
+- Samoa / ساموا (WSM): 2,780 km², 1 cities, 1 provinces, art americas
+- Luxembourg / لوكسمبورغ (LUX): 2,608 km², 1 cities, 1 provinces, art europe
+- Bir Tawil / بئر طويل (BRT): 2,019 km², 0 cities, 1 provinces, art gulf
+- Mauritius / موريشيوس (MUS): 2,014 km², 1 cities, 1 provinces, art americas
+- Comoros / جزر القمر (COM): 1,672 km², 1 cities, 1 provinces, art americas
+- None / None (None): 1,409 km², 0 cities, 1 provinces, art americas
+- Faroe Islands / جزر فارو (FRO): 1,329 km², 1 cities, 1 provinces, art europe
+- São Tomé and Príncipe / ساو تومي وبرينسيب (STP): 1,037 km², 1 cities, 1 provinces, art americas
+- Hong Kong / هونغ كونغ (HKG): 1,036 km², 1 cities, 1 provinces, art asia
+- Kiribati / كيريباتي (KIR): 950 km², 1 cities, 1 provinces, art americas
+- Åland / جزر أولاند (ALD): 942 km², 1 cities, 1 provinces, art europe
+- Dominica / دومينيكا (DMA): 730 km², 1 cities, 1 provinces, art americas
+- Bahrain / البحرين (BHR): 688 km², 1 cities, 1 provinces, art gulf
+- Federated States of Micronesia / ولايات ميكرونيسيا المتحدة (FSM): 634 km², 1 cities, 1 provinces, art americas
+- Saint Lucia / سانت لوسيا (LCA): 605 km², 1 cities, 1 provinces, art americas
+- Tonga / تونغا (TON): 603 km², 1 cities, 1 provinces, art americas
+- Northern Mariana Islands / جزر ماريانا الشمالية (MNP): 579 km², 1 cities, 1 provinces, art americas
+- Isle of Man / جزيرة مان (IMN): 575 km², 1 cities, 1 provinces, art europe
+- Guam / غوام (GUM): 564 km², 1 cities, 1 provinces, art americas
+- Singapore / سنغافورة (SGP): 511 km², 1 cities, 1 provinces, art asia
+- Palau / بالاو (PLW): 492 km², 1 cities, 1 provinces, art americas
+- Curaçao / كوراساو (CUW): 463 km², 1 cities, 1 provinces, art americas
+- Andorra / أندورا (AND): 452 km², 1 cities, 1 provinces, art europe
+- Antigua and Barbuda / أنتيغوا وباربودا (ATG): 452 km², 1 cities, 1 provinces, art americas
+- Turks and Caicos Islands / جزر توركس وكايكوس (TCA): 445 km², 1 cities, 1 provinces, art americas
+- Barbados / باربادوس (BRB): 444 km², 1 cities, 1 provinces, art americas
+- Seychelles / سيشل (SYC): 436 km², 1 cities, 1 provinces, art americas
+- Heard Island and McDonald Islands / جزيرة هيرد وجزر ماكدونالد (HMD): 395 km², 0 cities, 1 provinces, art americas
+- Saint Vincent and the Grenadines / سانت فينسنت والغرينادين (VCT): 368 km², 1 cities, 1 provinces, art americas
+- Saint Helena / سانت هيلينا (SHN): 367 km², 0 cities, 1 provinces, art americas
+- United States Virgin Islands / جزر العذراء الأمريكية (VIR): 355 km², 1 cities, 1 provinces, art americas
+- Grenada / غرينادا (GRD): 347 km², 1 cities, 1 provinces, art americas
+- Malta / مالطا (MLT): 326 km², 1 cities, 1 provinces, art europe
+- Cayman Islands / جزر كايمان (CYM): 309 km², 1 cities, 1 provinces, art americas
+- None / None (B92): 268 km², 0 cities, 1 provinces, art americas
+- Saint Kitts and Nevis / سانت كيتس ونيفيس (KNA): 264 km², 1 cities, 1 provinces, art americas
+- Saint Pierre and Miquelon / سان بيير وميكلون (SPM): 243 km², 0 cities, 1 provinces, art americas
+- Niue / نييوي (NIU): 221 km², 1 cities, 1 provinces, art americas
+- Cook Islands / جزر كوك (COK): 191 km², 1 cities, 1 provinces, art americas
+- American Samoa / ساموا الأمريكية (ASM): 180 km², 1 cities, 1 provinces, art americas
+- Aruba / أروبا (ABW): 170 km², 1 cities, 1 provinces, art americas
+- Marshall Islands / جزر مارشال (MHL): 165 km², 1 cities, 1 provinces, art americas
+- British Virgin Islands / جزر العذراء البريطانية (VGB): 145 km², 0 cities, 1 provinces, art americas
+- Wallis and Futuna / واليس وفوتونا (WLF): 139 km², 0 cities, 1 provinces, art americas
+- Liechtenstein / ليختنشتاين (LIE): 137 km², 1 cities, 1 provinces, art europe
+- Dhekelia Cantonment / ديكيليا كانتونمنت (ESB): 127 km², 0 cities, 1 provinces, art gulf
+- Jersey / جيرزي (JEY): 119 km², 0 cities, 1 provinces, art europe
+- Australian Indian Ocean Territories / أقاليم المحيط الهندي الأسترالية (IOA): 112 km², 0 cities, 1 provinces, art americas
+- Maldives / المالديف (MDV): 109 km², 1 cities, 1 provinces, art asia
+- Montserrat / مونتسرات (MSR): 100 km², 0 cities, 1 provinces, art americas
+- Akrotiri Sovereign Base Area / أكروتيري (WSB): 99 km², 0 cities, 1 provinces, art gulf
+- Anguilla / أنغويلا (AIA): 87 km², 0 cities, 1 provinces, art americas
+- Guernsey / غيرنزي (GGY): 74 km², 0 cities, 1 provinces, art europe
+- Saint Martin / تجمع سان مارتين (MAF): 68 km², 0 cities, 1 provinces, art americas
+- Guantanamo Bay Naval Base / قاعدة غوانتانامو (USG): 65 km², 0 cities, 1 provinces, art americas
+- Bermuda / برمودا (BMU): 62 km², 1 cities, 1 provinces, art americas
+- San Marino / سان مارينو (SMR): 60 km², 1 cities, 1 provinces, art europe
+- British Indian Ocean Territory / إقليم المحيط الهندي البريطاني (IOT): 49 km², 0 cities, 1 provinces, art americas
+- Pitcairn Islands / جزر بيتكيرن (PCN): 43 km², 0 cities, 1 provinces, art americas
+- Norfolk Island / جزيرة نورفولك (NFK): 41 km², 0 cities, 1 provinces, art americas
+- Macau / ماكاو (MAC): 30 km², 1 cities, 1 provinces, art asia
+- Nauru / ناورو (NRU): 29 km², 0 cities, 1 provinces, art americas
+- United States Minor Outlying Islands / جزر الولايات المتحدة الصغيرة النائية (UMI): 28 km², 0 cities, 1 provinces, art americas
+- Saint Barthélemy / سان بارتيلمي (BLM): 24 km², 0 cities, 1 provinces, art americas
+- Sint Maarten / سينت مارتن (SXM): 23 km², 0 cities, 1 provinces, art americas
+- Tuvalu / توفالو (TUV): 23 km², 1 cities, 1 provinces, art americas
+- Monaco / موناكو (MCO): 19 km², 1 cities, 1 provinces, art europe
+- None / None (B74): 17 km², 0 cities, 1 provinces, art americas
+- Wake Island / جزيرة ويك (PGA): 12 km², 0 cities, 1 provinces, art asia
+- None / None (PFA): 5 km², 0 cities, 1 provinces, art americas
+- Clipperton Island / جزيرة كليبرتون (CLP): 5 km², 0 cities, 1 provinces, art americas
+- Gibraltar / جبل طارق (GIB): 4 km², 1 cities, 1 provinces, art europe
+- Brazilian Island / برازيليان آيلاند (BRI): 3 km², 0 cities, 1 provinces, art americas
+- Ashmore and Cartier Islands / جزر أشمور وكارتيير (ATC): 3 km², 0 cities, 1 provinces, art americas
+- None / None (UUU): 1 km², 0 cities, 1 provinces, art americas
+- None / None (B21): 1 km², 0 cities, 0 provinces, art americas
+- Vatican City / الفاتيكان (VAT): 0 km², 1 cities, 1 provinces, art europe
+- Coral Sea Islands / جزر بحر المرجان (CSI): 0 km², 0 cities, 1 provinces, art americas
+- None / None (KOD): 0 km², 0 cities, 1 provinces, art americas
+- Scarborough Shoal / سكاربورو شول (SCR): 0 km², 0 cities, 1 provinces, art asia
+
