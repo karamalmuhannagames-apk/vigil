@@ -51,11 +51,18 @@ function bakeWorld(cityStrength) {
     const t = document.createElement('canvas'); t.width = t.height = Math.ceil(R * 2);
     const tg = t.getContext('2d');
     tg.translate(R, R); tg.rotate((i % 4) * Math.PI / 2); tg.translate(-R, -R);
-    tg.drawImage(atlas, (i % 6) * 384, 0, 384, 384, 0, 0, R * 2, R * 2);
+    const blk = cityStrength >= 1 && BLOCKS.length ? BLOCKS[i % BLOCKS.length] : null;
+    if (blk) {
+      // close up: sharp city blocks in the region's style, shaped by the satellite city's own outline
+      tg.drawImage(blk, 0, 0, R * 2, R * 2);
+      tg.globalCompositeOperation = 'destination-in';
+      tg.drawImage(atlas, (i % 6) * 384, 0, 384, 384, 0, 0, R * 2, R * 2);
+      tg.globalCompositeOperation = 'source-over';
+    } else tg.drawImage(atlas, (i % 6) * 384, 0, 384, 384, 0, 0, R * 2, R * 2);
     tg.setTransform(1, 0, 0, 1, 0, 0);
     tg.globalCompositeOperation = 'destination-in';
     const M = c.mask.width / 2; tg.drawImage(c.mask, M - R + (c.x - Math.round(c.x)), M - R + (c.y - Math.round(c.y)), R * 2, R * 2, 0, 0, R * 2, R * 2);   // city ends at its province border
-    g.globalAlpha = 0.72 * cityStrength; g.drawImage(t, c.x - R, c.y - R); g.globalAlpha = 1;
+    g.globalAlpha = (blk ? 0.95 : 0.72) * cityStrength; g.drawImage(t, c.x - R, c.y - R); g.globalAlpha = 1;
   });
   if (cityStrength >= 1) drawBuildings(g);   // buildings go in BEFORE the colour pass: same grading as the streets around them
   // colour pass over everything at once
@@ -107,6 +114,7 @@ function drawBuildings(g) {
   }
 }
 const ART = 'gulf';
+const BLOCKS = [];
 const SPRITE_NAMES = [...new Set(Object.values(BUILD).flat().map(([t, L]) => `${t}_${ART}_${L}`))];
 
 function bakeBorders() {
@@ -197,8 +205,8 @@ cv.addEventListener('touchend', () => pinch = null);
 window.mapView = (x, y, z) => { view = {x, y, z}; draw(); };
 window.setRelations = r => { REL = r; borders = bakeBorders(); near = bakeWorld(1); far = bakeWorld(0.45); draw(); };
 
-Promise.all([...SPRITE_NAMES.map(n => new Promise(r => { const i = new Image(); i.onload = () => { SPR[n] = i; r(); }; i.onerror = r; i.src = 'b/' + n + '.png'; })), load('land.jpg'), load('city_atlas.png'), load('nations.png'), load('outlines.png'), fetch('political.json').then(r => r.json())])
-.then(async (all) => { const [l, a, n, o, p] = all.slice(SPRITE_NAMES.length);
+Promise.all([...[1, 2, 3, 4].map(k => new Promise(r => { const i = new Image(); i.onload = () => { BLOCKS.push(i); r(); }; i.onerror = r; i.src = `b/block_${ART}_${k}.png`; })), ...SPRITE_NAMES.map(n => new Promise(r => { const i = new Image(); i.onload = () => { SPR[n] = i; r(); }; i.onerror = r; i.src = 'b/' + n + '.png'; })), load('land.jpg'), load('city_atlas.png'), load('nations.png'), load('outlines.png'), fetch('political.json').then(r => r.json())])
+.then(async (all) => { const [l, a, n, o, p] = all.slice(SPRITE_NAMES.length + 4);
   land = l; atlas = a; outlines = o; pol = p;
   const nc = mk(), ng = nc.getContext('2d'); ng.drawImage(n, 0, 0);
   const nd = ng.getImageData(0, 0, S, S).data; nationId = new Int16Array(S * S);
