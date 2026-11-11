@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Map prototype</title>
+<style>
+  html,body{margin:0;height:100%;background:#0f1a22;overflow:hidden;font-family:system-ui,Tajawal,sans-serif}
+  canvas{display:block;width:100vw;height:100vh;touch-action:none}
+  #zoom{position:fixed;left:12px;bottom:12px;color:#cfe3d4;font:600 13px system-ui;background:#0f1a22cc;padding:6px 10px;border-radius:6px}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="zoom"></div>
+<script>
+// Live map prototype. Order of layers, exactly like a baked map but done by the game so it can change:
+//   1. raw satellite land     2. cities painted INTO that land (light concrete, broken outskirts)
+//   3. one colour pass over land AND cities together (so a city is always its country's colour)
+//   4. province outlines      5. nation borders by relation      6. names and building plots (screen space)
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const S = 2048, ME = 4;
+let REL = {0: 'ally', 1: 'passage', 2: 'enemy', 3: 'neutral'};
+// target colour at average land brightness; a = how strongly the country takes it
+const COL = {
+  me:      {c: [0.31, 0.45, 0.24], a: 0.42},
+  ally:    {c: [0.46, 0.60, 0.42], a: 0.55},
+  passage: {c: [0.18, 0.36, 0.20], a: 0.70},
+  neutral: {c: [0.22, 0.26, 0.27], a: 0.80},
+  enemy:   {c: [0.34, 0.035, 0.05], a: 0.84},   // deep blood red, slightly cool: no orange/brown
+};
+const SIZE = {capital: 1.0, major: 0.74, minor: 0.52};
+const NAMES = ['النور', 'سمرقند', 'الواحة', 'بيرق', 'تلال', 'الصخرة', 'المرسى', 'قرطبة', 'ريحان', 'الشمس', 'الساحل', 'الجبل', 'زيتون', 'الفرات', 'النخيل', 'الحصن', 'مدينة الماء', 'الوادي', 'السهل', 'الربيع', 'الأمل', 'الخليج', 'المنارة', 'العقبة', 'الريان', 'البحيرة', 'الصفاء', 'النجمة', 'الياسمين', 'الرمال', 'الشروق', 'الغروب', 'المحيط', 'السلام', 'الريف'];
+let land, atlas, nationsImg, outlines, pol, cities = [], nationId, provinceOf;
+let near, far, borders;
+let view = {x: 0, y: 0, z: 0.45};
+const load = src => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = src; });
+const relOf = n => n === ME ? 'me' : (REL[n] || 'neutral');
+const mk = () => { const c = document.createElement('canvas'); c.width = c.height = S; return c; };
+
+function bakeWorld(cityStrength) {
+  const w = mk(), g = w.getContext('2d');
+  g.drawImage(land, 0, 0);
+  cities.forEach((c, i) => {
+    const R = 95 * SIZE[c.kind];
+    // built-up ground around the city: slightly darker, wide and soft, so fields fade into suburbs
+    const h = g.createRadialGradient(c.x, c.y, R * 0.3, c.x, c.y, R * 1.6);
+    h.addColorStop(0, `rgba(30,30,28,${0.30 * cityStrength})`); h.addColorStop(1, 'rgba(30,30,28,0)');
+    g.fillStyle = h; g.beginPath(); g.arc(c.x, c.y, R * 1.6, 0, 7); g.fill();
+    // the city itself: light concrete streets painted into the ground, clipped to its own province
+    const t = document.createElement('canvas'); t.width = t.height = Math.ceil(R * 2);
+    const tg = t.getContext('2d');
+    tg.translate(R, R); tg.rotate((i % 4) * Math.PI / 2); tg.translate(-R, -R);
+    tg.drawImage(atlas, (i % 6) * 384, 0, 384, 384, 0, 0, R * 2, R * 2);
+    tg.setTransform(1, 0, 0, 1, 0, 0);
+    tg.globalCompositeOperation = 'destination-in';
+    const M = c.mask.width / 2; tg.drawImage(c.mask, M - R + (c.x - Math.round(c.x)), M - R + (c.y - Math.round(c.y)), R * 2, R * 2, 0, 0, R * 2, R * 2);   // city ends at its province border
+    g.globalAlpha = 0.72 * cityStrength; g.drawImage(t, c.x - R, c.y - R); g.globalAlpha = 1;
+  });
+  // colour pass over everything at once
+  const id = g.getImageData(0, 0, S, S), d = id.data;
+  const lut = {}; for (const n of new Set(nationId)) if (n >= 0) lut[n] = COL[relOf(n)];
+  for (let p = 0, q = 0; p < S * S; p++, q += 4) {
+    const n = nationId[p]; if (n < 0) continue;
+    const wet = Math.min(1, Math.max(0, (d[q + 2] - Math.max(d[q], d[q + 1]) + 4) / 14));   // rivers and lakes keep their water colour
+    if (wet >= 1) continue;
+    const c = lut[n].c, a = lut[n].a * (1 - wet);
+    const L = 0.45 + 0.55 * (0.3 * d[q] + 0.59 * d[q + 1] + 0.11 * d[q + 2]) / 255 / 0.36;   // brightness vs average land, softened so cities don't glow
+    d[q]     = d[q]     * (1 - a) + Math.min(255, c[0] * L * 255) * a;
+    d[q + 1] = d[q + 1] * (1 - a) + Math.min(255, c[1] * L * 255) * a;
+    d[q + 2] = d[q + 2] * (1 - a) + Math.min(255, c[2] * L * 255) * a;
+  }
+  g.putImageData(id, 0, 0);
+  g.drawImage(outlines, 0, 0);
+  g.drawImage(borders, 0, 0);
+  return w;
+}
+
+function bakeBorders() {
+  // nation borders by relation to me: ally none, passage dashed white, neutral solid white, enemy red with a glow
+  const line = mk(), lg = line.getContext('2d'), li = lg.createImageData(S, S), ld = li.data;
+  const red = mk(), rg = red.getContext('2d'), ri = rg.createImageData(S, S), rd = ri.data;
+  for (let y = 1; y < S; y++) for (let x = 1; x < S; x++) {
+    const p = y * S + x, a = nationId[p];
+    let b = nationId[p - 1]; if (b === a) b = nationId[p - S];
+    if (b === a || a < 0 || b < 0) continue;
+    const other = a === ME ? b : b === ME ? a : -1;
+    const kind = other < 0 ? 'neutral' : relOf(other);
+    if (kind === 'ally') continue;
+    for (const o of [p, p + 1, p - S]) {
+      const q = o * 4;
+      if (kind === 'enemy') { rd[q] = 225; rd[q + 1] = 30; rd[q + 2] = 35; rd[q + 3] = 255; }
+      else if (kind !== 'passage' || ((x + y) >> 3) % 2 === 0) { ld[q] = ld[q + 1] = ld[q + 2] = 246; ld[q + 3] = 235; }
+    }
+  }
+  lg.putImageData(li, 0, 0); rg.putImageData(ri, 0, 0);
+  const out = mk(), og = out.getContext('2d');
+  og.filter = 'blur(6px)'; og.globalAlpha = 0.9; og.drawImage(red, 0, 0); og.drawImage(red, 0, 0);
+  og.filter = 'none'; og.globalAlpha = 1; og.drawImage(red, 0, 0); og.drawImage(line, 0, 0);
+  return out;
+}
+
+function resize() { cv.width = innerWidth * devicePixelRatio; cv.height = innerHeight * devicePixelRatio; draw(); }
+function toScreen(x, y) { return [(x - view.x) * view.z * devicePixelRatio + cv.width / 2, (y - view.y) * view.z * devicePixelRatio + cv.height / 2]; }
+const smooth = (a, b, v) => Math.min(1, Math.max(0, (v - a) / (b - a)));
+
+function draw() {
+  if (!near) return;
+  const dpr = devicePixelRatio, z = view.z * dpr;
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#132836'; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.setTransform(z, 0, 0, z, cv.width / 2 - view.x * z, cv.height / 2 - view.y * z);
+  ctx.imageSmoothingQuality = 'high';
+  // zoomed out the streets melt into a soft mark; zoomed in they come back. Same picture, never a jump.
+  const detail = smooth(0.35, 0.9, view.z);
+  ctx.drawImage(far, 0, 0);
+  if (detail > 0) { ctx.globalAlpha = detail; ctx.drawImage(near, 0, 0); ctx.globalAlpha = 1; }
+  // building plots: cleared lots inside the city where buildings stand; they appear only when close
+  const plotsOn = smooth(1.1, 1.5, view.z);
+  if (plotsOn > 0) {
+    ctx.globalAlpha = plotsOn;
+    for (const c of cities) if (c.nation === ME) for (const [px, py, s] of c.plots) {   // you only build in your own cities
+      const R = 95 * SIZE[c.kind], x = c.x + px * R, y = c.y + py * R, w = s * R;
+      ctx.fillStyle = 'rgba(235,238,230,0.16)'; ctx.fillRect(x - w, y - w * 0.7, w * 2, w * 1.4);
+      ctx.strokeStyle = 'rgba(245,248,240,0.75)'; ctx.lineWidth = 1 / view.z;
+      ctx.setLineDash([4 / view.z, 3 / view.z]); ctx.strokeRect(x - w, y - w * 0.7, w * 2, w * 1.4); ctx.setLineDash([]);
+    }
+    ctx.globalAlpha = 1;
+  }
+  // names in screen space so text stays crisp; smaller cities only when closer
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  for (const c of cities) {
+    const show = c.kind === 'capital' ? 1 : c.kind === 'major' ? smooth(0.4, 0.6, view.z) : smooth(0.75, 0.95, view.z);
+    if (!show) continue;
+    const [sx, sy] = toScreen(c.x, c.y + 95 * SIZE[c.kind] * 0.95);
+    const fs = (c.kind === 'capital' ? 17 : 14) * dpr;
+    ctx.globalAlpha = show; ctx.font = `700 ${fs}px Tajawal, system-ui`; ctx.textAlign = 'center';
+    ctx.lineWidth = 3.5 * dpr; ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.strokeText(c.name, sx, sy);
+    ctx.fillStyle = '#f4f6f2'; ctx.fillText(c.name, sx, sy);
+    if (c.kind === 'capital') { ctx.fillStyle = '#ffd34d'; ctx.font = `${fs * 0.8}px system-ui`; ctx.fillText('★', sx, sy - fs * 1.1); }
+    ctx.globalAlpha = 1;
+  }
+  document.getElementById('zoom').textContent = 'zoom ' + view.z.toFixed(2);
+}
+
+let drag = null, pinch = null;
+cv.addEventListener('wheel', e => { e.preventDefault(); zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.0015)); }, {passive: false});
+function zoomAt(cx, cy, f) {
+  const wx = (cx - innerWidth / 2) / view.z + view.x, wy = (cy - innerHeight / 2) / view.z + view.y;
+  view.z = Math.min(3, Math.max(0.25, view.z * f));
+  view.x = wx - (cx - innerWidth / 2) / view.z; view.y = wy - (cy - innerHeight / 2) / view.z; draw();
+}
+cv.addEventListener('pointerdown', e => { drag = {x: e.clientX, y: e.clientY}; });
+addEventListener('pointerup', () => drag = null);
+addEventListener('pointermove', e => { if (!drag || pinch) return; view.x -= (e.clientX - drag.x) / view.z; view.y -= (e.clientY - drag.y) / view.z; drag = {x: e.clientX, y: e.clientY}; draw(); });
+cv.addEventListener('touchmove', e => {
+  if (e.touches.length === 2) {
+    const [a, b] = e.touches, d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    if (pinch) zoomAt((a.clientX + b.clientX) / 2, (a.clientY + b.clientY) / 2, d / pinch);
+    pinch = d;
+  }
+}, {passive: true});
+cv.addEventListener('touchend', () => pinch = null);
+window.mapView = (x, y, z) => { view = {x, y, z}; draw(); };
+window.setRelations = r => { REL = r; borders = bakeBorders(); near = bakeWorld(1); far = bakeWorld(0.45); draw(); };
+
+Promise.all([load('land.jpg'), load('city_atlas.png'), load('nations.png'), load('outlines.png'), fetch('political.json').then(r => r.json())])
+.then(async ([l, a, n, o, p]) => {
+  land = l; atlas = a; outlines = o; pol = p;
+  const nc = mk(), ng = nc.getContext('2d'); ng.drawImage(n, 0, 0);
+  const nd = ng.getImageData(0, 0, S, S).data; nationId = new Int16Array(S * S);
+  for (let i = 0; i < S * S; i++) nationId[i] = nd[i * 4] + nd[i * 4 + 1] * 256 - 1;
+  // per-province masks for clipping cities exactly to their own province
+  const pr = await load('provinces.png'); const pc = mk(), pg = pc.getContext('2d'); pg.drawImage(pr, 0, 0);
+  const pd = pg.getImageData(0, 0, S, S).data;
+  cities = p.provinces.filter(q => q.city !== 'rural').map((q, i) => {
+    const R = Math.ceil(95 * SIZE[q.city]) + 2, cx = Math.round(q.centre[0]), cy = Math.round(q.centre[1]);
+    const m = document.createElement('canvas'); m.width = m.height = 2 * R;
+    const mg = m.getContext('2d'), mi = mg.createImageData(2 * R, 2 * R);
+    for (let y = cy - R; y < cy + R; y++) for (let x = cx - R; x < cx + R; x++) {
+      if (x < 0 || y < 0 || x >= S || y >= S) continue;
+      const k = (y * S + x) * 4; if (pd[k] + pd[k + 1] * 256 - 1 === q.id) mi.data[((y - cy + R) * 2 * R + (x - cx + R)) * 4 + 3] = 255;
+    }
+    mg.putImageData(mi, 0, 0);
+    const n = {capital: 6, major: 4, minor: 3}[q.city], plots = [];
+    for (let k = 0; k < n; k++) { const ang = k / n * Math.PI * 2 + i; const r = k === 0 ? 0 : 0.42; plots.push([Math.cos(ang) * r, Math.sin(ang) * r, 0.13]); }
+    return {x: q.centre[0], y: q.centre[1], kind: q.city, nation: q.nation, mask: m, plots, name: NAMES[i % NAMES.length]};
+  });
+  borders = bakeBorders(); near = bakeWorld(1); far = bakeWorld(0.45);
+  const cap = cities.find(c => c.kind === 'capital' && c.nation === ME) || cities[0];
+  view = {x: cap.x, y: cap.y, z: 0.45};
+  addEventListener('resize', resize); resize();
+  document.title = 'Map prototype ready';
+});
+</script>
+</body>
+</html>

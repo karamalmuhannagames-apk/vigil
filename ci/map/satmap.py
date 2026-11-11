@@ -103,7 +103,7 @@ MIX = {'enemy': ((0.36, 0.03, 0.03), 0.78), 'neutral': ((0.10, 0.14, 0.12), 0.45
 import json
 pol = json.load(open(os.path.join(POL, 'political.json')))
 ct = 'art/citytex/city_dense.png'; vt = 'art/citytex/village.png'
-SATCITY = [f for f in ('art/sat/city1.jpg', 'art/sat/city2.jpg') if os.path.exists(f)]
+SATCITY = [] if os.environ.get('NO_CITIES') else [f for f in ('art/sat/city1.jpg', 'art/sat/city2.jpg') if os.path.exists(f)]
 SATTOWN = [f for f in ('art/sat/town1.jpg', 'art/sat/town2.jpg') if os.path.exists(f)]
 img_base = img.copy()
 def city_patch(path, frac, off=(0.5, 0.5)):
@@ -147,7 +147,7 @@ if SATCITY:
             vx, vy = int(cx + np.cos(ang) * dd), int(cy + np.sin(ang) * dd)
             if 0 <= vx < S and 0 <= vy < S and land[vy, vx]:
                 paste_real(towns_t[k % len(towns_t)], vx, vy, R * rng.uniform(0.22, 0.35), lambda y0, y1, x0, x1: land[y0:y1, x0:x1].astype(np.float32), 0.9)
-elif os.path.exists(ct):
+elif os.path.exists(ct) and not os.environ.get('NO_CITIES'):
     city = np.asarray(Image.open(ct).convert('RGBA')).astype(np.float32) / 255
     vil = np.asarray(Image.open(vt).convert('RGBA')).astype(np.float32) / 255 if os.path.exists(vt) else None
     edge_noise = ndi.gaussian_filter(rng.random((S // 8, S // 8)), 1.2)
@@ -192,7 +192,10 @@ elif os.path.exists(ct):
                 if 0 <= vx < S and 0 <= vy < S and land[vy, vx]:
                     paste(vil, vx, vy, R * rng.uniform(0.25, 0.4), lambda y0, y1, x0, x1: land[y0:y1, x0:x1].astype(np.float32), 0.9)
 # nation tint goes over the cities too, so a city takes its owner's colour like in CoN
-for k in np.unique(nation[nation >= 0]):
+LAYERS = os.environ.get('LAYERS')   # live game: raw land + a separate border overlay, tint and cities drawn by the game
+if LAYERS:
+    Image.fromarray((np.clip(img, 0, 1) * 255).astype(np.uint8)).save(os.path.join(LAYERS, 'land.jpg'), quality=92)
+for k in ([] if LAYERS else np.unique(nation[nation >= 0])):
     m = nation == k; r = rel_of(int(k))
     if r == 'me': continue
     col, a = MIX[r]
@@ -228,6 +231,12 @@ for kind in ('neutral', 'passage', 'enemy'):
         img[..., 0] += 0.25 * glow
         m2 = ndi.binary_dilation(m, iterations=1) & land
         img[m2] = img[m2] * 0.1 + 0.9 * np.array([0.85, 0.18, 0.15])          # enemy: red line with a glow
+if LAYERS:
+    # province outlines only (thin white); nation borders are drawn live since relations change in game
+    ov = np.zeros((S, S, 4), np.uint8)
+    ov[pe] = (242, 247, 242, 110)
+    Image.fromarray(ov).save(os.path.join(LAYERS, 'outlines.png'))
+    print('saved layers'); raise SystemExit
 out = Image.fromarray((np.clip(img, 0, 1) * 255).astype(np.uint8)).convert('RGBA')
 out.convert('RGB').save(OUT, quality=90)
 print('saved', OUT)
