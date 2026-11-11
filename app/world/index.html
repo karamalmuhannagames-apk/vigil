@@ -356,7 +356,7 @@ function drawArmies(s, sw, sh, now) {
 // buildings of a capital set in, coloured with the same relation ramp as its land. Far away it melts into a
 // marker; close up it is a real town sitting in the terrain (not a sticker).
 const ART_ROOT = DATA + '../';
-const CR = {capital: 15, major: 11, minor: 8};          // city radius in world px (map scale is exaggerated for play)
+const CR = {capital: 24, major: 17, minor: 11};          // city radius in world px (map scale is exaggerated for play)
 const cityPics = new Map(), blockImg = {}, bldImg = {};
 function img(src) { return new Promise(r => { const i = new Image(); i.onload = () => r(i); i.onerror = () => r(null); i.src = src; }); }
 async function blocksFor(art) {
@@ -390,7 +390,8 @@ async function bakeCity(p, ci) {
   const id = g.getImageData(0, 0, N, N), d = id.data;
   const tl = LUT[rel];                                             // exactly the land's colour table: one hue, light and dark only
   for (let q = 0; q < d.length; q += 4) {
-    const i = Math.min(255, (0.3 * d[q] + 0.59 * d[q + 1] + 0.11 * d[q + 2]) * 0.62) | 0;   // built-up ground: darker than the fields around
+    const l = (0.3 * d[q] + 0.59 * d[q + 1] + 0.11 * d[q + 2]) / 255;
+    const i = Math.max(0, Math.min(255, ((l - 0.4) * 1.4 + 0.24) * 255)) | 0;   // built-up ground: darker than the fields, buildings stand out
     d[q] = tl[i * 3]; d[q + 1] = tl[i * 3 + 1]; d[q + 2] = tl[i * 3 + 2];
   }
   g.putImageData(id, 0, 0);
@@ -471,7 +472,7 @@ const MARK_ART = {gulf: 'gulf', europe: 'europe', asia: 'asia', americas: 'ameri
 function markSize(p) {          // on-screen size of a city's miniature (0 = not shown at this zoom)
   const dpr = devicePixelRatio, z = view.z;
   const on = p.kind === 'capital' ? smooth(0.3, 0.45, z) : p.kind === 'major' ? smooth(0.6, 0.8, z) : smooth(1.1, 1.4, z);
-  const base = p.kind === 'capital' ? 58 : p.kind === 'major' ? 44 : 32;
+  const base = p.kind === 'capital' ? 76 : p.kind === 'major' ? 44 : 32;
   return on * base * dpr * Math.min(1.6, Math.max(0.75, Math.pow(z, 0.35)));
 }
 function drawMarks(s, sw, sh) {

@@ -48,15 +48,15 @@ warp = wrap_noise(25, 8, 2) * 6
 rip = np.sin((xx * 0.7 + yy * 0.35 + warp) * 2 * np.pi / 14) * 0.5 + 0.5
 dune = wrap_noise(30, 9, 3)
 hs = dune * 6 + rip * 0.8
-arid = 0.6 + (shade(hs, 0.8) - 0.6) * 0.32 + wrap_noise(20, 13, 2) * 0.04 + wrap_noise(0.8, 10, 1) * 0.02
+arid = 0.6 + (shade(hs, 0.8) - 0.6) * 0.16 + wrap_noise(18, 13, 3) * 0.055 + wrap_noise(0.8, 10, 1) * 0.02
 bush = np.zeros((N, N))
-for (px, py) in rng.random((700, 2)) * N:
+for (px, py) in rng.random((260, 2)) * N:
     r = rng.uniform(1.2, 2.6)
     bush[int(py) % N, int(px) % N] = r
 bush = ndi.grey_dilation(bush, size=(4, 4), mode='wrap')
 bush = ndi.gaussian_filter((bush > 0).astype(float), 0.8, mode='wrap')
 bsh = ndi.shift(bush, (1.5, 1.5), mode='wrap', order=1)
-arid = arid * (1 - 0.35 * bush) * (1 - 0.15 * np.clip(bsh - bush, 0, 1))
+arid = arid * (1 - 0.2 * bush) * (1 - 0.15 * np.clip(bsh - bush, 0, 1))
 save('arid.png', arid)
 
 # ---------- rock: bare mountain ground ----------
