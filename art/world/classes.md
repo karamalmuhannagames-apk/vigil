@@ -1,4 +1,4 @@
-## playable (108)
+## playable (109)
 
 - Russia / روسيا (RUS): 16,953,104 km², 9 cities, 14 provinces, art europe, doctrine eurasia
 - Canada / كندا (CAN): 9,945,629 km², 9 cities, 16 provinces, art americas, doctrine americas
@@ -106,12 +106,12 @@
 - Cuba / كوبا (CUB): 109,929 km², 4 cities, 6 provinces, art americas, doctrine americas
 - Guatemala / غواتيمالا (GTM): 108,811 km², 4 cities, 6 provinces, art americas, doctrine americas
 - Iceland / آيسلندا (ISL): 102,390 km², 4 cities, 6 provinces, art europe, doctrine europe
+- South Korea / كوريا الجنوبية (KOR): 98,544 km², 4 cities, 6 provinces, art asia, doctrine asia
 - Jordan / الأردن (JOR): 88,863 km², 4 cities, 6 provinces, art gulf, doctrine mena
 - Palestine / فلسطين (PSE): 26,964 km², 3 cities, 5 provinces, art gulf, doctrine mena
 
-## ai (60)
+## ai (59)
 
-- South Korea / كوريا الجنوبية (KOR): 98,544 km², 3 cities, 5 provinces, art asia, doctrine asia
 - Liberia / ليبيريا (LBR): 95,298 km², 3 cities, 5 provinces, art americas, doctrine africa
 - Hungary / المجر (HUN): 93,201 km², 3 cities, 5 provinces, art europe, doctrine europe
 - Portugal / البرتغال (PRT): 91,391 km², 3 cities, 5 provinces, art europe, doctrine europe
