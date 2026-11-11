@@ -22,7 +22,7 @@ Y_N, Y_S = miller(LAT_N), miller(LAT_S)
 H = int(round(W * (Y_N - Y_S) / (2 * np.pi)))
 # magnifiers: centre (lon, lat), radius in map units, strength. Monotonic (no folding) while strength < 2.
 # Europe and the Middle East have many small countries close together; the oceans and Siberia give room.
-MAGS = [(14, 49, 0.22, 0.55), (42, 30, 0.22, 0.45), (36, 33, 0.07, 0.6), (106, 14, 0.16, 0.3), (-72, 12, 0.12, 0.3)] if os.environ.get('WARP', '1') == '1' else []
+MAGS = [(14, 49, 0.22, 0.7), (42, 30, 0.22, 0.45), (35.4, 32.2, 0.06, 1.3), (50.5, 26.5, 0.05, 0.9), (106, 14, 0.16, 0.3), (-72, 12, 0.12, 0.3)] if os.environ.get('WARP', '1') == '1' else []
 def base_xy(lon, lat):
     return np.radians(lon), miller(np.clip(lat, LAT_S - 5, LAT_N + 5))
 MAGP = [(*base_xy(lo, la), r, s) for lo, la, r, s in MAGS]
@@ -44,6 +44,11 @@ _lo, _la = np.meshgrid(np.linspace(-180, 180, 721), np.linspace(LAT_S, LAT_N, 30
 _x, _y = warp(*base_xy(_lo, _la))
 X0, X1, YB0, YB1 = _x.min(), _x.max(), _y.min(), _y.max()
 H = int(round(W * (YB1 - YB0) / (X1 - X0)))
+# the magnifier must never fold the map over itself: check the stretch stays positive everywhere
+_e = 1e-4; _gx, _gy = base_xy(_lo, _la)
+_ax, _ = warp(_gx + _e, _gy); _bx, _ = warp(_gx - _e, _gy); _, _ay = warp(_gx, _gy + _e); _, _by = warp(_gx, _gy - _e)
+print('min stretch x %.3f y %.3f' % (((_ax - _bx) / (2 * _e)).min(), ((_ay - _by) / (2 * _e)).min()))
+assert ((_ax - _bx) > 0).all() and ((_ay - _by) > 0).all(), 'magnifier folds the map'
 def to_px(lon, lat):
     x, y = warp(*base_xy(np.asarray(lon, float), np.asarray(lat, float)))
     return (x - X0) / (X1 - X0) * W, (YB1 - y) / (YB1 - YB0) * H
@@ -178,6 +183,15 @@ for a3, c in countries.items():
         if all(math.hypot(p['x'] - q['x'], p['y'] - q['y']) >= MIN_GAP for q in chosen):
             chosen.append(p)
         if len(chosen) >= ncities(c): break
+    want = ncities(c) if c['class'] != 'playable' else max(3, ncities(c))
+    gap = MIN_GAP
+    while len(chosen) < min(want, len(cand)) and gap > MIN_GAP * 0.3:   # small playable states still get 3+ cities
+        gap *= 0.75
+        for p in cand:
+            if p in chosen or len(chosen) >= want: continue
+            if 'x' in p and nation[int(np.clip(p['y'], 0, H - 1)), int(np.clip(p['x'], 0, W - 1))] == ids.index(a3) \
+               and all(math.hypot(p['x'] - q['x'], p['y'] - q['y']) >= gap for q in chosen):
+                chosen.append(p)
     for k, p in enumerate(chosen): p['kind'] = 'capital' if k == 0 else ('major' if k <= 2 else 'minor')
     c['cities'] = chosen
 
@@ -195,7 +209,7 @@ prov_meta = []
 def target_prov(c):
     n = len(c['cities'])
     if c['class'] == 'neutral': return 1
-    return int(max(n + 2, round(n * 2.2)))
+    return int(max(n + 1, round(n * 1.6)))
 for ci, a3 in enumerate(ids):
     c = countries[a3]
     m = nation == ci
