@@ -14,8 +14,9 @@ SPOTS = [
     ('forest', 8.2, 48.3), ('forest2', 23.8, 52.7),
     ('hills', 13.6, 42.4), ('mountain', 24.6, 45.5),
     ('scrub', -3.6, 39.6), ('grass', -0.8, 48.8),
+    ('city1', 4.85, 45.76), ('city2', 11.57, 48.14), ('town1', 9.18, 48.52), ('town2', 2.35, 47.08),
 ]
-SIZE_KM = 20
+SIZE_KM = int(os.environ.get('SIZE_KM', '20'))
 def search(lon, lat):
     body = {'collections': ['sentinel-2-l2a'], 'intersects': {'type': 'Point', 'coordinates': [lon, lat]},
             'datetime': '2023-06-01T00:00:00Z/2023-08-31T23:59:59Z', 'limit': 10,

@@ -96,7 +96,7 @@ ME = int(os.environ.get('ME', '4'))
 REL = {int(k): v for k, v in (x.split(':') for x in os.environ.get('RELATIONS', '0:ally,1:passage,2:enemy,3:neutral').split(','))}
 TINT = {'me': (1.06, 1.06, 1.0), 'ally': (0.92, 1.0, 0.92), 'passage': (0.86, 0.9, 0.86), 'neutral': (0.78, 0.82, 0.8), 'enemy': (0.95, 0.66, 0.6)}
 rel_of = lambda k: 'me' if k == ME else REL.get(k, 'neutral')
-MIX = {'enemy': ((0.30, 0.04, 0.04), 0.66), 'neutral': ((0.10, 0.14, 0.12), 0.45), 'passage': ((0.04, 0.20, 0.07), 0.45), 'ally': ((0.45, 0.70, 0.40), 0.30)}
+MIX = {'enemy': ((0.36, 0.03, 0.03), 0.78), 'neutral': ((0.10, 0.14, 0.12), 0.45), 'passage': ((0.04, 0.20, 0.07), 0.45), 'ally': ((0.45, 0.70, 0.40), 0.30)}
 # allies: no national border at all, only the normal province outline
 
 # cities baked into the ground: dense city clipped exactly to its province, a few villages nearby
@@ -110,19 +110,32 @@ if os.path.exists(ct):
     edge_noise = ndi.gaussian_filter(rng.random((S // 8, S // 8)), 1.2)
     edge_noise = ndi.zoom(edge_noise, 8, order=1)[:S, :S]
     edge_noise = (edge_noise - edge_noise.mean()) / (edge_noise.std() + 1e-6)
+    def prep(tex):
+        # buildings only: drop the flat ground the renderer saw, keep roofs, walls and shadows as light/dark
+        g = tex[..., :3].mean(-1)
+        ground = np.median(g)
+        dev = g - ground
+        build = np.clip(np.abs(dev) * 6, 0, 1)
+        return dev, build
     def paste(tex, cx, cy, radius, mask_fn, strength=1.0):
         r = int(radius * 1.3)
         y0, y1, x0, x1 = max(cy - r, 0), min(cy + r, S), max(cx - r, 0), min(cx + r, S)
         if y1 <= y0 or x1 <= x0: return
-        t = np.asarray(Image.fromarray((tex * 255).astype(np.uint8)).resize((2 * r, 2 * r), Image.LANCZOS)).astype(np.float32) / 255
+        ang = rng.integers(0, 4)
+        t = np.rot90(tex, ang)
+        t = np.asarray(Image.fromarray((t * 255).astype(np.uint8)).resize((2 * r, 2 * r), Image.LANCZOS)).astype(np.float32) / 255
         t = t[(y0 - (cy - r)):(y1 - (cy - r)), (x0 - (cx - r)):(x1 - (cx - r))]
+        dev, build = prep(t)
         yy, xx = np.mgrid[y0:y1, x0:x1]
-        d = np.hypot(yy - cy, xx - cx) / radius + edge_noise[y0:y1, x0:x1] * 0.18
-        a = np.clip((1.0 - d) * 4, 0, 1) * t[..., 3] * mask_fn(y0, y1, x0, x1) * strength
+        d = np.hypot(yy - cy, xx - cx) / radius + edge_noise[y0:y1, x0:x1] * 0.22
+        fade = np.clip((1.0 - d) * 3, 0, 1) * mask_fn(y0, y1, x0, x1) * strength
         sub = img[y0:y1, x0:x1]
-        # darken the ground just around built-up area (ambient shadow), then lay the buildings
-        sub *= (1 - 0.25 * np.clip((1.15 - d) * 3, 0, 1) * mask_fn(y0, y1, x0, x1))[..., None]
-        sub[:] = sub * (1 - a[..., None]) + t[..., :3] * 0.92 * a[..., None]
+        sub *= (1 - 0.22 * fade)[..., None]                                   # built-up ground is darker than fields
+        lit = 1 + dev * 2.2 * fade                                            # roofs lighter, shadows darker
+        sub *= lit[..., None]
+        grey = sub.mean(-1, keepdims=True)
+        k = (build * fade * 0.35)[..., None]
+        sub[:] = sub * (1 - k) + (grey * 1.05) * k                           # buildings a touch greyer, still in the land's colour
     for p in pol['provinces']:
         if p['city'] == 'rural': continue
         cx, cy = int(p['centre'][0]), int(p['centre'][1])
