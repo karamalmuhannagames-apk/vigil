@@ -10,7 +10,7 @@ MASKS, OUT = sys.argv[1], sys.argv[2]
 N_NATIONS = int(os.environ.get('NATIONS', '5'))
 PROV_PER_CITY = float(os.environ.get('PROV_PER_CITY', '2.2'))
 rng = np.random.default_rng(int(os.environ.get('SEED', '4')))
-land = np.load(MASKS)['land']
+M = np.load(MASKS); land = M['land']; height = M['height']; farm = M['farm']; forest = M['forest']; river = M['river']
 S = land.shape[0]
 
 def smooth_noise(cells, amp):
@@ -94,6 +94,36 @@ for k in range(N_NATIONS):
     info['nations'].append({'id': k, 'area': int(areas[k]), 'cities': cities_n[k], 'provinces': n_prov})
     print('nation', k, 'area', areas[k], 'cities', cities_n[k], 'provinces', n_prov)
 
+# ---- city specialties from the land around each city, then a fairness pass per nation ----
+dist_sea = ndi.distance_transform_edt(land)
+SPEC = ['steel', 'fuel', 'manpower', 'money', 'electronics']
+def spec_scores(p):
+    x, y = int(p['centre'][0]), int(p['centre'][1])
+    r = int(S * 0.04); y0, y1, x0, x1 = max(y - r, 0), min(y + r, S), max(x - r, 0), min(x + r, S)
+    h = height[y0:y1, x0:x1].mean(); f = farm[y0:y1, x0:x1].mean(); fo = forest[y0:y1, x0:x1].mean()
+    riv = river[y0:y1, x0:x1].mean(); coast = dist_sea[y, x] < S * 0.05
+    return {'steel': h * 1.2, 'fuel': (1 - f) * (1 - fo) * 0.8 + rng.random() * 0.3, 'manpower': f * 3 + 0.15,
+            'money': riv * 20 + (0.6 if coast else 0), 'electronics': {'capital': 1.5, 'major': 0.8}.get(p['city'], 0)}
+for k in range(N_NATIONS):
+    cities = [p for p in info['provinces'] if p['nation'] == k and p['city'] != 'rural']
+    for p in cities:
+        sc = spec_scores(p); p['specialty'] = max(sc, key=sc.get); p['scores'] = sc
+    have = {r: sum(1 for p in cities if p['specialty'] == r) for r in SPEC}
+    for need in ('steel', 'fuel', 'electronics'):           # every nation gets each key resource at least once
+        if have[need] == 0:
+            donor = max((p for p in cities if have[p['specialty']] > 1), key=lambda p: p['scores'][need], default=None)
+            if donor:
+                have[donor['specialty']] -= 1; donor['specialty'] = need; have[need] += 1
+    cap = int(np.ceil(len(cities) / 3))                     # no specialty on more than about a third of the cities
+    for r in SPEC:
+        while have[r] > cap:
+            movers = sorted((p for p in cities if p['specialty'] == r), key=lambda p: p['scores'][r])
+            p = movers[0]
+            options = sorted((o for o in SPEC if have[o] < cap and o != r), key=lambda o: -p['scores'][o])
+            if not options: break
+            have[r] -= 1; p['specialty'] = options[0]; have[options[0]] += 1
+    for p in cities: p.pop('scores', None)
+    print('nation', k, 'specialties', {r: n for r, n in have.items() if n})
 def save_ids(a, path):
     a = np.where(a < 0, 0, a + 1)
     Image.fromarray(np.stack([a % 256, a // 256, np.zeros_like(a)], -1).astype(np.uint8)).save(path)
