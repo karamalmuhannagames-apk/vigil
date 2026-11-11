@@ -360,3 +360,20 @@ for nm, (lo, la) in {'europe': (10, 50), 'mideast': (42, 28), 'levant': (36, 32)
     x, y = to_px(lo, la); x, y = int(x), int(y)
     pim.crop((x - 1000, y - 700, x + 1000, y + 700)).save(os.path.join(OUT, f'crop_{nm}.jpg'), quality=88)
 print('done')
+
+# ---------- tiles for the game: satellite + country ids, 512 px, 4 zoom levels ----------
+if sat:
+    T = 512
+    simg = Image.fromarray(img); nimg = Image.open(os.path.join(OUT, 'nations.png'))
+    for z in range(4):
+        f = 2 ** (3 - z)
+        w, h = W // f, H // f
+        si = simg.resize((w, h), Image.LANCZOS) if f > 1 else simg
+        ni = nimg.resize((w, h), Image.NEAREST) if f > 1 else nimg
+        d = os.path.join(OUT, 'tiles', str(z)); os.makedirs(d, exist_ok=True)
+        for ty in range(0, h, T):
+            for tx in range(0, w, T):
+                box = (tx, ty, min(tx + T, w), min(ty + T, h))
+                si.crop(box).save(os.path.join(d, f'{tx // T}_{ty // T}.jpg'), quality=86)
+                ni.crop(box).save(os.path.join(d, f'{tx // T}_{ty // T}_n.png'), optimize=True)
+    print('tiles written')
