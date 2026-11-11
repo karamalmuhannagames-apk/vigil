@@ -157,7 +157,7 @@ function draw() {
   const z = Math.max(0, Math.min(ZMAX, Math.round(3 + Math.log2(view.z) + 0.25)));
   const f = 2 ** (3 - z);                     // world px per tile px
   const tsz = T * f * s;                      // one tile's size on screen
-  const C = Math.max(256, Math.min(1024, 2 ** Math.round(Math.log2(tsz))));   // paint resolution: ground texture stays crisp
+  const C = Math.max(256, Math.min(view.z > 4 ? 2048 : 1024, 2 ** Math.round(Math.log2(tsz))));   // paint resolution: ground texture stays crisp
   const k = tsz / C;                          // screen px per painted px
   // open ocean: deep-sea ripples, locked to the same painted-pixel grid as the tiles
   if (deepPat) {
@@ -173,7 +173,7 @@ function draw() {
       let c = tileFor(z, tx, ty, C), sx = 0, sy = 0, sz = null;
       if (c === 'deep') continue;
       if (!c) {   // while it paints: the same tile at another resolution, or the coarser parent, so there are no holes
-        for (const C2 of [512, 1024, 256]) { const e = cache.get(`${gen}/${C2}/${z}/${tx}/${ty}`); if (e?.canvas && e.canvas !== 'deep') { c = e.canvas; break; } }
+        for (const C2 of [512, 1024, 2048, 256]) { const e = cache.get(`${gen}/${C2}/${z}/${tx}/${ty}`); if (e?.canvas && e.canvas !== 'deep') { c = e.canvas; break; } }
         if (!c && z > 0) for (const C2 of [C, 512, 1024, 256]) {
           const e = cache.get(`${gen}/${C2}/${z - 1}/${tx >> 1}/${ty >> 1}`);
           if (e?.canvas && e.canvas !== 'deep') { c = e.canvas; sz = C2 / 2; sx = (tx & 1) * sz; sy = (ty & 1) * sz; break; }
@@ -200,7 +200,7 @@ function draw() {
     if (!show) continue;
     const sx = (p.x - view.x) * s + sw / 2, sy = (p.y - view.y) * s + sh / 2;
     if (sx < -100 || sy < -50 || sx > sw + 100 || sy > sh + 50) continue;
-    const fs = (p.kind === 'capital' ? 17 : 14) * dpr;
+    const fs = (p.kind === 'capital' ? 21 : p.kind === 'major' ? 19 : 17) * dpr;   // CoN's city names are ~48 px on a 1080-px screen
     ctx.font = p.kind === 'capital' ? `700 ${fs}px Plex, system-ui` : `500 ${fs}px Plex, system-ui`;
     const tw = ctx.measureText(p.name_ar).width;
     // one rule for every name: centred right under its city (under the marker far away, under the town close up).
@@ -262,12 +262,12 @@ function drawCountryNames(s, sw, sh) {
   for (const L of countryLabels) {
     const span = Math.sqrt(L.px) * s;                       // rough width of the country on screen
     const mine = L.iso === ME;
-    let size = Math.max(mine ? 12 : 0, Math.min(24, span * 0.16)) * dpr;   // your own country is always named
-    if (size < 10 * dpr) continue;
+    let size = Math.max(mine ? 14 : 0, Math.min(36, span * 0.17)) * dpr;   // your own country is always named
+    if (size < 12 * dpr) continue;
     ctx.font = `700 ${size}px Plex, system-ui`;
     let w = ctx.measureText(L.name).width;
     const fit = span * 1.05 * dpr;                            // a name never runs far past its own land
-    if (w > fit && !mine) { size *= fit / w; w = fit; if (size < 10 * dpr) continue; ctx.font = `700 ${size}px Plex, system-ui`; }
+    if (w > fit && !mine) { size *= fit / w; w = fit; if (size < 12 * dpr) continue; ctx.font = `700 ${size}px Plex, system-ui`; }
     const sx = Math.round((L.x - view.x) * s + sw / 2), sy = Math.round((L.y - view.y) * s + sh / 2);
     if (sx + w / 2 < 0 || sy < -40 || sx - w / 2 > sw || sy > sh + 40) continue;
     const box = [sx - w / 2 - 4 * dpr, sy - size * 0.55, sx + w / 2 + 4 * dpr, sy + size * 0.55];
@@ -373,13 +373,16 @@ async function building(type, art, L) {
 function hash(s) { let h = 2166136261; for (const ch of s) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return (h >>> 0) / 4294967296; }
 async function bakeCity(p, ci) {
   const c = countries[ci], art = c.art || 'americas', rel = relOf(ci);
-  const N = 320, R = N / 2;
+  const N = 640, R = N / 2;   // sharp enough for the deepest zoom
   const cv2 = document.createElement('canvas'); cv2.width = cv2.height = N;
   const g = cv2.getContext('2d', {willReadFrequently: true});
   const bl = await blocksFor(art);
   const seed = hash(p.name_en || p.name_ar);
   if (bl.length) {
-    g.save(); g.translate(R, R); g.rotate(seed * 6.283); g.drawImage(bl[Math.floor(seed * bl.length)], -R * 1.2, -R * 1.2, R * 2.4, R * 2.4); g.restore();
+    // the city fabric repeats at a finer scale than the patch, so streets and blocks are small and dense like a real city
+    const pat = g.createPattern(bl[Math.floor(seed * bl.length)], 'repeat'), bs = R * 1.15 / bl[0].width;
+    pat.setTransform(new DOMMatrix().translate(R, R).rotate(seed * 360).scale(bs, bs));
+    g.fillStyle = pat; g.fillRect(0, 0, N, N);
   }
   // main buildings in the heart of capitals and big cities
   const set = p.kind === 'capital' ? [['factory', 3], ['airport', 2], ['training_camp', 2], ['hospital', 1]] : p.kind === 'major' ? [['factory', 1], ['training_camp', 1]] : [];
@@ -393,36 +396,31 @@ async function bakeCity(p, ci) {
   const tl = LUT[rel];                                             // exactly the land's colour table: one hue, light and dark only
   for (let q = 0; q < d.length; q += 4) {
     const l = (0.3 * d[q] + 0.59 * d[q + 1] + 0.11 * d[q + 2]) / 255;
-    const i = Math.max(0, Math.min(255, ((l - 0.4) * 1.4 + 0.24) * 255)) | 0;   // built-up ground: darker than the fields, buildings stand out
+    const i = Math.max(0, Math.min(255, ((l - 0.4) * 1.3 + 0.17) * 255)) | 0;   // built-up ground: darker than the fields, buildings stand out
     d[q] = tl[i * 3]; d[q + 1] = tl[i * 3 + 1]; d[q + 2] = tl[i * 3 + 2];
   }
   g.putImageData(id, 0, 0);
-  // soft irregular outline: dense centre, broken suburbs
+  // irregular outline like a real built-up area: a cluster of overlapping lobes, densest in the middle
   const m = document.createElement('canvas'); m.width = m.height = N; const mg = m.getContext('2d');
-  const grd = mg.createRadialGradient(R, R, R * 0.15, R, R, R * 0.95);
-  grd.addColorStop(0, 'rgba(0,0,0,1)'); grd.addColorStop(0.55, 'rgba(0,0,0,0.85)'); grd.addColorStop(1, 'rgba(0,0,0,0)');
-  mg.fillStyle = grd; mg.fillRect(0, 0, N, N);
   let rs = seed * 1000;
   const rnd = () => { rs = (rs * 9301 + 49297) % 233280; return rs / 233280; };
-  mg.globalCompositeOperation = 'destination-out';
-  for (let k = 0; k < 70; k++) {                                   // gaps in the outskirts
-    const a = rnd() * 6.283, rr = R * (0.55 + rnd() * 0.45), s2 = R * (0.06 + rnd() * 0.12);
+  mg.fillStyle = '#000';
+  mg.beginPath(); mg.arc(R, R, R * 0.42, 0, 7); mg.fill();
+  for (let k = 0; k < 26; k++) {
+    const a = rnd() * 6.283, rr = R * (0.15 + rnd() * 0.5), s2 = R * (0.12 + rnd() * 0.2);
     mg.beginPath(); mg.arc(R + Math.cos(a) * rr, R + Math.sin(a) * rr, s2, 0, 7); mg.fill();
   }
-  mg.globalCompositeOperation = 'source-over';
-  for (let k = 0; k < 10; k++) {                                   // and a few lobes reaching out along roads
-    const a = rnd() * 6.283, rr = R * (0.5 + rnd() * 0.3), s2 = R * (0.08 + rnd() * 0.08);
-    mg.globalAlpha = 0.7; mg.beginPath(); mg.arc(R + Math.cos(a) * rr, R + Math.sin(a) * rr, s2, 0, 7); mg.fill();
+  mg.globalAlpha = 0.6;
+  for (let k = 0; k < 18; k++) {                                   // suburbs reaching out along roads
+    const a = rnd() * 6.283, rr = R * (0.55 + rnd() * 0.3), s2 = R * (0.05 + rnd() * 0.08);
+    mg.beginPath(); mg.arc(R + Math.cos(a) * rr, R + Math.sin(a) * rr, s2, 0, 7); mg.fill();
   }
+  mg.globalAlpha = 1;
   // a town never spills into the sea or across a border: keep only its own country's land
   const own = await ownLand(p, ci, N);
   if (own) { mg.globalCompositeOperation = 'destination-in'; mg.drawImage(own, 0, 0, N, N); mg.globalCompositeOperation = 'source-over'; }
-  g.globalCompositeOperation = 'destination-in'; g.filter = 'blur(2px)'; g.drawImage(m, 0, 0); g.filter = 'none';
-  // built-up ground darkens slightly around the city so it settles into the terrain
-  const out = document.createElement('canvas'); out.width = out.height = N; const og = out.getContext('2d');
-  const hal = og.createRadialGradient(R, R, R * 0.3, R, R, R);
-  hal.addColorStop(0, 'rgba(10,14,12,0.35)'); hal.addColorStop(1, 'rgba(10,14,12,0)');
-  og.fillStyle = hal; og.fillRect(0, 0, N, N); og.drawImage(cv2, 0, 0);
+  g.globalCompositeOperation = 'destination-in'; g.filter = `blur(${Math.round(N / 90)}px)`; g.drawImage(m, 0, 0); g.filter = 'none';
+  const out = cv2;
   return out;
 }
 // country ids around a city, read from the sharpest id tiles (2 px per world px)
@@ -547,7 +545,7 @@ let drag = null, pinch = null;
 cv.addEventListener('wheel', e => { e.preventDefault(); zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.0015)); }, {passive: false});
 function zoomAt(cx, cy, k) {
   const wx = (cx - innerWidth / 2) / view.z + view.x, wy = (cy - innerHeight / 2) / view.z + view.y;
-  view.z = Math.min(7, Math.max(0.08, view.z * k));
+  view.z = Math.min(9, Math.max(0.08, view.z * k));
   view.x = wx - (cx - innerWidth / 2) / view.z; view.y = wy - (cy - innerHeight / 2) / view.z; draw();
 }
 cv.addEventListener('pointerdown', e => drag = {x: e.clientX, y: e.clientY});
