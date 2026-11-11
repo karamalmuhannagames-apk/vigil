@@ -57,6 +57,7 @@ function bakeWorld(cityStrength) {
     const M = c.mask.width / 2; tg.drawImage(c.mask, M - R + (c.x - Math.round(c.x)), M - R + (c.y - Math.round(c.y)), R * 2, R * 2, 0, 0, R * 2, R * 2);   // city ends at its province border
     g.globalAlpha = 0.72 * cityStrength; g.drawImage(t, c.x - R, c.y - R); g.globalAlpha = 1;
   });
+  if (cityStrength >= 1) drawBuildings(g);   // buildings go in BEFORE the colour pass: same grading as the streets around them
   // colour pass over everything at once
   const id = g.getImageData(0, 0, S, S), d = id.data;
   const lut = {}; for (const n of new Set(nationId)) if (n >= 0) lut[n] = COL[relOf(n)];
@@ -71,7 +72,6 @@ function bakeWorld(cityStrength) {
     d[q + 2] = d[q + 2] * (1 - a) + Math.min(255, c[2] * L * 255) * a;
   }
   g.putImageData(id, 0, 0);
-  if (cityStrength >= 1) drawBuildings(g);
   g.drawImage(outlines, 0, 0);
   g.drawImage(borders, 0, 0);
   return w;
@@ -94,13 +94,13 @@ function drawBuildings(g) {
       const img = sprite(type, L), pl = c.plots[k]; if (!img || !pl) return;
       const t = document.createElement('canvas'); t.width = t.height = Math.ceil(sz);
       const tg = t.getContext('2d');
-      tg.drawImage(img, 0, 0, sz, sz);
-      tg.globalCompositeOperation = 'source-atop';                 // a hint of the owner's colour so it belongs to the city
-      tg.fillStyle = `rgba(${r0 * 255},${g0 * 255},${b0 * 255},0.18)`; tg.fillRect(0, 0, sz, sz);
-      tg.globalCompositeOperation = 'destination-in';              // soft edge: the lot melts into the streets
-      const f = tg.createRadialGradient(sz / 2, sz / 2, sz * 0.32, sz / 2, sz / 2, sz * 0.5);
-      f.addColorStop(0, 'rgba(0,0,0,1)'); f.addColorStop(1, 'rgba(0,0,0,0)');
-      tg.fillStyle = f; tg.fillRect(0, 0, sz, sz);
+      // match the satellite city: a touch softer, calmer colours, same contrast as the streets
+      tg.filter = 'blur(0.35px) saturate(0.8) contrast(0.92) brightness(0.96)';
+      tg.drawImage(img, 0, 0, sz, sz); tg.filter = 'none';
+      // seat it: built-up ground under a building is darker, so it sits IN the city, not on it
+      const seat = g.createRadialGradient(c.x + pl[0] * R, c.y + pl[1] * R, sz * 0.1, c.x + pl[0] * R, c.y + pl[1] * R, sz * 0.55);
+      seat.addColorStop(0, 'rgba(20,20,18,0.28)'); seat.addColorStop(1, 'rgba(20,20,18,0)');
+      g.fillStyle = seat; g.fillRect(c.x + pl[0] * R - sz, c.y + pl[1] * R - sz, sz * 2, sz * 2);
       c.used = (c.used || 0) | (1 << k);
       g.drawImage(t, c.x + pl[0] * R - sz / 2, c.y + pl[1] * R - sz / 2);
     });
