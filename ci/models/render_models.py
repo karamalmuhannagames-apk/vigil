@@ -11,7 +11,7 @@ TINT = {
     'green': {'ground': (0.36, 0.52, 0.22), 'air': (0.50, 0.60, 0.52), 'sea': (0.56, 0.64, 0.60)},
     'tan':   {'ground': (0.95, 0.76, 0.48), 'air': (0.86, 0.76, 0.62), 'sea': (0.84, 0.76, 0.64)},
 }
-KIND = {'fighter': 'air', 'heli': 'air', 'destroyer': 'sea', 'sub': 'sea'}
+KIND = {'fighter': 'air', 'heli': 'air', 'destroyer': 'sea', 'sub': 'sea', 'fighter_super': 'air', 'fighter_multi': 'air', 'fighter_stealth': 'air', 'fighter_naval': 'air'}
 
 def scene():
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -97,10 +97,12 @@ def frame_and_render(name, objs, alt=0.0, elev=28, azim=-38):
     print('rendered', name)
 
 units = sorted(d for d in os.listdir(SRC) if os.path.isdir(os.path.join(SRC, d)))
+if os.environ.get('ONLY'): units = [u for u in units if u.startswith(os.environ['ONLY'])]
 for unit in units:
     for side in ('green', 'tan'):
         scene()
         objs = load(unit)
         if not objs: print('no model for', unit); break
         tint_materials(objs, TINT[side][KIND.get(unit, 'ground')])
-        frame_and_render(f'{unit}_{side}', objs, alt=3.0 if unit in ('fighter', 'heli') else 0.0)
+        jet = unit.startswith('fighter')
+        frame_and_render(f'{unit}_{side}', objs, alt=3.0 if (jet or unit == 'heli') else 0.0, elev=55 if jet else 28)
