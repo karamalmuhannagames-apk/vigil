@@ -156,6 +156,10 @@ bank = ndi.binary_dilation(river, iterations=max(1, S // 1024)) & land & ~river
 water = ~land | river
 
 shade = hillshade(height)
+if os.environ.get('EXPORT_MASKS'):
+    np.savez_compressed(os.path.join(OUT, 'masks.npz'), land=land, height=height.astype(np.float32),
+                        forest=forest.astype(np.float32), farm=farm_zone.astype(np.float32), river=river,
+                        shade=shade.astype(np.float32))
 print('colour')
 img = np.zeros((S, S, 3))
 # land base: meadow green, varied
