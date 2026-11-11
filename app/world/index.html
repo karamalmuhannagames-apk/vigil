@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>World map prototype</title>
 <style>
-  @font-face{font-family:Alexandria;src:url(../fonts/Alexandria.ttf);font-weight:100 900}
-  @font-face{font-family:Kufam;src:url(../fonts/Kufam.ttf);font-weight:400 900}
+  @font-face{font-family:Plex;src:url(../fonts/IBMPlexSansArabic-Medium.ttf);font-weight:500}
+  @font-face{font-family:Plex;src:url(../fonts/IBMPlexSansArabic-Bold.ttf);font-weight:700}
   html,body{margin:0;height:100%;background:#0d1b26;overflow:hidden;font-family:system-ui,sans-serif}
   canvas{display:block;width:100vw;height:100vh;touch-action:none}
   #hud{position:fixed;left:12px;bottom:12px;color:#cfe3d4;font:600 13px system-ui;background:#0d1b26cc;padding:6px 10px;border-radius:6px}
@@ -17,28 +17,54 @@
 <div id="hud"></div>
 <script>
 // Real-world map, tiled: only the tiles on screen are loaded and coloured, so it stays fast on a phone.
-// Each tile = satellite colour + a country-id image. Colour by relation is applied per tile, live,
-// so declaring war or giving passage recolours the map instantly.
+// Each tile = big light and shade + forest/desert/rock weights + a country-id image. The game paints the
+// ground from small textures and colours it by relation, live, so declaring war recolours the map instantly.
 const DATA = new URLSearchParams(location.search).get('data') || '../../art/world/';
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const T = 512;
 let W, H, world, countries = [], byIso = {}, cityOrder = [];
-// Relation colours as shadow -> highlight ramps measured from CoN screenshots. The terrain's own light and
-// dark runs through the ramp, so forests, fields and hills stay visible in every colour.
-// keep = how much of the natural terrain colour stays (own land is shown nearly as it is).
-const RAMP = {
-  me:      {lo: [26, 66, 30],   hi: [146, 190, 96],  keep: 0.6},
-  ally:    {lo: [84, 104, 62],  hi: [188, 204, 146], keep: 0.15},   // pale olive, like Algeria in CoN
-  passage: {lo: [12, 44, 22],   hi: [70, 118, 62],   keep: 0.10},
-  neutral: {lo: [14, 32, 28],   hi: [62, 84, 78],    keep: 0.0},    // deep blue-green slate
-  enemy:   {lo: [30, 4, 4],     hi: [142, 40, 34],   keep: 0.0},    // blood red, terrain showing through
-};
+// Relation colours measured from CoN screenshots: 7 colour stops per relation, darkest to lightest, taken from
+// real map pixels of each relation (own green, ally pale olive, stranger blue-grey slate, enemy blood red).
+// The painted ground's light and dark picks a colour along the stops, so terrain shows in every colour.
+const STOPS = {"ally":[[90,105,77],[98,116,83],[106,125,89],[118,137,100],[128,153,106],[137,161,109],[143,166,113]],"enemy":[[53,16,8],[56,19,11],[63,21,16],[71,26,20],[82,30,24],[117,34,38],[126,38,43]],"neutral":[[11,28,22],[13,30,24],[13,34,27],[23,46,37],[27,53,42],[41,64,55],[51,74,66]],"me":[[44,75,33],[58,91,46],[76,116,62],[99,145,81],[112,181,94],[128,191,100],[135,198,104]],"passage":[[31,54,23],[41,65,33],[54,83,44],[71,104,58],[80,130,67],[92,137,72],[97,142,74]]};
+const STOP_AT = [0.06, 0.16, 0.30, 0.45, 0.58, 0.68, 0.80];   // which ground brightness lands on each stop
+const LUT = {};
+for (const [k, st] of Object.entries(STOPS)) {
+  const t = new Uint8ClampedArray(256 * 3);
+  for (let i = 0; i < 256; i++) {
+    const v = i / 255; let j = 0;
+    while (j < STOP_AT.length - 2 && v > STOP_AT[j + 1]) j++;
+    const u = Math.min(1, Math.max(0, (v - STOP_AT[j]) / (STOP_AT[j + 1] - STOP_AT[j])));
+    for (let c = 0; c < 3; c++) t[i * 3 + c] = st[j][c] + (st[j + 1][c] - st[j][c]) * u;
+  }
+  LUT[k] = t;
+}
+const SEA = {coast: [64, 90, 103], deep: [25, 55, 81]};   // measured from CoN: coastal waters and open ocean
 let ME = 'JOR';
 let REL = {SAU: 'ally', EGY: 'ally', IRQ: 'passage', IRN: 'enemy'};   // everyone else: neutral (dark slate)
 const relOf = i => { const iso = countries[i]?.iso; return iso === ME ? 'me' : (REL[iso] || 'neutral'); };
 let view = {x: 0, y: 0, z: 1};
-let wavePat = null, manifest = null, ZMAX = 3;
-load('waves.jpg').then(img => { wavePat = ctx.createPattern(img, 'repeat'); draw(); });
+let manifest = null, ZMAX = 3, TEX = null, deepPat = null;
+// ground textures, read once into plain arrays (the tile painter samples them per pixel)
+function pixels(img, w, h) { const c = document.createElement('canvas'); c.width = w || img.width; c.height = h || img.height; const g = c.getContext('2d', {willReadFrequently: true}); g.drawImage(img, 0, 0, c.width, c.height); return g.getImageData(0, 0, c.width, c.height).data; }
+const SRGB = new Float32Array(256); for (let i = 0; i < 256; i++) { const v = i / 255; SRGB[i] = v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }
+Promise.all(['forest', 'forest_id', 'open', 'arid', 'rock', 'waves'].map(n => load(n === 'waves' ? 'waves.jpg' : `tex/${n}.png`).catch(() => null))).then(([fo, fid, op, ar, rk, wv]) => {
+  const one = (img, n) => { const d = pixels(img, n, n), a = new Uint8Array(n * n); for (let i = 0; i < n * n; i++) a[i] = d[i * 4]; return a; };
+  const FN = fo ? fo.width : 1024;
+  const fd = pixels(fo), fl = new Uint8Array(FN * FN), fa = new Uint8Array(FN * FN), fv = new Uint8Array(FN * FN);
+  for (let i = 0; i < FN * FN; i++) { fl[i] = fd[i * 4]; fa[i] = fd[i * 4 + 3]; }
+  if (fid) { const d = pixels(fid, FN, FN); for (let i = 0; i < FN * FN; i++) fv[i] = Math.round(SRGB[d[i * 4]] * 255); }   // tree values were saved through sRGB
+  // waves: sea ripples, as a brightness texture around 1.0
+  const WN = 512, wd = pixels(wv, WN, WN), wave = new Float32Array(WN * WN); let m = 0;
+  for (let i = 0; i < WN * WN; i++) { wave[i] = wd[i * 4] * 0.3 + wd[i * 4 + 1] * 0.59 + wd[i * 4 + 2] * 0.11; m += wave[i]; }
+  m /= WN * WN; for (let i = 0; i < WN * WN; i++) wave[i] = 1 + (wave[i] / m - 1) * 0.55;
+  TEX = {FN, fl, fa, fv, open: one(op, 512), arid: one(ar, 512), rock: one(rk, 512), wave, WN};
+  // open ocean with no tile: a deep-sea pattern built the same way
+  const dc = document.createElement('canvas'); dc.width = dc.height = WN; const dg = dc.getContext('2d'), di = dg.createImageData(WN, WN);
+  for (let i = 0; i < WN * WN; i++) { const k = wave[i]; di.data[i * 4] = SEA.deep[0] * k; di.data[i * 4 + 1] = SEA.deep[1] * k; di.data[i * 4 + 2] = SEA.deep[2] * k; di.data[i * 4 + 3] = 255; }
+  dg.putImageData(di, 0, 0); deepPat = ctx.createPattern(dc, 'repeat');
+  cache.clear(); draw();
+});
 // gentle wave motion: a light redraw loop (about 12 frames a second, paused when the app is hidden)
 setInterval(() => { if (!document.hidden && world && view.z > 0.15) draw(); }, 83);
 const cache = new Map();   // key z/x/y -> {canvas} ; tinted tiles
@@ -46,97 +72,106 @@ let gen = 0;               // bumps when relations change: tinted tiles rebuilt
 
 function load(src) { return new Promise((r, j) => { const i = new Image(); i.onload = () => r(i); i.onerror = j; i.src = src; }); }
 
-async function buildTile(z, tx, ty) {
-  const [sat, nat] = await Promise.all([load(`${DATA}tiles/${z}/${tx}_${ty}.jpg`), load(`${DATA}tiles/${z}/${tx}_${ty}_n.png`)]);
-  const w = sat.width, h = sat.height;
-  const mkc = () => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
-  const landC = mkc(), g = landC.getContext('2d', {willReadFrequently: true});
-  g.drawImage(nat, 0, 0); const nd = g.getImageData(0, 0, w, h).data;
-  g.drawImage(sat, 0, 0); const id = g.getImageData(0, 0, w, h), d = id.data;
-  const seaC = mkc(), sg = seaC.getContext('2d'), sid = sg.createImageData(w, h), sd = sid.data;
+// Paints one tile at C x C pixels: the ground textures (crisp, one texture pixel per tile pixel), mixed by the
+// real forest / desert / rock weights, shaded by the real relief, then coloured by who owns the land.
+async function buildTile(z, tx, ty, C) {
+  const [lumI, bioI, natI] = await Promise.all([load(`${DATA}tiles/${z}/${tx}_${ty}.jpg`), load(`${DATA}tiles/${z}/${tx}_${ty}_b.png`), load(`${DATA}tiles/${z}/${tx}_${ty}_n.png`)]);
+  const c = document.createElement('canvas'); c.width = c.height = C;
+  const g = c.getContext('2d', {willReadFrequently: true});
+  g.imageSmoothingEnabled = false; g.drawImage(natI, 0, 0, C, C); const nd = g.getImageData(0, 0, C, C).data;
+  g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+  g.drawImage(lumI, 0, 0, C, C); const ld = g.getImageData(0, 0, C, C).data;
+  g.drawImage(bioI, 0, 0, C, C); const bd = g.getImageData(0, 0, C, C).data;
+  const out = g.createImageData(C, C), d = out.data;
+  const {FN, fl, fa, fv, open, arid, rock, wave, WN} = TEX;
+  const gx0 = tx * C, gy0 = ty * C;
   const lut = {};
-  let anySea = false, anyLand = false;
-  for (let p = 0, q = 0; p < w * h; p++, q += 4) {
-    const n = nd[q] + nd[q + 1] * 256 - 1;
-    if (n < 0) {
-      // sea: this pixel is a light/shadow code laid over the waves (land shadow on the water, lighter shallows)
-      sd[q] = d[q]; sd[q + 1] = d[q + 1]; sd[q + 2] = d[q + 2]; sd[q + 3] = 255; d[q + 3] = 0; anySea = true;
-      continue;
+  for (let y = 0; y < C; y++) {
+    const gy = gy0 + y, fr = (gy % FN) * FN, gr = (gy & 511) * 512, wr = (gy % WN) * WN;
+    for (let x = 0; x < C; x++) {
+      const q = (y * C + x) * 4, gx = gx0 + x;
+      const n = nd[q] + nd[q + 1] * 256 - 1;
+      const L = ld[q] / 127.5;                                  // 1.0 = no extra light or shade
+      if (n < 0) {                                              // sea: coastal grey-blue or deep blue, ripples, land shadow
+        const base = bd[q] > 127 ? SEA.coast : SEA.deep, k = L * wave[wr + gx % WN];
+        d[q] = base[0] * k; d[q + 1] = base[1] * k; d[q + 2] = base[2] * k; d[q + 3] = 255;
+        continue;
+      }
+      const gi = gr + (gx & 511), ar = bd[q + 1] / 255, rk = bd[q + 2] / 255;
+      let v = open[gi] * (1 - ar) + arid[gi] * ar;
+      v = v * (1 - rk) + rock[gi] * rk;
+      const fi = fr + gx % FN, a = fa[fi];
+      if (a) {                                                  // a tree (or its shadow) stands here if the forest is dense enough
+        const dens = bd[q] / 255 * 1.15, tv = fv[fi] / 255;
+        if (tv ? dens > tv : dens > 0.5) { const al = a / 255; v = v * (1 - al) + fl[fi] * al; }
+      }
+      const t = lut[n] || (lut[n] = LUT[relOf(n)]);
+      const i = Math.min(255, v * L) * 3;
+      d[q] = t[i | 0]; d[q + 1] = t[(i | 0) + 1]; d[q + 2] = t[(i | 0) + 2]; d[q + 3] = 255;
     }
-    anyLand = true;
-    const r = lut[n] || (lut[n] = RAMP[relOf(n)]);
-    const t = Math.min(1, Math.max(0, ((0.3 * d[q] + 0.59 * d[q + 1] + 0.11 * d[q + 2]) / 255 - 0.14) / 0.6));
-    const k = r.keep, lo = r.lo, hi = r.hi;
-    d[q]     = d[q]     * k + (lo[0] + (hi[0] - lo[0]) * t) * (1 - k);
-    d[q + 1] = d[q + 1] * k + (lo[1] + (hi[1] - lo[1]) * t) * (1 - k);
-    d[q + 2] = d[q + 2] * k + (lo[2] + (hi[2] - lo[2]) * t) * (1 - k);
   }
-  // soft coastline: land pixels next to the sea get partial cover, so coasts stay smooth when zoomed in
-  for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
-    const q = (y * w + x) * 4; if (d[q + 3] === 0) continue;
-    const n = (d[q - 4 + 3] === 0) + (d[q + 4 + 3] === 0) + (d[q - w * 4 + 3] === 0) + (d[q + w * 4 + 3] === 0);
-    if (n) d[q + 3] = 255 - n * 40;
-  }
-  g.putImageData(id, 0, 0); sg.putImageData(sid, 0, 0);
-  return {land: anyLand ? landC : null, sea: anySea ? seaC : null};
+  g.putImageData(out, 0, 0);
+  return c;
 }
 
-function tileFor(z, tx, ty) {
-  const k = `${gen}/${z}/${tx}/${ty}`;
+function tileFor(z, tx, ty, C) {
+  const k = `${gen}/${C}/${z}/${tx}/${ty}`;
   let e = cache.get(k);
   if (!e) {
     e = {canvas: null}; cache.set(k, e);
-    if (manifest && !manifest[z]?.has(`${tx}_${ty}`)) { e.canvas = {land: null, sea: null}; return e.canvas; }   // open sea: waves only
-    buildTile(z, tx, ty).then(c => { e.canvas = c; draw(); }, () => { e.failed = true; });
-    if (cache.size > 220) { const old = cache.keys().next().value; cache.delete(old); }
+    if (!TEX) { cache.delete(k); return null; }
+    if (manifest && !manifest[z]?.has(`${tx}_${ty}`)) { e.canvas = 'deep'; return e.canvas; }   // open ocean
+    queue.push(() => buildTile(z, tx, ty, C).then(c => { e.canvas = c; draw(); }, () => { e.failed = true; }));
+    pump();
+    if (cache.size > 90) { const old = cache.keys().next().value; cache.delete(old); }
   }
   return e.canvas;
 }
+// tiles are painted one after another, so the screen stays responsive while new ones arrive
+const queue = []; let busy = false;
+function pump() { if (busy || !queue.length) return; busy = true; const job = queue.pop(); job().finally(() => { busy = false; setTimeout(pump, 0); }); }
 
 const smooth = (a, b, v) => Math.min(1, Math.max(0, (v - a) / (b - a)));
 function draw() {
   if (!world) return;
   const dpr = devicePixelRatio, sw = cv.width, sh = cv.height, s = view.z * dpr;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  // the sea: CoN-like blue with real wave ripples, anchored to the map and drifting slowly
-  if (wavePat) {
-    const ws = Math.max(0.3 * devicePixelRatio, Math.min(1.1 * devicePixelRatio, s * 0.42));   // waves grow as you zoom in, within natural limits
-    const t = performance.now() / 1000, P = 512 * ws;
-    const mod = (v) => ((v % P) + P) % P;
-    wavePat.setTransform(new DOMMatrix([ws, 0, 0, ws, mod(-view.x * s + sw / 2 + t * 5 * ws), mod(-view.y * s + sh / 2 + t * 1.6 * ws)]));
-    ctx.fillStyle = wavePat;
-  } else ctx.fillStyle = '#2e4f66';
-  ctx.fillRect(0, 0, sw, sh);
-  // far away the ripples would shimmer: fade them to the calm sea colour
-  const calm = 1 - smooth(0.15, 0.45, view.z);
-  if (calm > 0) { ctx.globalAlpha = calm; ctx.fillStyle = '#2e4f66'; ctx.fillRect(0, 0, sw, sh); ctx.globalAlpha = 1; }
-  // zoom level: full resolution (3) when close, coarser tiles when far
+  // zoom level: full resolution (4) when close, coarser tiles when far
   const z = Math.max(0, Math.min(ZMAX, Math.round(3 + Math.log2(view.z) + 0.25)));
-  const f = 2 ** (3 - z);                     // world px per tile px (0.5 at the sharpest level)
+  const f = 2 ** (3 - z);                     // world px per tile px
+  const tsz = T * f * s;                      // one tile's size on screen
+  const C = Math.max(256, Math.min(1024, 2 ** Math.round(Math.log2(tsz))));   // paint resolution: ground texture stays crisp
+  const k = tsz / C;                          // screen px per painted px
+  // open ocean: deep-sea ripples, locked to the same painted-pixel grid as the tiles
+  if (deepPat) {
+    const P = 512 * k, mod = (v) => ((v % P) + P) % P;
+    deepPat.setTransform(new DOMMatrix([k, 0, 0, k, mod(-view.x * s + sw / 2), mod(-view.y * s + sh / 2)]));
+    ctx.fillStyle = deepPat;
+  } else ctx.fillStyle = `rgb(${SEA.deep})`;
+  ctx.fillRect(0, 0, sw, sh);
   const x0 = view.x - sw / 2 / s, y0 = view.y - sh / 2 / s, x1 = view.x + sw / 2 / s, y1 = view.y + sh / 2 / s;
-  ctx.imageSmoothingQuality = 'high';
-  const vis = [];
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
   for (let ty = Math.max(0, Math.floor(y0 / (T * f))); ty * T * f < Math.min(H, y1); ty++)
     for (let tx = Math.max(0, Math.floor(x0 / (T * f))); tx * T * f < Math.min(W, x1); tx++) {
-      let c = tileFor(z, tx, ty), ox = 0, oy = 0, sc = 1;
-      // while a sharp tile loads, show the coarser parent so the map never has holes
-      if (!c && z > 0) { const p = cache.get(`${gen}/${z - 1}/${tx >> 1}/${ty >> 1}`); if (p?.canvas) { c = p.canvas; ox = (tx & 1) * T / 2; oy = (ty & 1) * T / 2; sc = 2; } }
+      let c = tileFor(z, tx, ty, C), sx = 0, sy = 0, sz = null;
+      if (c === 'deep') continue;
+      if (!c) {   // while it paints: the same tile at another resolution, or the coarser parent, so there are no holes
+        for (const C2 of [512, 1024, 256]) { const e = cache.get(`${gen}/${C2}/${z}/${tx}/${ty}`); if (e?.canvas && e.canvas !== 'deep') { c = e.canvas; break; } }
+        if (!c && z > 0) for (const C2 of [C, 512, 1024, 256]) {
+          const e = cache.get(`${gen}/${C2}/${z - 1}/${tx >> 1}/${ty >> 1}`);
+          if (e?.canvas && e.canvas !== 'deep') { c = e.canvas; sz = C2 / 2; sx = (tx & 1) * sz; sy = (ty & 1) * sz; break; }
+        }
+      }
       if (!c) continue;
-      vis.push([c, (tx * T * f - view.x) * s + sw / 2, (ty * T * f - view.y) * s + sh / 2, ox, oy, sc]);
+      const px = (tx * T * f - view.x) * s + sw / 2, py = (ty * T * f - view.y) * s + sh / 2;
+      const X0 = Math.round(px), Y0 = Math.round(py), X1 = Math.round(px + tsz), Y1 = Math.round(py + tsz);   // whole pixels: no hairlines
+      if (sz) ctx.drawImage(c, sx, sy, sz, sz, X0, Y0, X1 - X0, Y1 - Y0);
+      else ctx.drawImage(c, X0, Y0, X1 - X0, Y1 - Y0);
     }
-  const put = (img, px, py, ox, oy, sc) => {
-    // snap tiles to whole screen pixels so no hairline shows between them
-    const x0 = Math.round(px), y0 = Math.round(py);
-    if (sc === 1) ctx.drawImage(img, x0, y0, Math.round(px + img.width * f * s) - x0, Math.round(py + img.height * f * s) - y0);
-    else ctx.drawImage(img, ox, oy, T / 2, T / 2, x0, y0, Math.round(px + T * f * s) - x0, Math.round(py + T * f * s) - y0);
-  };
-  ctx.globalCompositeOperation = 'hard-light';                      // light and shadow on the water
-  for (const [c, px, py, ox, oy, sc] of vis) if (c.sea) put(c.sea, px, py, ox, oy, sc);
-  ctx.globalCompositeOperation = 'source-over';
-  for (const [c, px, py, ox, oy, sc] of vis) if (c.land) put(c.land, px, py, ox, oy, sc);
   drawCities(s, sw, sh);
   drawBorders(s, sw, sh);
   drawCountryNames(s, sw, sh);
+  // drawArmies(s, sw, sh, performance.now());   // paused until the ground is right
   // cities: most important first; a label that would overlap one already placed is skipped (no clutter, ever)
   ctx.textAlign = 'center';
   const placed = [];
@@ -148,39 +183,34 @@ function draw() {
     if (!show) continue;
     const sx = (p.x - view.x) * s + sw / 2, sy = (p.y - view.y) * s + sh / 2;
     if (sx < -100 || sy < -50 || sx > sw + 100 || sy > sh + 50) continue;
-    const fs0 = (p.kind === 'capital' ? 14 : 12) * dpr;
-    ctx.font = p.kind === 'capital' ? `800 ${fs0}px Kufam, Alexandria, system-ui` : `600 ${fs0}px Alexandria, system-ui`;
-    const tw = ctx.measureText(p.name_ar).width, base = [sx - tw / 2 - 4 * dpr, sy - fs0 - 10 * dpr, sx + tw / 2 + 4 * dpr, sy + 5 * dpr];
-    // a phone screen is small: keep breathing room around every name. If the usual spot (above) is taken,
-    // try below, then the sides, before giving up — so a capital like Jerusalem is never lost next to Amman.
-    const side = tw / 2 + 12 * dpr, low = fs0 + 16 * dpr;
-    let off = null;
-    for (const [dx, dy, pad] of [[0, 0, 14 * dpr], [0, low, 8 * dpr], [side, low / 2, 8 * dpr], [-side, low / 2, 8 * dpr]]) {
-      const box = [base[0] + dx, base[1] + dy, base[2] + dx, base[3] + dy];
-      if (box[0] < 0 || box[2] > sw) { if (dx) continue; }
+    const fs = (p.kind === 'capital' ? 15 : 12.5) * dpr;
+    ctx.font = p.kind === 'capital' ? `700 ${fs}px Plex, system-ui` : `500 ${fs}px Plex, system-ui`;
+    const tw = ctx.measureText(p.name_ar).width;
+    // one rule for every name: centred right under its city (under the marker far away, under the town close up).
+    // Only if that spot is taken may it sit beside the marker, right or left, level with it. Otherwise it waits.
+    const fadeM = 1 - smooth(0.8, 1.25, view.z), near = smooth(1.25, 1.8, view.z);
+    const below = (fs * 0.4) * (1 - near) + (CR[p.kind] * s * 0.8 + fs * 0.9) * near;
+    const spots = [[0, below, 'center']];
+    
+    let spot = null;
+    for (const [dx, dy] of spots) {
+      const cx = sx + dx, by = sy + dy, box = [cx - tw / 2 - 3 * dpr, by - fs * 0.95, cx + tw / 2 + 3 * dpr, by + fs * 0.35];
+      if (dx && (box[0] < 0 || box[2] > sw)) continue;
+      const pad = 10 * dpr;
       if (placed.some(b => box[0] - pad < b[2] && box[2] + pad > b[0] && box[1] - pad < b[3] && box[3] + pad > b[1])) continue;
-      placed.push(box); off = [dx, dy]; break;
+      placed.push(box); spot = [cx, by]; break;
     }
-    if (!off) continue;
-    // the marker itself also takes room, so nothing is written over a star
-    placed.push([sx - 7 * dpr, sy - 7 * dpr, sx + 7 * dpr, sy + 7 * dpr]);
+    if (!spot) continue;
     ctx.globalAlpha = show;
-    // marker: shape says the relation (rectangle friend, diamond enemy, square stranger), colour backs it up;
-    // capitals get an eight-pointed star (two squares, Kufi geometry). It fades as the real town appears.
-    const fadeM = 1 - smooth(0.8, 1.25, view.z);   // marker leaves before the name slides under the town
-    const rel = relOf(p.ci);
-    if (fadeM > 0.02) {
-      ctx.save(); ctx.translate(Math.round(sx), Math.round(sy)); ctx.globalAlpha = show * fadeM;
-      if (p.kind === 'capital') star(ctx, 8 * dpr, '#F2C14E');
-      else pip(ctx, rel, (p.kind === 'major' ? 3.6 : 2.9) * dpr);
-      ctx.restore(); ctx.globalAlpha = show;
-    }
-    const r = (p.kind === 'capital' ? 7 : 4.5) * dpr * fadeM;
-    const fs = (p.kind === 'capital' ? 14 : 12) * dpr;
-    ctx.font = p.kind === 'capital' ? `800 ${fs}px Kufam, Alexandria, system-ui` : `600 ${fs}px Alexandria, system-ui`; ctx.lineWidth = (p.kind === 'capital' ? 0.22 : 0.26) * fs; ctx.lineJoin = 'round'; ctx.strokeStyle = '#070B11';   // opaque halo first: no dark blobs where Arabic letters join
-    const near = smooth(1.25, 1.8, view.z), ly = Math.round((sy - r - 4 * dpr) * (1 - near) + (sy + CR[p.kind] * s * 0.8 + fs) * near);   // close up the name sits under the town
-    const lx = Math.round(sx + off[0]), ly2 = ly + off[1];
-    ctx.strokeText(p.name_ar, lx, ly2); ctx.fillStyle = '#F4EEDD'; ctx.fillText(p.name_ar, lx, ly2);
+    // (city markers: rendered skyline miniatures come next; no stuck-on symbols)
+    // our own lettering: warm white, a thin dark edge and a short soft shadow
+    const lx = Math.round(spot[0]), ly = Math.round(spot[1]);
+    ctx.textAlign = 'center';
+    ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(2, fs * 0.16); ctx.strokeStyle = 'rgba(6,10,14,0.9)';
+    ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 4 * dpr; ctx.shadowOffsetY = 1.5 * dpr;
+    ctx.strokeText(p.name_ar, lx, ly);
+    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    ctx.fillStyle = '#F3EFE4'; ctx.fillText(p.name_ar, lx, ly);
   }
   ctx.globalAlpha = 1;
   document.getElementById('hud').textContent = `zoom ${view.z.toFixed(2)} · tiles z${z}`;
@@ -216,10 +246,10 @@ function drawCountryNames(s, sw, sh) {
     const mine = L.iso === ME;
     let size = Math.max(mine ? 12 : 0, Math.min(24, span * 0.16)) * dpr;   // your own country is always named
     if (size < 10 * dpr) continue;
-    ctx.font = `800 ${size}px Kufam, Alexandria, system-ui`;
+    ctx.font = `700 ${size}px Plex, system-ui`;
     let w = ctx.measureText(L.name).width;
     const fit = span * 1.05 * dpr;                            // a name never runs far past its own land
-    if (w > fit && !mine) { size *= fit / w; w = fit; if (size < 10 * dpr) continue; ctx.font = `800 ${size}px Kufam, Alexandria, system-ui`; }
+    if (w > fit && !mine) { size *= fit / w; w = fit; if (size < 10 * dpr) continue; ctx.font = `700 ${size}px Plex, system-ui`; }
     const sx = Math.round((L.x - view.x) * s + sw / 2), sy = Math.round((L.y - view.y) * s + sh / 2);
     if (sx + w / 2 < 0 || sy < -40 || sx - w / 2 > sw || sy > sh + 40) continue;
     const box = [sx - w / 2 - 4 * dpr, sy - size * 0.55, sx + w / 2 + 4 * dpr, sy + size * 0.55];
@@ -232,6 +262,76 @@ function drawCountryNames(s, sw, sh) {
     ctx.fillStyle = '#EFE6CF'; ctx.fillText(L.name, sx, sy);
   }
   ctx.globalAlpha = 1; ctx.textBaseline = 'alphabetic';
+}
+
+
+// ---------- armies standing on the board (CoN's game-board feel) ----------
+// Demo armies until the game server feeds real ones: a real 3D-rendered unit stands on the land with its shadow,
+// a small plate under it says how many and whose, and a moving army draws a glowing route to where it is going.
+const unitImg = {};
+const uimg = (k) => unitImg[k] || (unitImg[k] = img(`${ART_ROOT}units/${k}.png`));
+const cityAt = (iso, name) => ((byIso[iso] || {}).cities || []).find(c => c.name_ar === name);
+let ARMIES = [];
+function setupArmies() {
+  const A = (iso, kind, n, from, to, opt = {}) => from && ARMIES.push({iso, kind, n, from: [from.x + (opt.dx || 0), from.y + (opt.dy || 0)], to: to ? [to.x + (opt.tx || 0), to.y + (opt.ty || 0)] : null, speed: opt.speed || 1, phase: opt.phase || 0});
+  const amman = cityAt('JOR', 'عمان'), aqaba = cityAt('JOR', 'العقبة'), maan = cityAt('JOR', 'معان');
+  const riyadh = cityAt('SAU', 'الرياض'), dammam = cityAt('SAU', 'الدمام');
+  const baghdad = cityAt('IRQ', 'بغداد'), basra = cityAt('IRQ', 'البصرة');
+  const tehran = cityAt('IRN', 'طهران'), isfahan = cityAt('IRN', 'أصفهان');
+  A('JOR', 'tank', 6, amman, maan, {dx: 3, dy: 2});
+  A('JOR', 'arty', 3, amman, null, {dx: -4, dy: -3});
+  A('SAU', 'fighter', 4, riyadh, dammam, {speed: 3, phase: 0.4});
+  if (tehran && baghdad) A('IRN', 'tank', 9, {x: tehran.x * 0.45 + baghdad.x * 0.55, y: tehran.y * 0.45 + baghdad.y * 0.55}, baghdad, {speed: 0.7});
+  A('IRN', 'mlrs', 2, isfahan, null);
+  if (dammam) A('SAU', 'destroyer', 2, dammam, null, {dx: 10, dy: -4});
+}
+function relOfIso(iso) { return iso === ME ? 'me' : REL[iso] || 'neutral'; }
+function drawArmies(s, sw, sh, now) {
+  const vis = smooth(0.3, 0.5, view.z);
+  if (vis <= 0 || !ARMIES.length) return;
+  const dpr = devicePixelRatio, size = 54 * dpr * Math.min(1.35, Math.max(0.75, Math.sqrt(view.z)));
+  const P = (q) => [(q[0] - view.x) * s + sw / 2, (q[1] - view.y) * s + sh / 2];
+  // routes first, under every unit
+  for (const a of ARMIES) {
+    if (!a.to) continue;
+    const rel = relOfIso(a.iso), col = REL_COL[rel];
+    const t = ((now / 1000) * 0.012 * a.speed + a.phase) % 1;
+    a.pos = [a.from[0] + (a.to[0] - a.from[0]) * t, a.from[1] + (a.to[1] - a.from[1]) * t];
+    const [x0, y0] = P(a.pos), [x1, y1] = P(a.to);
+    ctx.save(); ctx.globalAlpha = vis; ctx.lineCap = 'round';
+    ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 10 * dpr;           // the glow
+    ctx.globalAlpha = 0.35 * vis; ctx.lineWidth = 6 * dpr; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+    ctx.shadowBlur = 0; ctx.globalAlpha = 0.95 * vis; ctx.lineWidth = 2.2 * dpr;
+    ctx.setLineDash([7 * dpr, 6 * dpr]); ctx.lineDashOffset = -(now / 40) % (13 * dpr);  // marching dashes: it is moving
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); ctx.setLineDash([]);
+    // target ring
+    ctx.lineWidth = 2 * dpr; ctx.beginPath(); ctx.arc(x1, y1, 7 * dpr, 0, 7); ctx.stroke();
+    ctx.globalAlpha = 0.5 * vis * (1 - ((now / 1200) % 1)); ctx.beginPath(); ctx.arc(x1, y1, 7 * dpr + 10 * dpr * ((now / 1200) % 1), 0, 7); ctx.stroke();
+    ctx.restore();
+  }
+  for (const a of ARMIES) {
+    const q = a.to ? a.pos : a.from, [x, y] = P(q);
+    if (x < -size || y < -size || x > sw + size || y > sh + size) continue;
+    const art = (byIso[a.iso] || {}).art === 'gulf' || a.iso === 'IRN' ? 'tan' : 'green';
+    const key = a.kind === 'destroyer' || a.kind === 'fighter' ? `${a.kind}_green` : `${a.kind}_${art}`;
+    const im = uimg(key);
+    if (!(im instanceof HTMLImageElement) || !im.complete || !im.naturalWidth) { im.then && im.then(draw); continue; }
+    const air = a.kind === 'fighter', bob = air ? Math.sin(now / 700 + a.phase * 6) * 2 * dpr : 0;
+    const flip = a.to && P(a.to)[0] > x;                      // models face left; turn them toward where they go
+    ctx.save(); ctx.globalAlpha = vis; ctx.translate(Math.round(x), Math.round(y - size * 0.18 + bob));
+    if (flip) ctx.scale(-1, 1);
+    ctx.drawImage(im, -size / 2, -size / 2, size, size);
+    ctx.restore();
+    // plate: relation colour, count, small and crisp
+    const rel = relOfIso(a.iso), lbl = String(a.n);
+    ctx.save(); ctx.globalAlpha = vis;
+    ctx.font = `700 ${10.5 * dpr}px Plex, system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const pw = Math.max(18 * dpr, ctx.measureText(lbl).width + 10 * dpr), ph = 14 * dpr, px = Math.round(x - pw / 2), py = Math.round(y + size * 0.16);
+    ctx.fillStyle = 'rgba(7,11,17,0.82)'; ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 3 * dpr); ctx.fill();
+    ctx.fillStyle = REL_COL[rel]; ctx.fillRect(px, py + ph - 2.5 * dpr, pw, 2.5 * dpr);
+    ctx.fillStyle = '#F4EEDD'; ctx.fillText(lbl, x, py + ph / 2 - 0.5 * dpr);
+    ctx.restore();
+  }
 }
 
 // ---------- cities on the real map ----------
@@ -253,7 +353,7 @@ async function building(type, art, L) {
 }
 function hash(s) { let h = 2166136261; for (const ch of s) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return (h >>> 0) / 4294967296; }
 async function bakeCity(p, ci) {
-  const c = countries[ci], art = c.art || 'americas', rel = relOf(ci), ramp = RAMP[rel];
+  const c = countries[ci], art = c.art || 'americas', rel = relOf(ci);
   const N = 320, R = N / 2;
   const cv2 = document.createElement('canvas'); cv2.width = cv2.height = N;
   const g = cv2.getContext('2d', {willReadFrequently: true});
@@ -271,12 +371,10 @@ async function bakeCity(p, ci) {
   }
   // same colour ramp as the land around it
   const id = g.getImageData(0, 0, N, N), d = id.data;
+  const tl = LUT[rel];                                             // exactly the land's colour table: one hue, light and dark only
   for (let q = 0; q < d.length; q += 4) {
-    const t = Math.min(1, Math.max(0, ((0.3 * d[q] + 0.59 * d[q + 1] + 0.11 * d[q + 2]) / 255 - 0.14) / 0.6));
-    const k = Math.max(ramp.keep, 0.25), lo = ramp.lo, hi = ramp.hi;    // cities keep a little more of their own colour
-    d[q] = d[q] * k + (lo[0] + (hi[0] - lo[0]) * t) * (1 - k);
-    d[q + 1] = d[q + 1] * k + (lo[1] + (hi[1] - lo[1]) * t) * (1 - k);
-    d[q + 2] = d[q + 2] * k + (lo[2] + (hi[2] - lo[2]) * t) * (1 - k);
+    const i = Math.min(255, (0.3 * d[q] + 0.59 * d[q + 1] + 0.11 * d[q + 2]) * 0.95) | 0;
+    d[q] = tl[i * 3]; d[q + 1] = tl[i * 3 + 1]; d[q + 2] = tl[i * 3 + 2];
   }
   g.putImageData(id, 0, 0);
   // soft irregular outline: dense centre, broken suburbs
@@ -424,10 +522,11 @@ fetch(DATA + 'world.json').then(r => r.json()).then(async j => {
   }).filter(Boolean).sort((a, b) => b.px - a.px);
   cityOrder = countries.flatMap((c, ci) => (c.cities || []).map(p => ({...p, ci, area: c.area_km2, cls: c.class})))
     .sort((a, b) => rank[a.kind] - rank[b.kind] || crank[a.cls] - crank[b.cls] || b.area - a.area || b.pop - a.pop);
+  setupArmies();
   const cap = (byIso[ME].cities || [])[0] || {x: W / 2, y: H / 2};
   view = {x: cap.x, y: cap.y, z: 0.5};
   addEventListener('resize', resize); resize();
-  Promise.all([document.fonts.load('700 14px Alexandria', 'عمان'), document.fonts.load('800 14px Kufam', 'عمان')]).then(() => { draw(); document.title = 'World ready'; });
+  Promise.all([document.fonts.load('500 14px Plex', 'عمان'), document.fonts.load('700 14px Plex', 'عمان')]).then(() => { draw(); document.title = 'World ready'; });
 });
 </script>
 </body>
