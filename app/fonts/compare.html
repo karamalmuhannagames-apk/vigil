@@ -7,7 +7,7 @@ body{margin:0;background:#2a3a2a url(../../art/world/crop_mideast.jpg) center/co
 .num{font-size:15px;color:#ffd34d;text-shadow:0 0 3px #000}
 </style><body>
 <script>
-const F=[['Alexandria','Alexandria.ttf'],['ReadexPro','ReadexPro.ttf'],['IBM Plex Sans Arabic','IBMPlexSansArabic-Bold.ttf'],['Cairo','Cairo.ttf'],['Noto Kufi Arabic','NotoKufiArabic.ttf'],['Reem Kufi','ReemKufi.ttf'],['Tajawal','Tajawal-Bold.ttf'],['Changa','Changa.ttf'],['El Messiri','ElMessiri.ttf'],['system-ui (now)',null]];
+const F=[['Kufam','Kufam.ttf'],['Alexandria','Alexandria.ttf'],['ReadexPro','ReadexPro.ttf'],['IBM Plex Sans Arabic','IBMPlexSansArabic-Bold.ttf'],['Cairo','Cairo.ttf'],['Noto Kufi Arabic','NotoKufiArabic.ttf'],['Reem Kufi','ReemKufi.ttf'],['Tajawal','Tajawal-Bold.ttf'],['Changa','Changa.ttf'],['El Messiri','ElMessiri.ttf'],['system-ui (now)',null]];
 let h='';F.forEach(([n,f],i)=>{const fam=f?'f'+i:'system-ui';if(f)h+=`<style>@font-face{font-family:${fam};src:url(${f})}</style>`;
 h+=`<div class=row style="font-family:${fam}"><span class=n>${n}</span><span class=cap style="font-weight:700">الأردن · عمّان</span><span class=city style="font-weight:600">القدس  الرياض  طهران  الكويت</span><span class=num style="font-weight:700">١٢٬٥٠٠  12,500</span></div>`});
 document.body.innerHTML=h;document.fonts.ready.then(()=>document.title='ok');
