@@ -1,0 +1,50 @@
+{
+ "licence": "Contains modified Copernicus Sentinel data 2023",
+ "patches": [
+  {
+   "patch": "farmland",
+   "scene": "S2B_31UDQ_20230821_0_L2A",
+   "date": "2023-08-21T11:07:29.470000Z"
+  },
+  {
+   "patch": "farmland2",
+   "scene": "S2B_32UND_20230610_0_L2A",
+   "date": "2023-06-10T10:26:23.117000Z"
+  },
+  {
+   "patch": "forest",
+   "scene": "S2B_35VMJ_20230618_0_L2A",
+   "date": "2023-06-18T09:43:26.845000Z"
+  },
+  {
+   "patch": "forest2",
+   "scene": "S2B_32UPU_20230707_0_L2A",
+   "date": "2023-07-07T10:17:35.458000Z"
+  },
+  {
+   "patch": "mountain",
+   "scene": "S2A_32TMS_20230625_0_L2A",
+   "date": "2023-06-25T10:28:06.674000Z"
+  },
+  {
+   "patch": "mountain2",
+   "scene": "S2A_38TMN_20230713_0_L2A",
+   "date": "2023-07-13T08:08:05.058000Z"
+  },
+  {
+   "patch": "dry",
+   "scene": "S2B_37RBQ_20230823_0_L2A",
+   "date": "2023-08-23T08:31:30.152000Z"
+  },
+  {
+   "patch": "desert",
+   "scene": "S2A_38RPN_20230714_0_L2A",
+   "date": "2023-07-14T07:42:59.382000Z"
+  },
+  {
+   "patch": "coast",
+   "scene": "S2B_34VDH_20230611_0_L2A",
+   "date": "2023-06-11T09:55:05.681000Z"
+  }
+ ]
+}
