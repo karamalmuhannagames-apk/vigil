@@ -125,7 +125,7 @@ def fabric(k, R, rnd, radius, hc, he, clear=0.0, tall_glass=True):
         k.plant(math.cos(a) * r, math.sin(a) * r)
 
 def mark(reg, kind):
-    s = reset(); G['MATS'].clear()
+    s = reset(); G['MATS'].clear(); FAC.clear()
     R = REGIONS[reg]; k = Kit(R); rnd = random.Random(hash((reg, kind)) & 0xffff)
     if kind == 'capital':
         plaza(23); LANDMARK[reg](k, 0, 0, 1.2)
