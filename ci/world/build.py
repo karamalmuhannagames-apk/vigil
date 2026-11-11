@@ -462,6 +462,9 @@ if sat:
     deep &= np.isin(dl, np.nonzero(np.bincount(dl.ravel()) >= 900)[0][1:])        # no small deep pockets inside enclosed seas
     coast8 = ndi.gaussian_filter((~deep).astype(np.float32), 3.0)                 # coastal waters, soft-cornered outline
     del lab8, dl
+    rng8 = np.random.default_rng(21)
+    clump8 = ndi.gaussian_filter(rng8.standard_normal(lf8.shape), 1.6); clump8 /= clump8.std()      # forest clumps
+    depth8 = ndi.gaussian_filter(rng8.standard_normal(lf8.shape), 7.0); depth8 /= depth8.std()      # slow dark patches in deep water
     half = np.zeros((H, W), np.uint8); halfb = np.zeros((H // 2, W // 2, 3), np.uint8)
     manifest = {str(z): [] for z in range(5)}
     d4 = os.path.join(OUT, 'tiles', '4'); os.makedirs(d4, exist_ok=True)
@@ -494,9 +497,17 @@ if sat:
             h = HS[np.clip((sy.astype(np.float64) * HS.shape[0] / sh4).astype(np.int32), 0, HS.shape[0] - 1),
                    np.clip((sx.astype(np.float64) * HS.shape[1] / sw4).astype(np.int32), 0, HS.shape[1] - 1)].astype(np.float32) / 255
             h = ndi.gaussian_filter(h, 1.2)                                         # painted, soft ridges
-            relief = np.clip(1 + 1.7 * (h - hs_mid), 0.45, 1.5)
-            rough = np.clip((np.abs(h - hs_mid) - 0.04) * 6, 0, 1)
+            # only real mountain ranges show: where the ground is rough over a wide area. Plains stay calm.
+            hm = ndi.gaussian_filter(h, 10)
+            hstd = np.sqrt(np.maximum(ndi.gaussian_filter(h * h, 10) - hm * hm, 0))
+            mnt = np.clip((hstd - 0.035) / 0.05, 0, 1)
+            relief = np.clip(1 + 2.0 * (h - hm) * mnt + 0.25 * (hm - hs_mid) * mnt, 0.45, 1.5)
+            rough = mnt * np.clip(np.abs(h - hm) * 8, 0, 1)
         else: relief = np.ones_like(L); rough = np.zeros_like(L)
+        # forest as clumps: dense real forest keeps its own shape, everywhere else a few scattered woods
+        cl = ndi.zoom(clump8[a0 // 8:a1 // 8 + 2], 8, order=1)[:a1 - a0, :M]
+        woods = np.clip((cl - 1.25) * 2.5, 0, 1) * (1 - 0.65 * arid)
+        forest = np.clip(np.maximum(forest * np.clip((forest - 0.25) * 2.2, 0, 1) * np.clip(cl * 0.35 + 0.8, 0, 1), woods), 0, 1)
         rock = np.clip(np.maximum(rough * (1 - forest), snow), 0, 1)
         lum = np.clip(0.5 * relief * broad + 0.25 * snow, 0, 1)
         k0 = ty - a0; rows = min(T, MH - ty)
@@ -504,7 +515,8 @@ if sat:
         lum, forest, arid, rock = lum[sl], forest[sl], arid[sl], rock[sl]
         nidr = nat4[ty:ty + rows]
         seam = nidr < 0
-        v = (128 - 82 * shadow[ty:ty + rows] + 22 * shallow[ty:ty + rows]) / 255
+        dp = ndi.zoom(depth8[ty // 8:(ty + rows) // 8 + 2], 8, order=1)[:rows, :M]
+        v = (128 - 82 * shadow[ty:ty + rows] + 22 * shallow[ty:ty + rows] - 9 * np.clip(dp, -1.5, 2.5)) / 255
         lum = np.where(seam, v, lum)
         coast = ndi.zoom(coast8[ty // 8:(ty + rows) // 8 + 2], 8, order=1)[:rows, :M] > 0.5
         bio = np.dstack([np.where(seam, coast * 1.0, forest), np.where(seam, 0, arid), np.where(seam, 0, rock)])

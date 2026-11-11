@@ -205,7 +205,7 @@ function draw() {
     // one rule for every name: centred right under its city (under the marker far away, under the town close up).
     // Only if that spot is taken may it sit beside the marker, right or left, level with it. Otherwise it waits.
     const fadeM = 1 - smooth(0.8, 1.25, view.z), near = smooth(1.25, 1.8, view.z);
-    const below = Math.max(fs * 0.4, markSize(p) * 0.42 + fs * 0.85);
+    const below = Math.max(fs * 0.4, (p.kind === 'capital' ? markSize(p) * 0.42 : CR[p.kind] * s * 0.55 * smooth(0.45, 0.75, view.z)) + fs * 0.85);
     const spots = [[0, below, 'center']];
     
     let spot = null;
@@ -389,7 +389,7 @@ async function bakeCity(p, ci) {
   const id = g.getImageData(0, 0, N, N), d = id.data;
   const tl = LUT[rel];                                             // exactly the land's colour table: one hue, light and dark only
   for (let q = 0; q < d.length; q += 4) {
-    const i = Math.min(255, (0.3 * d[q] + 0.59 * d[q + 1] + 0.11 * d[q + 2]) * 0.95) | 0;
+    const i = Math.min(255, (0.3 * d[q] + 0.59 * d[q + 1] + 0.11 * d[q + 2]) * 0.62) | 0;   // built-up ground: darker than the fields around
     d[q] = tl[i * 3]; d[q + 1] = tl[i * 3 + 1]; d[q + 2] = tl[i * 3 + 2];
   }
   g.putImageData(id, 0, 0);
@@ -475,6 +475,7 @@ function markSize(p) {          // on-screen size of a city's miniature (0 = not
 }
 function drawMarks(s, sw, sh) {
   for (let ci = 0; ci < countries.length; ci++) for (const p of countries[ci].cities || []) {
+    if (p.kind !== 'capital') continue;                       // only capitals carry a landmark; other cities are their built-up patch
     const S = markSize(p); if (S < 4) continue;
     const sx = (p.x - view.x) * s + sw / 2, sy = (p.y - view.y) * s + sh / 2;
     if (sx < -S || sy < -S || sx > sw + S || sy > sh + S) continue;
@@ -483,7 +484,7 @@ function drawMarks(s, sw, sh) {
   }
 }
 function drawCities(s, sw, sh) {
-  const show = smooth(0.9, 1.7, view.z);
+  const show = smooth(0.45, 0.75, view.z);
   if (show <= 0) { drawMarks(s, sw, sh); return; }
   ctx.globalAlpha = show;
   for (let ci = 0; ci < countries.length; ci++) for (const p of countries[ci].cities || []) {
