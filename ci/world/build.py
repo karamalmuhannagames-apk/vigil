@@ -429,9 +429,9 @@ if sat:
             a = a - ndi.gaussian_filter(a, (9, 9, 0))                                # fine grain only: no big shapes that could repeat
             a = a / (a.std() + 1e-6) * 0.05
             # seamless tile: cross-fade with a half-shifted copy (no mirrors, so no butterfly patterns)
-            u = 1 - np.abs(np.linspace(-1, 1, PD, endpoint=False)); wgt = np.minimum.outer(u, u)[..., None]
-            wgt = np.clip(wgt * 2.5, 0, 1)
-            a = a * wgt + np.roll(a, (PD // 2, PD // 2), (0, 1)) * (1 - wgt)
+            u = np.clip((1 - np.abs(np.linspace(-1, 1, PD, endpoint=False))) * 4, 0, 1)
+            a = a * u[None, :, None] + np.roll(a, PD // 2, 1) * (1 - u[None, :, None])     # wrap left-right
+            a = a * u[:, None, None] + np.roll(a, PD // 2, 0) * (1 - u[:, None, None])     # then top-bottom
             out.append(a)
         return out
     D = {'forest': detail(['forest', 'forest2']), 'farm': detail(['farmland', 'farmland2', 'grass']), 'arid': detail(['scrub']), 'rock': detail(['hills'])}
