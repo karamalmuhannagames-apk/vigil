@@ -102,5 +102,21 @@
   "author_url": "https://sketchfab.com/andertan",
   "url": "https://sketchfab.com/3d-models/lockheed-martin-f-22-raptor-7e7b3c372e374dda98e70208d09cfdcf",
   "licence": "CC BY 4.0"
+ },
+ {
+  "unit": "bomber",
+  "name": "Rockwell B-1A Lancer Strategic Bomber Aircraft",
+  "author": "Muhamad Mirza Arrafi",
+  "author_url": "https://sketchfab.com/MirzaArrafiERV_45",
+  "url": "https://sketchfab.com/3d-models/rockwell-b-1a-lancer-strategic-bomber-aircraft-6f3e9aac4bd44e4d90d9fd2139d53264",
+  "licence": "CC BY 4.0"
+ },
+ {
+  "unit": "stealth_b",
+  "name": "Northrop B-2 Spirit",
+  "author": "Rhine_Lab_Muelsyse",
+  "author_url": "https://sketchfab.com/Rhine_Lab_Muelsyse",
+  "url": "https://sketchfab.com/3d-models/northrop-b-2-spirit-cb78a3b80e134f3db0ee83275c9f66c5",
+  "licence": "CC BY 4.0"
  }
 ]
