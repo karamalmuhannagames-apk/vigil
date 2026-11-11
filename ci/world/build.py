@@ -328,6 +328,17 @@ if sat:
         sx = np.clip(((lon + 180) / 360 * sw).astype(int), 0, sw - 1)
         sy = np.clip(((90 - lat) / 180 * sh).astype(int), 0, sh - 1)
         img[y0:y0 + 256] = S[sy, sx]
+    # sea: the satellite ocean is nearly black; use a calm game sea instead, lighter near coasts like real shallows
+    sea = ~land
+    dist = ndi.distance_transform_edt(sea) * (8192 / W)
+    shallow = np.exp(-dist / 18.0)[..., None]
+    deep = np.array([24, 52, 78], np.float32); coast = np.array([48, 98, 118], np.float32)
+    noise = ndi.zoom(ndi.gaussian_filter(np.random.default_rng(5).random((H // 16 + 1, W // 16 + 1)), 2), 16, order=1)[:H, :W, None]
+    seacol = deep * (1 - shallow) + coast * shallow
+    seacol *= 0.94 + 0.12 * (noise - noise.mean()) / (noise.std() + 1e-6) * 0.5
+    # keep a little of the real satellite colour in shallow water (reefs, sandbanks)
+    seacol = seacol * (1 - 0.25 * shallow) + img.astype(np.float32) * 0.25 * shallow
+    img = np.where(sea[..., None], np.clip(seacol, 0, 255), img).astype(np.uint8)
     Image.fromarray(img).save(os.path.join(OUT, 'world.jpg'), quality=90)
 else:
     img = np.where(land[..., None], np.array([90, 110, 70], np.uint8), np.array([20, 40, 60], np.uint8))

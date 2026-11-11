@@ -20,11 +20,11 @@
 const DATA = new URLSearchParams(location.search).get('data') || '../../art/world/';
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const T = 512;
-let W, H, world, countries = [], byIso = {};
+let W, H, world, countries = [], byIso = {}, cityOrder = [];
 const COL = {
-  me:      {c: [0.31, 0.45, 0.24], a: 0.42},
-  ally:    {c: [0.46, 0.60, 0.42], a: 0.55},
-  passage: {c: [0.18, 0.36, 0.20], a: 0.70},
+  me:      {c: [0.28, 0.54, 0.20], a: 0.64},
+  ally:    {c: [0.52, 0.70, 0.44], a: 0.62},
+  passage: {c: [0.11, 0.28, 0.13], a: 0.80},
   neutral: {c: [0.22, 0.26, 0.27], a: 0.80},
   enemy:   {c: [0.34, 0.035, 0.05], a: 0.84},
 };
@@ -50,7 +50,8 @@ async function buildTile(z, tx, ty) {
   for (let p = 0, q = 0; p < w * h; p++, q += 4) {
     const n = nid[p]; if (n < 0) continue;
     const s = lut[n] || (lut[n] = COL[relOf(n)]);
-    const L = 0.45 + 0.55 * (0.3 * d[q] + 0.59 * d[q + 1] + 0.11 * d[q + 2]) / 255 / 0.36;
+    // brightness kept but squeezed, so bright deserts and dark forests take the same colour family
+    const L = Math.min(1.35, Math.max(0.6, 0.45 + 0.55 * (0.3 * d[q] + 0.59 * d[q + 1] + 0.11 * d[q + 2]) / 255 / 0.36));
     const a = s.a, cc = s.c;
     d[q] = d[q] * (1 - a) + Math.min(255, cc[0] * L * 255) * a;
     d[q + 1] = d[q + 1] * (1 - a) + Math.min(255, cc[1] * L * 255) * a;
@@ -105,13 +106,20 @@ function draw() {
       if (sc === 1) ctx.drawImage(c, px, py, c.width * f * s, c.height * f * s);
       else ctx.drawImage(c, ox, oy, T / 2, T / 2, px, py, T * f * s, T * f * s);
     }
-  // cities: capitals always, bigger cities as you zoom in, small ones only close
+  // cities: most important first; a label that would overlap one already placed is skipped (no clutter, ever)
   ctx.textAlign = 'center';
-  for (const c of countries) for (const p of c.cities || []) {
-    const show = p.kind === 'capital' ? smooth(0.1, 0.2, view.z) : p.kind === 'major' ? smooth(0.35, 0.55, view.z) : smooth(0.8, 1.1, view.z);
+  const placed = [];
+  for (const p of cityOrder) {
+    const big = p.area >= 300000;
+    const show = p.kind === 'capital' ? smooth(big ? 0.1 : 0.22, big ? 0.16 : 0.32, view.z) : p.kind === 'major' ? smooth(0.4, 0.6, view.z) : smooth(0.9, 1.2, view.z);
     if (!show) continue;
     const sx = (p.x - view.x) * s + sw / 2, sy = (p.y - view.y) * s + sh / 2;
     if (sx < -100 || sy < -50 || sx > sw + 100 || sy > sh + 50) continue;
+    const fs0 = (p.kind === 'capital' ? 14 : 12) * dpr;
+    ctx.font = `700 ${fs0}px system-ui`;
+    const tw = ctx.measureText(p.name_ar).width, box = [sx - tw / 2 - 4 * dpr, sy - fs0 - 10 * dpr, sx + tw / 2 + 4 * dpr, sy + 5 * dpr];
+    if (placed.some(b => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1])) continue;
+    placed.push(box);
     ctx.globalAlpha = show;
     const r = (p.kind === 'capital' ? 4 : 3) * dpr;
     ctx.fillStyle = p.kind === 'capital' ? '#ffd34d' : '#f4f6f2'; ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.lineWidth = dpr;
@@ -143,6 +151,9 @@ window.tilesPending = () => [...cache.values()].filter(e => !e.canvas && !e.fail
 
 fetch(DATA + 'world.json').then(r => r.json()).then(j => {
   world = j; [W, H] = j.size; countries = j.countries; countries.forEach(c => byIso[c.iso] = c);
+  const rank = {capital: 0, major: 1, minor: 2};
+  cityOrder = countries.flatMap(c => (c.cities || []).map(p => ({...p, area: c.area_km2})))
+    .sort((a, b) => rank[a.kind] - rank[b.kind] || b.area - a.area || b.pop - a.pop);
   const cap = (byIso[ME].cities || [])[0] || {x: W / 2, y: H / 2};
   view = {x: cap.x, y: cap.y, z: 0.5};
   addEventListener('resize', resize); resize();
