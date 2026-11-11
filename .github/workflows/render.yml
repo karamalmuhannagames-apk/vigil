@@ -3,7 +3,7 @@ name: Render 3D icons
 on:
   push:
     branches: [main]
-    paths: ['ci/render/**', '.github/workflows/render.yml']
+    paths: ['ci/render/units.py', 'ci/render/city_tex.py', '.github/workflows/render.yml']
   workflow_dispatch:
 
 permissions:
