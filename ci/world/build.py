@@ -22,7 +22,7 @@ Y_N, Y_S = miller(LAT_N), miller(LAT_S)
 H = int(round(W * (Y_N - Y_S) / (2 * np.pi)))
 # magnifiers: centre (lon, lat), radius in map units, strength. Monotonic (no folding) while strength < 2.
 # Europe and the Middle East have many small countries close together; the oceans and Siberia give room.
-MAGS = [(14, 49, 0.22, 0.7), (42, 30, 0.22, 0.45), (35.3, 32.0, 0.055, 1.9), (50.5, 26.5, 0.05, 1.4), (106, 14, 0.16, 0.3), (-72, 12, 0.12, 0.3)] if os.environ.get('WARP', '1') == '1' else []
+MAGS = [(14, 49, 0.22, 0.7), (42, 30, 0.22, 0.45), (35.3, 32.0, 0.055, 1.9), (50.5, 26.5, 0.05, 1.4), (106, 14, 0.16, 0.3), (-72, 12, 0.12, 0.3)] if os.environ.get('WARP', '0') == '1' else []   # off: the owner wants one true scale everywhere, no stretched regions
 def base_xy(lon, lat):
     return np.radians(lon), miller(np.clip(lat, LAT_S - 5, LAT_N + 5))
 MAGP = [(*base_xy(lo, la), r, s) for lo, la, r, s in MAGS]
@@ -119,6 +119,19 @@ for c in countries.values():
     elif r == 'Europe' or c['iso'] in EURO_FROM_WASIA: c['art'] = 'europe'
     elif r == 'Asia': c['art'] = 'asia'
     else: c['art'] = 'americas'
+
+# ---------- doctrine (small stat flavour, docs/research/regional_doctrines.md): 6 doctrines ----------
+ARAB_LEAGUE = {'DZA', 'BHR', 'COM', 'DJI', 'EGY', 'IRQ', 'JOR', 'KWT', 'LBN', 'LBY', 'MRT', 'MAR', 'OMN', 'PSE', 'QAT', 'SAU', 'SOM', 'SDN', 'SYR', 'TUN', 'ARE', 'YEM'}
+EURASIA = {'RUS', 'BLR', 'KAZ', 'KGZ', 'TJK', 'TKM', 'UZB', 'ARM', 'AZE', 'MNG'}
+for c in countries.values():
+    i, r = c['iso'], c['region_un'] or ''
+    if i in ARAB_LEAGUE or i in ('TUR', 'IRN'): c['doctrine'] = 'mena'
+    elif i in EURASIA: c['doctrine'] = 'eurasia'
+    elif r == 'Europe' or i in ('GEO', 'UKR', 'MDA', 'CYP'): c['doctrine'] = 'europe'
+    elif r == 'Asia': c['doctrine'] = 'asia'
+    elif r == 'Africa': c['doctrine'] = 'africa'
+    else: c['doctrine'] = 'americas'
+    if i in ARAB_LEAGUE: c['art'] = 'gulf'
 
 # ---------- rasterise countries ----------
 ids = list(countries)
@@ -335,7 +348,7 @@ with open(os.path.join(OUT, 'classes.md'), 'w', encoding='utf-8') as f:
     for cl in ('playable', 'ai', 'neutral'):
         cs = sorted((c for c in countries.values() if c['class'] == cl), key=lambda c: -c['area_km2'])
         f.write(f'## {cl} ({len(cs)})\n\n')
-        for c in cs: f.write(f"- {c['name_en']} / {c['name_ar']} ({c['iso']}): {c['area_km2']:,} km², {len(c['cities'])} cities, {len(c['provinces'])} provinces, art {c['art']}\n")
+        for c in cs: f.write(f"- {c['name_en']} / {c['name_ar']} ({c['iso']}): {c['area_km2']:,} km², {len(c['cities'])} cities, {len(c['provinces'])} provinces, art {c['art']}, doctrine {c['doctrine']}\n")
         f.write('\n')
 
 # ---------- preview: random country colours, borders, cities ----------
