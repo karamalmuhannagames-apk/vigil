@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>World map prototype</title>
 <style>
+  @font-face{font-family:Alexandria;src:url(../fonts/Alexandria.ttf);font-weight:100 900}
   html,body{margin:0;height:100%;background:#0d1b26;overflow:hidden;font-family:system-ui,sans-serif}
   canvas{display:block;width:100vw;height:100vh;touch-action:none}
   #hud{position:fixed;left:12px;bottom:12px;color:#cfe3d4;font:600 13px system-ui;background:#0d1b26cc;padding:6px 10px;border-radius:6px}
@@ -106,7 +107,7 @@ function draw() {
     const sx = (p.x - view.x) * s + sw / 2, sy = (p.y - view.y) * s + sh / 2;
     if (sx < -100 || sy < -50 || sx > sw + 100 || sy > sh + 50) continue;
     const fs0 = (p.kind === 'capital' ? 14 : 12) * dpr;
-    ctx.font = `700 ${fs0}px system-ui`;
+    ctx.font = `${p.kind === 'capital' ? 700 : 600} ${fs0}px Alexandria, system-ui`;
     const tw = ctx.measureText(p.name_ar).width, box = [sx - tw / 2 - 4 * dpr, sy - fs0 - 10 * dpr, sx + tw / 2 + 4 * dpr, sy + 5 * dpr];
     // a phone screen is small: keep generous breathing room around every name
     const pad = 14 * dpr;
@@ -117,7 +118,7 @@ function draw() {
     ctx.fillStyle = p.kind === 'capital' ? '#ffd34d' : '#f4f6f2'; ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.lineWidth = dpr;
     ctx.beginPath(); ctx.arc(sx, sy, r, 0, 7); ctx.fill(); ctx.stroke();
     const fs = (p.kind === 'capital' ? 14 : 12) * dpr;
-    ctx.font = `700 ${fs}px system-ui`; ctx.lineWidth = 3 * dpr; ctx.strokeStyle = 'rgba(0,0,0,.6)';
+    ctx.font = `${p.kind === 'capital' ? 700 : 600} ${fs}px Alexandria, system-ui`; ctx.lineWidth = 3 * dpr; ctx.strokeStyle = 'rgba(0,0,0,.6)';
     ctx.strokeText(p.name_ar, sx, sy - r - 4 * dpr); ctx.fillStyle = '#f4f6f2'; ctx.fillText(p.name_ar, sx, sy - r - 4 * dpr);
   }
   ctx.globalAlpha = 1;
@@ -180,7 +181,7 @@ fetch(DATA + 'world.json').then(r => r.json()).then(j => {
   const cap = (byIso[ME].cities || [])[0] || {x: W / 2, y: H / 2};
   view = {x: cap.x, y: cap.y, z: 0.5};
   addEventListener('resize', resize); resize();
-  document.title = 'World ready';
+  document.fonts.load('700 14px Alexandria').then(() => { draw(); document.title = 'World ready'; });
 });
 </script>
 </body>
