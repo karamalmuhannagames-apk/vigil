@@ -103,8 +103,51 @@ MIX = {'enemy': ((0.36, 0.03, 0.03), 0.78), 'neutral': ((0.10, 0.14, 0.12), 0.45
 import json
 pol = json.load(open(os.path.join(POL, 'political.json')))
 ct = 'art/citytex/city_dense.png'; vt = 'art/citytex/village.png'
+SATCITY = [f for f in ('art/sat/city1.jpg', 'art/sat/city2.jpg') if os.path.exists(f)]
+SATTOWN = [f for f in ('art/sat/town1.jpg', 'art/sat/town2.jpg') if os.path.exists(f)]
 img_base = img.copy()
-if os.path.exists(ct):
+def city_patch(path, frac, off=(0.5, 0.5)):
+    a = np.asarray(Image.open(path).convert('RGB')).astype(np.float32) / 255
+    h, w = a.shape[:2]; c = int(min(h, w) * frac / 2)
+    cy, cx = int(h * off[0]), int(w * off[1])
+    a = a[max(cy - c, 0):cy + c, max(cx - c, 0):cx + c]
+    valid = a.mean(-1) > 0.02
+    if valid.mean() < 0.95: return None                  # skip crops that touch empty satellite edges
+    g = a.mean(-1, keepdims=True)
+    a = g + (a - g) * 0.55                               # real colours, calmer
+    a = a / a.mean() * 0.36                              # same brightness as the land
+    return np.clip(a, 0, 1)
+if SATCITY:
+    edge_noise = ndi.gaussian_filter(rng.random((S // 8, S // 8)), 1.2)
+    edge_noise = ndi.zoom(edge_noise, 8, order=1)[:S, :S]
+    edge_noise = (edge_noise - edge_noise.mean()) / (edge_noise.std() + 1e-6)
+    offs = [(0.5, 0.5), (0.45, 0.55), (0.55, 0.45), (0.5, 0.6), (0.6, 0.5), (0.4, 0.5)]
+    cities_t = [t for f in SATCITY for o in offs for t in [city_patch(f, 0.35, o)] if t is not None]
+    towns_t = [t for f in SATTOWN for o in offs for t in [city_patch(f, 0.12, o)] if t is not None] or cities_t
+    def paste_real(tex, cx, cy, radius, mask_fn, strength=1.0):
+        r = int(radius * 1.35)
+        y0, y1, x0, x1 = max(cy - r, 0), min(cy + r, S), max(cx - r, 0), min(cx + r, S)
+        if y1 <= y0 or x1 <= x0: return
+        t = np.rot90(tex, rng.integers(0, 4))
+        t = np.asarray(Image.fromarray((t * 255).astype(np.uint8)).resize((2 * r, 2 * r), Image.LANCZOS)).astype(np.float32) / 255
+        t = t[(y0 - (cy - r)):(y1 - (cy - r)), (x0 - (cx - r)):(x1 - (cx - r))]
+        yy, xx = np.mgrid[y0:y1, x0:x1]
+        d = np.hypot(yy - cy, xx - cx) / radius + edge_noise[y0:y1, x0:x1] * 0.25
+        fade = np.clip((1.05 - d) * 2.5, 0, 1) * mask_fn(y0, y1, x0, x1) * strength
+        sub = img[y0:y1, x0:x1]
+        sub[:] = sub * (1 - fade[..., None]) + t * fade[..., None]
+    for p in pol['provinces']:
+        if p['city'] == 'rural': continue
+        cx, cy = int(p['centre'][0]), int(p['centre'][1])
+        R = {'capital': 95, 'major': 70, 'minor': 48}[p['city']] * S / 2048
+        own = province == p['id']
+        paste_real(cities_t[p['id'] % len(cities_t)], cx, cy, R, lambda y0, y1, x0, x1: own[y0:y1, x0:x1].astype(np.float32))
+        for k in range({'capital': 5, 'major': 3, 'minor': 2}[p['city']]):
+            ang = rng.uniform(0, 2 * np.pi); dd = R * rng.uniform(1.3, 2.4)
+            vx, vy = int(cx + np.cos(ang) * dd), int(cy + np.sin(ang) * dd)
+            if 0 <= vx < S and 0 <= vy < S and land[vy, vx]:
+                paste_real(towns_t[k % len(towns_t)], vx, vy, R * rng.uniform(0.22, 0.35), lambda y0, y1, x0, x1: land[y0:y1, x0:x1].astype(np.float32), 0.9)
+elif os.path.exists(ct):
     city = np.asarray(Image.open(ct).convert('RGBA')).astype(np.float32) / 255
     vil = np.asarray(Image.open(vt).convert('RGBA')).astype(np.float32) / 255 if os.path.exists(vt) else None
     edge_noise = ndi.gaussian_filter(rng.random((S // 8, S // 8)), 1.2)
