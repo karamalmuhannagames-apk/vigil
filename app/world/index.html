@@ -542,7 +542,7 @@ function drawBorders(s, sw, sh) {
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   const thin = Math.min(1, 0.6 + view.z * 0.5);
   // province outlines: thin and quiet, like CoN's inner lines; they appear as you zoom in
-  const pv = smooth(1.6, 2.0, view.z);     // like CoN: province lines only from province zoom; country zoom shows country borders only
+  const pv = 0.55 * smooth(1.0, 1.4, view.z) + 0.45 * smooth(1.8, 2.4, view.z);   // like CoN: faint from country zoom, clear at province zoom
   if (pv > 0 && provLines.length) {
     ctx.beginPath();
     for (const L of provLines) {
