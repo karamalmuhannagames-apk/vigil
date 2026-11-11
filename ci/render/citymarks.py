@@ -18,9 +18,9 @@ ELEV = 42                      # a model on a table: you see roofs and facades
 
 
 FAC = {}
-def facade(color, glass=(0.07, 0.09, 0.11), floor=3.2, bay=2.6, roofc=None):
+def facade(color, glass=(0.07, 0.09, 0.11), floor=3.2, bay=2.6, roofc=None, mortar=0.55):
     """walls with rows of windows (a grid in metres, so every building has real floors), plain roofs"""
-    key = (tuple(round(c, 3) for c in color), floor, bay, roofc)
+    key = (tuple(round(c, 3) for c in color), floor, bay, roofc, mortar)
     if key in FAC: return FAC[key]
     m = bpy.data.materials.new('fac%d' % len(FAC)); m.use_nodes = True
     nt = m.node_tree; N = nt.nodes; L = nt.links; p = N['Principled BSDF']
@@ -30,7 +30,7 @@ def facade(color, glass=(0.07, 0.09, 0.11), floor=3.2, bay=2.6, roofc=None):
     comb = N.new('ShaderNodeCombineXYZ'); L.new(add_.outputs[0], comb.inputs[0]); L.new(sep.outputs[2], comb.inputs[1])
     br = N.new('ShaderNodeTexBrick'); br.offset = 0.0; br.squash = 1.0
     br.inputs['Scale'].default_value = 1.0; br.inputs['Brick Width'].default_value = bay; br.inputs['Row Height'].default_value = floor
-    br.inputs['Mortar Size'].default_value = 0.55; br.inputs['Mortar Smooth'].default_value = 0.0
+    br.inputs['Mortar Size'].default_value = mortar; br.inputs['Mortar Smooth'].default_value = 0.0
     br.inputs['Color1'].default_value = (*glass, 1); br.inputs['Color2'].default_value = (*[g * 1.3 for g in glass], 1)
     br.inputs['Mortar'].default_value = (*color, 1)
     L.new(comb.outputs[0], br.inputs['Vector'])
@@ -67,12 +67,12 @@ def mosque(k, x, y, s=1.0):
         cone(mx, my, 30 * s, 1.4 * s, 4.5 * s, dome, 12)
 
 def cathedral(k, x, y, s=1.0):
-    st = facade((0.72, 0.69, 0.63), glass=(0.18, 0.16, 0.2), floor=6, bay=4); roof = mat((0.30, 0.36, 0.38), 0.5)
+    st = facade((0.74, 0.71, 0.64), glass=(0.16, 0.15, 0.2), floor=9, bay=3.4, mortar=1.1); roof = mat((0.30, 0.36, 0.38), 0.5)
     box(x, y + 4 * s, 0, 13 * s, 38 * s, 15 * s, st, bevel=0.2); gable(x, y + 4 * s, 15 * s, 13 * s, 38 * s, 8 * s, roof, rot=90, overhang=0.3)   # nave
     box(x, y + 12 * s, 0, 32 * s, 11 * s, 13 * s, st, bevel=0.2); gable(x, y + 12 * s, 13 * s, 32 * s, 11 * s, 7 * s, roof, overhang=0.3)        # transept
-    cyl(x, y + 12 * s, 21 * s, 5 * s, 4 * s, st, verts=16); cone(x, y + 12 * s, 25 * s, 5.5 * s, 7 * s, roof, 16)                         # crossing
+    cone(x, y + 12 * s, 20 * s, 2.2 * s, 12 * s, roof, 8)                         # crossing
     for dx in (-5, 5):                                                                                                                      # two west towers
-        box(x + dx * s, y - 16 * s, 0, 8 * s, 8 * s, 30 * s, st, bevel=0.2); cone(x + dx * s, y - 16 * s, 30 * s, 5.2 * s, 14 * s, roof, 4)
+        box(x + dx * s, y - 16 * s, 0, 8 * s, 8 * s, 30 * s, st, bevel=0.2); cone(x + dx * s, y - 16 * s, 30 * s, 4.6 * s, 16 * s, roof, 8)
 
 def capitol(k, x, y, s=1.0):
     w = facade((0.90, 0.89, 0.86), floor=4, bay=3); wd = mat((0.90, 0.89, 0.86), 0.5)
