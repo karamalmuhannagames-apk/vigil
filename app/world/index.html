@@ -186,16 +186,16 @@ function draw() {
     }
   drawCities(s, sw, sh);
   drawBorders(s, sw, sh);
-  drawCountryNames(s, sw, sh);
+  const countryBoxes = drawCountryNames(s, sw, sh) || [];
   // drawArmies(s, sw, sh, performance.now());   // paused until the ground is right
-  // cities: most important first; a label that would overlap one already placed is skipped (no clutter, ever)
+  // cities: most important first; a label that would overlap one already placed (or a country name) is skipped
   ctx.textAlign = 'center';
-  const placed = [];
+  const placed = countryBoxes.slice();
   for (const p of cityOrder) {
     // when names appear: big playable capitals first, small and computer-run countries only closer in
     const big = p.area >= 300000;
     const capAt = p.cls === 'neutral' ? 1.2 : p.cls === 'ai' ? 0.7 : big ? 0.4 : 0.5;   // at world zoom the country names speak
-    const show = p.kind === 'capital' ? smooth(capAt, capAt * 1.5, view.z) : p.kind === 'major' ? smooth(0.55, 0.8, view.z) : smooth(1.1, 1.5, view.z);
+    const show = p.kind === 'capital' ? smooth(capAt, capAt * 1.5, view.z) : p.kind === 'major' ? smooth(0.6, 0.85, view.z) : smooth(1.1, 1.5, view.z);
     if (!show) continue;
     const sx = (p.x - view.x) * s + sw / 2, sy = (p.y - view.y) * s + sh / 2;
     if (sx < -100 || sy < -50 || sx > sw + 100 || sy > sh + 50) continue;
@@ -253,7 +253,7 @@ function pip(g, rel, r) {
 let countryLabels = [];
 function drawCountryNames(s, sw, sh) {
   const a = 1 - smooth(0.32, 0.55, view.z);
-  if (a <= 0) return;
+  if (a <= 0) return [];
   const dpr = devicePixelRatio;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   const placed = [];
@@ -278,6 +278,7 @@ function drawCountryNames(s, sw, sh) {
     ctx.fillStyle = '#EFE6CF'; ctx.fillText(L.name, sx, sy);
   }
   ctx.globalAlpha = 1; ctx.textBaseline = 'alphabetic';
+  return a > 0.4 ? placed : [];
 }
 
 

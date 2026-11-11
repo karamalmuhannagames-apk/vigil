@@ -496,12 +496,12 @@ if sat:
         if HS is not None:
             h = HS[np.clip((sy.astype(np.float64) * HS.shape[0] / sh4).astype(np.int32), 0, HS.shape[0] - 1),
                    np.clip((sx.astype(np.float64) * HS.shape[1] / sw4).astype(np.int32), 0, HS.shape[1] - 1)].astype(np.float32) / 255
-            h = ndi.gaussian_filter(h, 1.2)                                         # painted, soft ridges
+            h = ndi.gaussian_filter(h, 2.6)                                         # painted, broad soft ridges (no crumpled noise)
             # only real mountain ranges show: where the ground is rough over a wide area. Plains stay calm.
             hm = ndi.gaussian_filter(h, 10)
             hstd = np.sqrt(np.maximum(ndi.gaussian_filter(h * h, 10) - hm * hm, 0))
-            mnt = np.clip((hstd - 0.035) / 0.05, 0, 1)
-            relief = np.clip(1 + 2.0 * (h - hm) * mnt + 0.25 * (hm - hs_mid) * mnt, 0.45, 1.5)
+            mnt = np.clip((hstd - 0.04) / 0.05, 0, 1)
+            relief = np.clip(1 + 2.4 * (h - hm) * mnt + 0.25 * (hm - hs_mid) * mnt, 0.45, 1.5)
             rough = mnt * np.clip(np.abs(h - hm) * 8, 0, 1)
         else: relief = np.ones_like(L); rough = np.zeros_like(L)
         # forest as clumps: dense real forest keeps its own shape, everywhere else a few scattered woods
