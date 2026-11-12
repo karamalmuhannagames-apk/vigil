@@ -36,7 +36,7 @@ out = 'art/loading/raw'; os.makedirs(out, exist_ok=True)
 credits = {}
 import sys
 if len(sys.argv) > 1 and sys.argv[1] == '2': TOPICS = TOPICS2
-for topic, q in TOPICS.items():
+for topic, q in ({} if (len(sys.argv) > 1 and sys.argv[1] == 'hq') else TOPICS).items():
     try:
         d = get({'action': 'query', 'format': 'json', 'generator': 'search', 'gsrsearch': f'{q} filetype:bitmap', 'gsrnamespace': 6, 'gsrlimit': 40,
                  'prop': 'imageinfo', 'iiprop': 'url|size|extmetadata', 'iiurlwidth': 2000})
@@ -60,7 +60,22 @@ for topic, q in TOPICS.items():
         got += 1; print('ok', name, p['title'])
         if got >= 3: break
         time.sleep(0.5)
-old = json.load(open(f'{out}/credits.json')) if os.path.exists(f'{out}/credits.json') else {}
-old.update(credits)
-json.dump(old, open(f'{out}/credits.json', 'w'), indent=1)
+if not (len(sys.argv) > 1 and sys.argv[1] == 'hq'):
+  old = json.load(open(f'{out}/credits.json')) if os.path.exists(f'{out}/credits.json') else {}
+  old.update(credits)
+  json.dump(old, open(f'{out}/credits.json', 'w'), indent=1)
 print('total', len(credits))
+
+
+# --- full-resolution originals for chosen titles: python3 ci/photos/fetch.py hq ---
+if len(sys.argv) > 1 and sys.argv[1] == 'hq':
+    titles = json.load(open('ci/photos/hq_titles.json'))
+    hq = 'art/loading/hq'; os.makedirs(hq, exist_ok=True); info = {}
+    for i, t in enumerate(titles, 1):
+        d = get({'action': 'query', 'format': 'json', 'titles': t, 'prop': 'imageinfo', 'iiprop': 'url|size|extmetadata'})
+        page = next(iter(d['query']['pages'].values())); ii = page['imageinfo'][0]
+        name = f'{i:02d}.jpg'
+        with urllib.request.urlopen(urllib.request.Request(ii['url'], headers=UA), timeout=300) as r, open(f'{hq}/{name}', 'wb') as fo: fo.write(r.read())
+        info[name] = {'title': t, 'width': ii['width'], 'height': ii['height'], 'licence': ii['extmetadata'].get('LicenseShortName', {}).get('value', '')}
+        print(name, ii['width'], ii['height'], t); time.sleep(0.5)
+    json.dump(info, open(f'{hq}/info.json', 'w'), indent=1)
