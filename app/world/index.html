@@ -218,8 +218,8 @@ function draw() {
   for (const p of cityOrder) {
     // when names appear: big playable capitals first, small and computer-run countries only closer in
     const big = p.area >= 300000;
-    const capAt = p.cls === 'neutral' ? 2.1 : p.cls === 'ai' ? 1.85 : 1.7;       // cities speak from country zoom in
-    const show = p.kind === 'capital' ? smooth(capAt, capAt * 1.12, view.z) : p.kind === 'major' ? smooth(1.75, 1.95, view.z) : smooth(2.0, 2.3, view.z);
+    const capAt = p.cls === 'neutral' ? 2.1 : 1.78;                               // cities speak from country zoom in; quick, clean switch
+    const show = p.kind === 'capital' ? smooth(capAt, capAt + 0.08, view.z) : p.kind === 'major' ? smooth(1.78, 1.86, view.z) : smooth(2.1, 2.2, view.z);
     if (!show) continue;
     const sx = (p.x - view.x) * s + sw / 2, sy = (p.y - view.y) * s + sh / 2;
     if (sx < -100 || sy < -50 || sx > sw + 100 || sy > sh + 50) continue;
@@ -277,7 +277,7 @@ function pip(g, rel, r) {
 // ---------- country names: big, printed on the land at world zoom ----------
 let countryLabels = [];
 function drawCountryNames(s, sw, sh) {
-  const a = 1 - smooth(1.55, 1.85, view.z);   // like CoN: up to region zoom the map speaks only in country names
+  const a = 1 - smooth(1.75, 1.85, view.z);   // like CoN: up to region zoom the map speaks only in country names
   if (a <= 0) return [];
   const dpr = devicePixelRatio;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
