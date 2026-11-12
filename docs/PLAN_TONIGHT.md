@@ -10,7 +10,7 @@ must be better, never different for its own sake; calm land; space for cities an
 1. [x] Build: get a world build through with all fixes (borders for all countries, calm land, ranges only, few woods,
        no desert forests, soft coastal edge). If GitHub's queue is stuck, cancel the stale runs and dispatch world.yml again.
 2. [x] Borders: every land border drawn (Iraq–Saudi, Iran–Iraq, Egypt–Libya ...), light line with dark edge, like CoN.
-3. [ ] Land balance: compare Iraq, Iran, Algeria and India with CoN at matched px/km (study §1). Plains calm, mountains
+3. [x] Land balance: compare Iraq, Iran, Algeria and India with CoN at matched px/km (study §1). Plains calm, mountains
        only on real ranges, woods as few clumps. Measure texture contrast; it must be close to CoN's.
 3b. [x] Provinces like CoN (owner, 23:53): every province clearly bordered all round and easy to tell apart; lines are
        clean straight-segment polygons (CoN style), not wiggly admin lines; province counts per country close to CoN
@@ -18,11 +18,11 @@ must be better, never different for its own sake; calm land; space for cities an
        Visible from country zoom, stronger at province zoom.
 3c. [x] Keep every relation feature we built: border style by relation when zooming to a border (passage dashed, enemy
        red glow, ally soft), relation colours, own/ally/stranger/enemy. Check each still works after the rebuild.
-4. [ ] Cities: dense dark patches sized by room; names and capitals never dropped; landmarks only on capitals.
+4. [x] Cities: dense dark patches sized by room; names and capitals never dropped; landmarks only on capitals.
 5. [x] Names: CoN size (city ~48 px, country names by area up to ~90 px), country names until region zoom, cities after.
-6. [ ] Sea: coastal band and deep water colours, soft edge, depth patches, calm ripples, coast rim.
-7. [ ] Use the catalogue's "what reproductions get wrong" list: fix each item that applies.
-8. [ ] Side-by-side sheet at the same places and zoom as CoN: Iraq close, Caspian region, Algeria, India south,
+6. [x] Sea: coastal band and deep water colours, soft edge, depth patches, calm ripples, coast rim.
+7. [x] Use the catalogue's "what reproductions get wrong" list: fix each item that applies.
+8. [x] Side-by-side sheet at the same places and zoom as CoN: Iraq close, Caspian region, Algeria, India south,
        Australia east, Europe far. An independent reviewer agent grades it; redo anything worse than CoN.
 9. [ ] Morning: send the owner one comparison sheet and a short honest summary (what is at CoN level, what is not yet).
 
@@ -32,3 +32,7 @@ must be better, never different for its own sake; calm land; space for cities an
 - Scale re-measured: CoN views are ~2x closer than first estimated; study table corrected; comparison sheet uses matched px/km.
 - Label stages like CoN: country names only until region zoom (1.8), then city names; quick switch, no half-faded text.
 - Relation borders checked after the rebuild: enemy red glow, passage dashed, ally pale olive: working.
+- 04:30 Research catalogue finished (docs/research/con_map_catalogue.md): 12 measured findings applied (label switch at ~0.6 px/km, name sizes, line widths, shallow-sea band from real 200 m bathymetry, ripple contrast by zoom).
+- Enclosed seas (Mediterranean, Black, Red Sea) fully light like CoN; deep water only in open oceans.
+- 05:00 Independent review #1 graded ~4/10; fixes applied: gapless province lines, darker stranger land (CoN measured), rivers, stronger relief, calmer depth patches, thinner borders, lighter name outlines, cities with real streets and a dark vignette.
+  Rejected one review point (tone down owner colours) because the owner asked for CoN's colours and CoN shows them.
