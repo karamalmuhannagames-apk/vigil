@@ -503,7 +503,7 @@ if sat:
         near = (~d200) | (ndi.distance_transform_edt(lf8 < 0.5) < 5)
         deep = ~near
         dl, nd_ = ndi.label(deep)
-        deep &= np.isin(dl, np.nonzero(np.bincount(dl.ravel()) >= 400)[0][1:])
+        deep &= np.isin(dl, np.nonzero(np.bincount(dl.ravel()) >= 40000)[0][1:])   # like CoN: enclosed seas (Mediterranean, Black, Red Sea) stay light; only open oceans are deep
         print('shelf band from bathymetry', round(float(near.mean()), 3))
     coast8 = ndi.gaussian_filter((~deep).astype(np.float32), 1.6)                 # coastal waters, soft-cornered outline
     del lab8, dl
