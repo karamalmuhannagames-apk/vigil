@@ -120,6 +120,61 @@ async function namesSteady(browser) {
   await ctx.close();
 }
 
+
+// menus: every screen in both languages, choosing countries, the back button, every setting, switching language
+async function menuFlow(browser, locale) {
+  const { ctx, page, errors } = await newPage(browser, [412, 915], locale);
+  await page.goto(BASE + '/app/start.html', { waitUntil: 'domcontentloaded' }); await page.waitForTimeout(1000); await page.mouse.click(200, 400);
+  await page.waitForSelector('#menu.on', { timeout: 90000 }); await page.waitForTimeout(800);
+  const L = locale.slice(0, 2);
+  const overflow = () => page.evaluate(() => [...document.querySelectorAll('#menu .scr.on *')].some((e) => { const r = e.getBoundingClientRect(); return r.width && (r.right > innerWidth + 1 || r.left < -1) && getComputedStyle(e).overflowX !== 'auto' && !e.closest('.chips'); }));
+  for (const scr of ['servers', 'settings', 'help']) {
+    await page.click(`#m-home [data-go=${scr}]`); await page.waitForTimeout(200);
+    ok(`menu ${L}: ${scr} opens`, await page.evaluate((s) => document.querySelector('#m-' + s).classList.contains('on'), scr));
+    ok(`menu ${L}: ${scr} fits the screen`, !(await overflow()));
+    ok(`menu ${L}: back from ${scr}`, await page.evaluate(() => window.gameBack()) && await page.evaluate(() => document.querySelector('#m-home').classList.contains('on')));
+  }
+  ok(`menu ${L}: back on home leaves the app`, (await page.evaluate(() => window.gameBack())) === false);
+  await page.click('#m-home [data-soon]'); await page.waitForTimeout(100);
+  ok(`menu ${L}: coming-soon notice`, await page.evaluate(() => document.querySelector('#toast').classList.contains('on')));
+  // countries: search, regions, pick and start several times
+  let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let n = 0; n < 6; n++) {
+    await page.click('.btn-play'); await page.click('[data-join]'); await page.waitForTimeout(300);
+    const regs = await page.$$eval('[data-reg]', (b) => b.map((x) => x.dataset.reg)); await page.click(`[data-reg=${regs[Math.floor(rnd() * regs.length)]}]`);
+    const isos = await page.$$eval('#clist [data-iso]', (b) => b.map((x) => x.dataset.iso));
+    ok(`menu ${L}: countries listed (${isos.length})`, isos.length > 0);
+    const iso = isos[Math.floor(rnd() * isos.length)];
+    await page.click(`[data-iso=${iso}]`); await page.waitForTimeout(600);
+    ok(`menu ${L}: command button for ${iso}`, await page.evaluate(() => document.querySelector('#cgo').classList.contains('on')));
+    await page.click('#cgoBtn'); await page.waitForTimeout(900);
+    const st = await page.evaluate(() => ({ hud: document.querySelector('#hudbar').classList.contains('on'), menu: document.querySelector('#menu').classList.contains('on'), me: document.getElementById('game-frame').contentWindow.eval('ME') }));
+    ok(`menu ${L}: battle starts as ${iso}`, st.hud && !st.menu && st.me === iso, JSON.stringify(st));
+    ok(`menu ${L}: back in battle opens the menu`, await page.evaluate(() => window.gameBack()) && await page.evaluate(() => document.querySelector('#menu').classList.contains('on')));
+  }
+  await page.fill('#cq', 'zzzz').catch(() => {});
+  // search that finds nothing says so
+  await page.click('.btn-play'); await page.click('[data-join]'); await page.fill('#cq', 'zzzzqq'); await page.waitForTimeout(200);
+  ok(`menu ${L}: empty search explained`, await page.evaluate(() => !!document.querySelector('#clist .empty')));
+  await page.evaluate(() => { window.gameBack(); window.gameBack(); });
+  // settings: every option
+  await page.click('#m-home [data-go=settings]');
+  for (const key of ['quality', 'glide']) for (const v of await page.$$eval(`.seg[data-key=${key}] button`, (b) => b.map((x) => x.dataset.val))) {
+    await page.click(`.seg[data-key=${key}] [data-val=${v}]`); await page.waitForTimeout(250);
+  }
+  await page.evaluate(() => { const r = document.querySelector('.rng[data-key=music]'); r.value = 20; r.dispatchEvent(new Event('input', { bubbles: true })); });
+  const saved = await page.evaluate(() => ({ q: localStorage.getItem('cmd.quality'), g: localStorage.getItem('cmd.glide'), m: localStorage.getItem('cmd.music') }));
+  ok(`menu ${L}: settings saved`, saved.q === 'sharp' && saved.g === 'quick' && saved.m === '20', JSON.stringify(saved));
+  // language switch: the app reopens straight to the menu in the other language
+  const other = L === 'ar' ? 'en' : 'ar';
+  await page.click(`.seg[data-key=lang] [data-val=${other}]`);
+  await page.waitForSelector('#menu.on', { timeout: 90000 });
+  ok(`menu ${L}: language switched to ${other}`, await page.evaluate(() => document.documentElement.lang) === other);
+  ok(`menu ${L}: no intro after a language switch`, !(await page.evaluate(() => !!document.querySelector('#intro.play'))));
+  ok(`menu ${L}: no errors`, errors.length === 0, errors.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
 async function mapFuzz(browser, ops) {
   const { ctx, page, errors } = await newPage(browser, [412, 915], 'en-US');
   await page.goto(BASE + '/app/world/index.html');
@@ -162,6 +217,8 @@ async function mapFuzz(browser, ops) {
   await faultRun(browser, 'fonts missing', ['.ttf'], 'map');
   // C. phone speed
   await phoneSpeed(browser);
+  await menuFlow(browser, 'ar-JO');
+  await menuFlow(browser, 'en-US');
   await pinchCheck(browser);
   await namesSteady(browser);
   // D. thousands of random gestures on the map

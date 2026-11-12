@@ -170,12 +170,12 @@
     if (w?.flyTo) w.flyTo(iso);
     const c = world.countries.find((x) => x.iso === iso);
     $('hudName').textContent = c ? nm(c) : iso;
-    root.classList.remove('on'); setTimeout(() => { root.style.display = 'none'; }, 450);
+    root.classList.remove('on'); setTimeout(() => { if (!root.classList.contains('on')) root.style.display = 'none'; }, 450);
     hud.classList.add('on'); stack.length = 0;
     window.dispatchEvent(new Event('menuClosed'));
   }
   function openHome() {
-    root.style.display = ''; requestAnimationFrame(() => root.classList.add('on'));
+    root.style.display = ''; void root.offsetWidth; root.classList.add('on');   // reflow first so the fade still plays
     hud.classList.remove('on'); stack.length = 0; go('home');
     window.dispatchEvent(new Event('menuOpened'));
   }
