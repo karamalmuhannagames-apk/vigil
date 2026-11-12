@@ -436,7 +436,7 @@ for i, a in enumerate(ids):
         l1, l2 = ' '.join(words[:k]), ' '.join(words[k:])
         layouts.append((max(_textw(l1), _textw(l2)) / 100.0, 2.05, [l1, l2]))
     best = None
-    for (ar, lines_h, lines) in layouts:
+    for LOOSE, (ar, lines_h, lines) in [(L, lay) for L in (False, True) for lay in layouts]:
         ys, xs = cyx[:, 0].astype(np.float64), cyx[:, 1].astype(np.float64)
         lo = np.zeros(len(ys)); hi = np.full(len(ys), float(max(hh_, ww_)))
         for _ in range(14):                       # binary search the biggest text height at every candidate
@@ -446,13 +446,15 @@ for i, a in enumerate(ids):
             area = np.maximum(1, (bh) * (bw))
             inside = (ii[y2, x2] - ii[y1, x2] - ii[y2, x1] + ii[y1, x1]) / area
             okf = (io[y2, x2] - io[y1, x2] - io[y2, x1] + io[y1, x1]) / area
-            ok = (inside >= 0.9) | ((okf >= 0.93) & (inside >= 0.45))
+            ok = (inside >= 0.9) | (LOOSE & (okf >= 0.93) & (inside >= 0.45))
             lo = np.where(ok, h, lo); hi = np.where(ok, hi, h)
         far = np.hypot(ys - cy, xs - cx) / span
         score = lo * (1 - 0.55 * np.minimum(far, 1)) * (1.0 if lines_h == 1 else 0.93)
         k = int(np.argmax(score))
-        if best is None or score[k] > best[0]:
-            best = (score[k], int(xs[k]) + x0s, int(ys[k]) + y0s, float(lo[k]), lines)
+        # a name on the country's own land wins unless it would be under 45% of the size it gets over its own sea
+        sc_ = score[k] * (0.45 if LOOSE else 1.0)
+        if best is None or sc_ > best[0]:
+            best = (sc_, int(xs[k]) + x0s, int(ys[k]) + y0s, float(lo[k]), lines)
     if best:
         _, x, y, h, lines = best
         c['label'] = {'x': x, 'y': y, 'th': round(h, 1), 'lines': lines}

@@ -61,6 +61,22 @@ async function faultRun(browser, label, block, expect, locale = 'en-US') {
   await ctx.close();
 }
 
+async function phoneSpeed(browser) {
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, deviceScaleFactor: 2.625 });
+  const page = await ctx.newPage(); const cdp = await ctx.newCDPSession(page); await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+  const errors = []; page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto(BASE + '/app/world/index.html');
+  await page.waitForFunction(() => window.worldReady === true, null, { timeout: 120000 });
+  await page.waitForTimeout(4000);
+  for (const z of [0.5, 0.9, 1.4, 2.5, 5]) {
+    const ms = await page.evaluate((z) => { const v = window.world_().countries.find((c) => c.iso === 'JOR').label; window.mapView(v.x, v.y, z); const t = performance.now(); for (let i = 0; i < 10; i++) window.draw(); return (performance.now() - t) / 10; }, z);
+    ok(`phone speed: map frame work at zoom ${z} (${ms.toFixed(1)} ms, budget 12)`, ms < 12);
+    await page.waitForTimeout(1500);
+  }
+  ok('phone speed: no errors', errors.length === 0, errors.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
 async function mapFuzz(browser, ops) {
   const { ctx, page, errors } = await newPage(browser, [412, 915], 'en-US');
   await page.goto(BASE + '/app/world/index.html');
@@ -101,7 +117,9 @@ async function mapFuzz(browser, ops) {
   await faultRun(browser, 'loading photos missing', ['img/loading'], 'map');
   await faultRun(browser, 'tile list missing', ['tiles.json'], 'map');
   await faultRun(browser, 'fonts missing', ['.ttf'], 'map');
-  // C. thousands of random gestures on the map
+  // C. phone speed
+  await phoneSpeed(browser);
+  // D. thousands of random gestures on the map
   await mapFuzz(browser, Number(process.env.OPS || 3000));
   await browser.close();
   console.log(`\nSTRESS: ${results.pass} passed, ${results.fail} failed in ${Math.round((Date.now() - t0) / 1000)} s`);

@@ -24,6 +24,8 @@ const DATA = new URLSearchParams(location.search).get('data') || '../../art/worl
 const DEBUG = new URLSearchParams(location.search).has('debug');
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const T = 512;
+// screen density for the map: phones report up to 3-4; painting at 1.5 keeps it sharp and four times lighter
+const MAPDPR = Math.min(window.devicePixelRatio || 1, 1.5);
 let W, H, world, countries = [], byIso = {}, cityOrder = [];
 // Relation colours measured from CoN screenshots: 7 colour stops per relation, darkest to lightest, taken from
 // real map pixels of each relation (own green, ally pale olive, stranger blue-grey slate, enemy blood red).
@@ -65,12 +67,38 @@ Promise.all(['forest', 'forest_id', 'open', 'arid', 'rock', 'waves'].map(n => lo
   const dc = document.createElement('canvas'); dc.width = dc.height = WN; const dg = dc.getContext('2d'), di = dg.createImageData(WN, WN);
   for (let i = 0; i < WN * WN; i++) { const k = Math.max(0.45, 1 + wave[i] * 0.6); di.data[i * 4] = SEA.deep[0] * k; di.data[i * 4 + 1] = SEA.deep[1] * k; di.data[i * 4 + 2] = SEA.deep[2] * k; di.data[i * 4 + 3] = 255; }
   dg.putImageData(di, 0, 0); deepPat = ctx.createPattern(dc, 'repeat');
+  startWorkers();
   cache.clear(); draw();
 });
-// gentle wave motion: a light redraw loop (about 12 frames a second, paused when the app is hidden)
-setInterval(() => { if (!document.hidden && world && view.z > 0.15) draw(); }, 83);
+// (no idle redraw loop: the sea ripples are painted into the tiles, so a still map costs nothing)
+let drawPending = false;
+function requestDraw() { if (drawPending) return; drawPending = true; requestAnimationFrame(() => { drawPending = false; draw(); }); }
 const cache = new Map();   // key z/x/y -> {canvas} ; tinted tiles
 let gen = 0;               // bumps when relations change: tinted tiles rebuilt
+
+
+// ---------- background painters ----------
+// Tiles are painted by two workers off the screen thread; the page only draws finished pictures.
+let workers = null, wNext = 0; const pending = new Map();
+function startWorkers() {
+  if (workers !== null || typeof OffscreenCanvas === 'undefined' || typeof Worker === 'undefined') return;
+  try {
+    workers = [new Worker('tile-worker.js'), new Worker('tile-worker.js')];
+    for (const w of workers) {
+      w.postMessage({type: 'init', TEX, LUT, SEA});
+      w.onmessage = (ev) => {
+        const m = ev.data, e = pending.get(m.key); pending.delete(m.key);
+        if (!e) { if (m.bmp) m.bmp.close(); return; }
+        if (m.failed) e.failed = true; else e.canvas = m.bmp;
+        requestDraw();
+      };
+      w.onerror = () => { workers = false; };
+    }
+    sendRelations();
+  } catch (err) { workers = false; }
+}
+function sendRelations() { if (!workers || !countries.length) return; const rel = countries.map((c, i) => relOf(i)); for (const w of workers) w.postMessage({type: 'rel', rel}); }
+const TILE_BASE = new URL(DATA + 'tiles/', location.href).href;
 
 function load(src) { return new Promise((r, j) => { const i = new Image(); i.onload = () => r(i); i.onerror = j; i.src = src; }); }
 
@@ -160,13 +188,17 @@ async function buildTile(z, tx, ty, C) {
 function tileFor(z, tx, ty, C) {
   const k = `${gen}/${C}/${z}/${tx}/${ty}`;
   let e = cache.get(k);
+  if (e) { cache.delete(k); cache.set(k, e); }   // recently used tiles stay; the memory budget drops the oldest unused
   if (!e) {
     e = {canvas: null}; cache.set(k, e);
     if (!TEX) { cache.delete(k); return null; }
     if (manifest && !manifest[z]?.has(`${tx}_${ty}`)) { e.canvas = 'deep'; return e.canvas; }   // open ocean
-    queue.push(() => buildTile(z, tx, ty, C).then(c => { e.canvas = c; draw(); }, () => { e.failed = true; }));
-    pump();
-    if (cache.size > 90) { const old = cache.keys().next().value; cache.delete(old); }
+    if (workers) { pending.set(k, e); workers[wNext++ % workers.length].postMessage({type: 'tile', key: k, z, tx, ty, C, base: TILE_BASE}); }
+    else { queue.push(() => buildTile(z, tx, ty, C).then(c => { e.canvas = c; requestDraw(); }, () => { e.failed = true; })); pump(); }
+    while (cache.size > 70) {   // memory budget: about 70 painted tiles; the oldest go first
+      const [old, oe] = cache.entries().next().value; cache.delete(old); pending.delete(old);
+      if (oe.canvas && oe.canvas.close) oe.canvas.close();
+    }
   }
   return e.canvas;
 }
@@ -177,13 +209,13 @@ function pump() { if (busy || !queue.length) return; busy = true; const job = qu
 const smooth = (a, b, v) => Math.min(1, Math.max(0, (v - a) / (b - a)));
 function draw() {
   if (!world) return;
-  const dpr = devicePixelRatio, sw = cv.width, sh = cv.height, s = view.z * dpr;
+  const dpr = MAPDPR, sw = cv.width, sh = cv.height, s = view.z * dpr;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   // zoom level: full resolution (4) when close, coarser tiles when far
   const z = Math.max(0, Math.min(ZMAX, Math.round(3 + Math.log2(view.z) + 0.25)));
   const f = 2 ** (3 - z);                     // world px per tile px
   const tsz = T * f * s;                      // one tile's size on screen
-  const C = Math.max(256, Math.min(view.z > 4 ? 2048 : 1024, 2 ** Math.ceil(Math.log2(tsz) - 0.1)));   // paint at or above screen size: always crisp   // paint resolution: ground texture stays crisp
+  const C = z === ZMAX && tsz > 760 ? 1024 : 512;   // fixed paint sizes: zooming never repaints the map; 1024 only very close in   // paint at or above screen size: always crisp   // paint resolution: ground texture stays crisp
   const k = tsz / C;                          // screen px per painted px
   // open ocean: deep-sea ripples, locked to the same painted-pixel grid as the tiles
   if (deepPat) {
@@ -193,16 +225,16 @@ function draw() {
   } else ctx.fillStyle = `rgb(${SEA.deep})`;
   ctx.fillRect(0, 0, sw, sh);
   const x0 = view.x - sw / 2 / s, y0 = view.y - sh / 2 / s, x1 = view.x + sw / 2 / s, y1 = view.y + sh / 2 / s;
-  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = moving() ? 'low' : 'high';   // fast while moving, finest when still
   for (let ty = Math.max(0, Math.floor(y0 / (T * f))); ty * T * f < Math.min(H, y1); ty++)
     for (let tx = Math.max(0, Math.floor(x0 / (T * f))); tx * T * f < Math.min(W, x1); tx++) {
       let c = tileFor(z, tx, ty, C), sx = 0, sy = 0, sz = null;
       if (c === 'deep') continue;
       if (!c) {   // while it paints: the same tile at another resolution, or the coarser parent, so there are no holes
         for (const C2 of [512, 1024, 2048, 256]) { const e = cache.get(`${gen}/${C2}/${z}/${tx}/${ty}`); if (e?.canvas && e.canvas !== 'deep') { c = e.canvas; break; } }
-        if (!c && z > 0) for (const C2 of [C, 512, 1024, 256]) {
-          const e = cache.get(`${gen}/${C2}/${z - 1}/${tx >> 1}/${ty >> 1}`);
-          if (e?.canvas && e.canvas !== 'deep') { c = e.canvas; sz = C2 / 2; sx = (tx & 1) * sz; sy = (ty & 1) * sz; break; }
+        for (let up = 1; !c && up <= 3 && z - up >= 0; up++) for (const C2 of [512, 1024]) {   // a coarser tile from up to 3 levels out
+          const e = cache.get(`${gen}/${C2}/${z - up}/${tx >> up}/${ty >> up}`);
+          if (e?.canvas && e.canvas !== 'deep') { const n = 1 << up; c = e.canvas; sz = C2 / n; sx = (tx & (n - 1)) * sz; sy = (ty & (n - 1)) * sz; break; }
         }
       }
       if (!c) continue;
@@ -211,8 +243,14 @@ function draw() {
       if (sz) ctx.drawImage(c, sx, sy, sz, sz, X0, Y0, X1 - X0, Y1 - Y0);
       else ctx.drawImage(c, X0, Y0, X1 - X0, Y1 - Y0);
     }
+  // paint ahead: a ring of tiles around the screen, and the coarse level two steps out, so moving never shows holes
+  if (workers && !moving()) {
+    const tx0 = Math.floor(x0 / (T * f)) - 1, tx1 = Math.floor(x1 / (T * f)) + 1, ty0 = Math.floor(y0 / (T * f)) - 1, ty1 = Math.floor(y1 / (T * f)) + 1;
+    for (let ty = Math.max(0, ty0); ty <= ty1 && ty * T * f < H; ty++) for (let tx = Math.max(0, tx0); tx <= tx1 && tx * T * f < W; tx++) tileFor(z, tx, ty, C);
+    if (z >= 2) { const zc = z - 2, fc = 2 ** (3 - zc); for (let ty = Math.max(0, Math.floor(y0 / (T * fc))); ty * T * fc < Math.min(H, y1); ty++) for (let tx = Math.max(0, Math.floor(x0 / (T * fc))); tx * T * fc < Math.min(W, x1); tx++) tileFor(zc, tx, ty, 512); }
+  }
   // edge of the world (top and bottom of the map): fog beyond a thin glowing line, like CoN
-  { const dpr = devicePixelRatio, yt = Math.round((0 - view.y) * s + sh / 2), yb = Math.round((H - view.y) * s + sh / 2);
+  { const dpr = MAPDPR, yt = Math.round((0 - view.y) * s + sh / 2), yb = Math.round((H - view.y) * s + sh / 2);
     ctx.fillStyle = 'rgb(58,55,50)';
     if (yt > 0) ctx.fillRect(0, 0, sw, yt);
     if (yb < sh) ctx.fillRect(0, yb, sw, sh - yb);
@@ -307,7 +345,7 @@ function nameLayout(name, roomW, roomH, cap, minS) {
 function drawCountryNames(s, sw, sh) {
   const a = 1 - smooth(0.95, 1.05, view.z);
   if (a <= 0) return [];
-  const dpr = devicePixelRatio;
+  const dpr = MAPDPR;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   const placed = [];
   const cap = (17 + 21 * smooth(0.25, 0.9, view.z)) * dpr, minS = (7.5 + 3.5 * smooth(0.25, 0.9, view.z)) * dpr;   // CoN: big names even at the farthest zoom
@@ -375,7 +413,7 @@ function relOfIso(iso) { return iso === ME ? 'me' : REL[iso] || 'neutral'; }
 function drawArmies(s, sw, sh, now) {
   const vis = smooth(0.3, 0.5, view.z);
   if (vis <= 0 || !ARMIES.length) return;
-  const dpr = devicePixelRatio, size = 54 * dpr * Math.min(1.35, Math.max(0.75, Math.sqrt(view.z)));
+  const dpr = MAPDPR, size = 54 * dpr * Math.min(1.35, Math.max(0.75, Math.sqrt(view.z)));
   const P = (q) => [(q[0] - view.x) * s + sw / 2, (q[1] - view.y) * s + sh / 2];
   // routes first, under every unit
   for (const a of ARMIES) {
@@ -443,7 +481,7 @@ function hash(s) { let h = 2166136261; for (const ch of s) h = Math.imul(h ^ ch.
 const cityImg = {};
 async function bakeCity(p, ci) {
   const c = countries[ci], art = c.art || 'americas', rel = relOf(ci);
-  const N = 640, R = N / 2;
+  const N = p.kind === 'capital' ? 640 : p.kind === 'major' ? 448 : 320, R = N / 2;   // smaller towns, smaller pictures
   const seed = hash(p.name_en || p.name_ar), v = Math.floor(seed * 3) % 3;
   const key = `${art}_${p.kind}_${v}`;
   const src = await (cityImg[key] || (cityImg[key] = img(`${ART_ROOT}citymarks/city_${key}.png`).catch(() => null)));
@@ -491,10 +529,17 @@ async function ownLand(p, ci, N) {
   g.putImageData(id, 0, 0);
   return c;
 }
+// a picture and its halved copies (640, 320, 160, 80, 40 px): drawing picks the one nearest its size on screen,
+// so the phone never shrinks a big picture every frame
+function mips(c) { const out = [c]; let cur = c; while (cur.width > 48) { const n = document.createElement('canvas'); n.width = n.height = cur.width >> 1; const g = n.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(cur, 0, 0, n.width, n.height); out.push(n); cur = n; } return out; }
+function pickMip(m, px) { let best = m[0]; for (const c of m) if (c.width >= px) best = c; return best; }
+// cities are prepared one at a time, one per frame, so new cities coming into view never freeze the map
+const cityQueue = []; let cityBusy = false;
+function pumpCities() { if (cityBusy || !cityQueue.length) return; cityBusy = true; const job = cityQueue.shift(); requestAnimationFrame(() => job().catch(() => {}).finally(() => { cityBusy = false; pumpCities(); })); }
 function cityPic(p, ci) {
   const k = `${gen}/${p.name_en}/${ci}`;
   let e = cityPics.get(k);
-  if (!e) { e = {pic: null}; cityPics.set(k, e); bakeCity(p, ci).then(pic => { e.pic = pic; draw(); }); }
+  if (!e) { e = {pic: null}; cityPics.set(k, e); cityQueue.push(() => bakeCity(p, ci).then(pic => { e.pic = pic && mips(pic); requestDraw(); })); pumpCities(); }
   return e.pic;
 }
 // city miniatures: each city stands on the map as a small rendered model of itself (landmark for capitals)
@@ -512,13 +557,13 @@ function markFor(art, kind, rel) {
       const i = (Math.min(255, (0.3 * d[q] + 0.59 * d[q + 1] + 0.11 * d[q + 2]) * 1.05) | 0) * 3;
       d[q] = t[i]; d[q + 1] = t[i + 1]; d[q + 2] = t[i + 2];
     }
-    g.putImageData(id, 0, 0); markTint.set(k, c); draw();
+    g.putImageData(id, 0, 0); markTint.set(k, c); requestDraw();
   });
   return null;
 }
 const MARK_ART = {gulf: 'gulf', europe: 'europe', asia: 'asia', americas: 'americas'};
 function markSize(p) {          // on-screen size of a city's miniature (0 = not shown at this zoom)
-  const dpr = devicePixelRatio, z = view.z;
+  const dpr = MAPDPR, z = view.z;
   const on = p.kind === 'capital' ? smooth(1.0, 1.15, z) : p.kind === 'major' ? smooth(0.6, 0.8, z) : smooth(1.1, 1.4, z);
   const base = p.kind === 'capital' ? 76 : p.kind === 'major' ? 44 : 32;
   const room = Math.min(1, Math.max(0.45, (p.r || CR[p.kind]) / CR[p.kind]));     // small countries: smaller landmark
@@ -541,7 +586,7 @@ function drawCities(s, sw, sh) {
   for (let ci = 0; ci < countries.length; ci++) for (const p of countries[ci].cities || []) {
     const R = p.r * s, sx = (p.x - view.x) * s + sw / 2, sy = (p.y - view.y) * s + sh / 2;
     if (sx < -R || sy < -R || sx > sw + R || sy > sh + R) continue;
-    const pic = cityPic(p, ci); if (pic) ctx.drawImage(pic, sx - R, sy - R, R * 2, R * 2);
+    const pic = cityPic(p, ci); if (pic) ctx.drawImage(pickMip(pic, R * 2), sx - R, sy - R, R * 2, R * 2);
   }
   ctx.globalAlpha = 1;
 }
@@ -554,7 +599,7 @@ function borderKind(a, b) {
   return relOf(ia === ME ? b : a);
 }
 function drawBorders(s, sw, sh) {
-  const dpr = devicePixelRatio;
+  const dpr = MAPDPR;
   const x0 = view.x - sw / 2 / s, x1 = view.x + sw / 2 / s, y0 = view.y - sh / 2 / s, y1 = view.y + sh / 2 / s;
   const groups = {foreign: [], neutral: [], passage: [], enemy: []};
   for (const b of borders) {
@@ -586,12 +631,13 @@ function drawBorders(s, sw, sh) {
   ctx.strokeStyle = 'rgba(255,60,55,0.95)'; ctx.lineWidth = 1.8 * dpr * thin; ctx.stroke();
 }
 
-function resize() { cv.width = innerWidth * devicePixelRatio; cv.height = innerHeight * devicePixelRatio; draw(); }
+function resize() { cv.width = Math.round(innerWidth * MAPDPR); cv.height = Math.round(innerHeight * MAPDPR); draw(); }
 let drag = null, pinch = null;
 // Camera: the map follows the finger with a slight smoothing and coasts to a stop when released,
 // a little slower than raw input so a big map feels heavy and calm, never laggy.
 const FOLLOW = 0.32, COAST = 0.9;      // share of the gap closed per frame; speed kept per frame while coasting
 let tv = null, vel = {x: 0, y: 0}, anim = 0, lastMove = 0;
+const moving = () => !!(drag || pinch || anim);
 function target() { if (!tv) tv = {x: view.x, y: view.y, z: view.z}; return tv; }
 function kick() { if (!anim) anim = requestAnimationFrame(step); }
 function step() {
@@ -601,7 +647,7 @@ function step() {
   view.z += dz * FOLLOW; view.x += dx * FOLLOW; view.y += dy * FOLLOW;
   draw();
   if (Math.abs(dz) > 1e-4 || (Math.abs(dx) + Math.abs(dy)) * view.z > 0.05 || (Math.abs(vel.x) + Math.abs(vel.y)) * view.z > 0.05) kick();
-  else { view.x = t.x; view.y = t.y; view.z = t.z; }
+  else { view.x = t.x; view.y = t.y; view.z = t.z; requestDraw(); }   // one last fine-quality frame when it settles
 }
 cv.addEventListener('wheel', e => { e.preventDefault(); zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.0012)); }, {passive: false});
 function zoomAt(cx, cy, k) {
@@ -622,7 +668,7 @@ cv.addEventListener('touchmove', e => { if (e.touches.length === 2) { const [a, 
 cv.addEventListener('touchend', () => pinch = null);
 window.mapView = (x, y, z) => { view = {x, y, z}; tv = {x, y, z}; vel = {x: 0, y: 0}; draw(); };
 window.setLabels = (o) => { for (const L of countryLabels) if (o[L.iso]) Object.assign(L, {x: o[L.iso].x, y: o[L.iso].y, th: o[L.iso].th, lines: o[L.iso].lines}); draw(); };
-window.setRelations = (me, rel) => { ME = me; REL = rel; gen++; cache.clear(); draw(); };
+window.setRelations = (me, rel) => { ME = me; REL = rel; gen++; cache.clear(); pending.clear(); sendRelations(); draw(); };
 window.tilesPending = () => [...cache.values()].filter(e => !e.canvas && !e.failed).length;
 window.world_ = () => world;
 
@@ -635,7 +681,7 @@ fetch(DATA + 'borders.json').then(r => r.ok ? r.json() : []).then(bs => {
 window.worldFailed = false;
 fetch(DATA + 'world.json').then(r => { if (!r.ok) throw new Error('world.json ' + r.status); return r.json(); }).then(async j => {
   try { const m = await (await fetch(DATA + 'tiles/tiles.json')).json(); manifest = {}; for (const k in m) manifest[k] = new Set(m[k]); ZMAX = Math.max(...Object.keys(m).map(Number)); } catch (e) {}
-  world = j; [W, H] = j.size; countries = j.countries; countries.forEach(c => byIso[c.iso] = c);
+  world = j; [W, H] = j.size; countries = j.countries; countries.forEach(c => byIso[c.iso] = c); sendRelations();
   const rank = {capital: 0, major: 1, minor: 2};
   const crank = {playable: 0, ai: 1, neutral: 2};
   // country name anchor: area-weighted centre of its provinces, but never in the sea between islands

@@ -17,19 +17,16 @@ html, body { margin: 0; height: 100%; background: #000; color: var(--ink); overf
 
 /* ---------- intro ---------- */
 #intro { background: #000; z-index: 3; transition: opacity .5s; }
-.studio, .game { position: absolute; display: flex; align-items: center; flex-direction: column; opacity: 0; }
-.studio .mark { width: min(26vw, 22vh); height: min(26vw, 22vh); }
-.studio .name { font: 800 min(9.5vw, 8vh)/1 Changa; letter-spacing: .32em; padding-left: .32em; margin-top: 4.2vh; }
-.studio .rule { width: min(56vw, 46vh); height: 2px; margin: 2.4vh 0 2vh; background: linear-gradient(90deg, transparent, var(--brass) 20%, var(--brass2) 50%, var(--brass) 80%, transparent); }
-.studio .sub { font: 500 min(3.6vw, 3vh)/1 Changa; letter-spacing: .9em; padding-left: .9em; color: #b9b2a2; }
-.studio .presents { font: 500 min(3.4vw, 2.8vh)/1 Changa; letter-spacing: .6em; padding-left: .6em; color: #8f8878; margin-top: 7vh; opacity: 0; transition: opacity .6s; }
-.studio .presents.ar { font-family: Kufi; letter-spacing: 0; padding-left: 0; font-weight: 500; }
-.studio.dim { animation: dimIn 1s ease-in forwards; }
-.studio.lit { animation: lit .45s ease-out forwards; }
-.studio.out { animation: out .5s ease-in forwards; }
-@keyframes dimIn { from { opacity: 0; filter: brightness(.25); } to { opacity: .55; filter: brightness(.45); } }
-@keyframes lit { from { opacity: .55; filter: brightness(.45); } 60% { filter: brightness(1.6) drop-shadow(0 0 30px rgba(255,236,200,.55)); } to { opacity: 1; filter: brightness(1.15) drop-shadow(0 0 18px rgba(255,236,200,.35)); } }
-@keyframes out { to { opacity: 0; filter: brightness(.3); } }
+.studio, .game, .glow { position: absolute; display: flex; align-items: center; flex-direction: column; opacity: 0; will-change: opacity, transform; }
+.studio .mark, .glow .mark { width: min(26vw, 22vh); height: min(26vw, 22vh); }
+.studio .name, .glow .name { font: 800 min(9.5vw, 8vh)/1 Changa; letter-spacing: .32em; padding-left: .32em; margin-top: 4.2vh; }
+.studio .rule, .glow .rule { width: min(56vw, 46vh); height: 2px; margin: 2.4vh 0 2vh; background: linear-gradient(90deg, transparent, var(--brass) 20%, var(--brass2) 50%, var(--brass) 80%, transparent); }
+.studio .sub, .glow .sub { font: 500 min(3.6vw, 3vh)/1 Changa; letter-spacing: .9em; padding-left: .9em; color: #b9b2a2; }
+.studio .presents, .glow .presents { font: 500 min(3.4vw, 2.8vh)/1 Changa; letter-spacing: .6em; padding-left: .6em; color: #8f8878; margin-top: 7vh; }
+.presents.ar { font-family: Kufi !important; letter-spacing: 0 !important; padding-left: 0 !important; font-weight: 500; }
+.glow { filter: blur(14px) brightness(1.8); }            /* drawn once; only its opacity is animated */
+.glow .presents { visibility: hidden; }
+.studio .presents { opacity: 0; }
 .game .emb { width: min(24vw, 20vh); height: min(24vw, 20vh); }
 .game .ar { font: 900 min(16vw, 13vh)/1.25 Kufi; margin-top: 1vh; }
 .game .en { position: relative; font: 800 min(11vw, 9vh)/1 Changa; letter-spacing: .2em; padding-left: .2em; margin-top: -.6vh; }
@@ -37,12 +34,29 @@ html, body { margin: 0; height: 100%; background: #000; color: var(--ink); overf
 .game .bar { display: flex; gap: 14px; align-items: center; margin-top: 2.6vh; }
 .game .bar i { display: block; width: min(13vw, 11vh); height: 2px; background: #9a8754; }
 .game .bar b { font: 600 min(2.4vw, 2vh)/1 Changa; letter-spacing: .5em; padding-left: .5em; color: #9a8754; }
-.game.pop { animation: pop 1.25s cubic-bezier(.2,.8,.2,1) forwards; }
-.game.out { animation: out .45s ease-in forwards; }
-@keyframes pop { 0% { opacity: 0; transform: scale(1.18); filter: brightness(3) blur(6px); } 18% { opacity: 1; transform: scale(.985); filter: brightness(1.8) blur(0); } 40% { transform: scale(1.0); filter: brightness(1.05); } 100% { opacity: 1; transform: scale(1.02); filter: brightness(1); } }
-.flash { position: absolute; inset: 0; background: radial-gradient(circle, rgba(255,240,210,.55), transparent 60%); opacity: 0; pointer-events: none; }
-.flash.go { animation: flash .6s ease-out; }
-@keyframes flash { 0% { opacity: 0; } 15% { opacity: 1; } 100% { opacity: 0; } }
+.flash { position: absolute; inset: 0; background: radial-gradient(circle, rgba(255,240,210,.5), transparent 60%); opacity: 0; pointer-events: none; will-change: opacity; }
+/* One timeline, run by the phone's graphics chip (opacity and size only), so loading in the background can never stutter it.
+   0.3 s black; studio fades up dim; brightens with a soft glow; PRESENTS; everything fades out smoothly; the game logo lands. */
+#intro.play .studio { animation: studioSeq 4.2s .3s both; }
+#intro.play .glow { animation: glowSeq 4.2s .3s both; }
+#intro.play .studio .presents { animation: presentsSeq 4.2s .3s both; }
+#intro.play .game { animation: gameSeq 2.1s 4.45s both; }
+#intro.play .flash { animation: flashSeq .8s 4.75s both; }
+@keyframes studioSeq { 0% { opacity: 0; transform: scale(.985); animation-timing-function: ease-in; }
+  30% { opacity: .32; transform: scale(.99); animation-timing-function: cubic-bezier(.3,.7,.3,1); }
+  44% { opacity: 1; transform: scale(1); }
+  80% { opacity: 1; transform: scale(1.004); animation-timing-function: ease-in-out; }
+  100% { opacity: 0; transform: scale(1.012); } }
+@keyframes glowSeq { 0%, 30% { opacity: 0; transform: scale(.99); animation-timing-function: ease-out; }
+  42% { opacity: .75; transform: scale(1); animation-timing-function: ease-in-out; }
+  62% { opacity: .18; } 80% { opacity: .12; animation-timing-function: ease-in-out; } 100% { opacity: 0; transform: scale(1.012); } }
+@keyframes presentsSeq { 0%, 50% { opacity: 0; animation-timing-function: ease-out; } 60% { opacity: 1; } 80% { opacity: 1; animation-timing-function: ease-in-out; } 100% { opacity: 0; } }
+@keyframes gameSeq { 0% { opacity: 0; transform: scale(1.1); animation-timing-function: cubic-bezier(.2,.9,.25,1); }
+  16% { opacity: 1; transform: scale(.992); animation-timing-function: ease-out; }
+  28% { transform: scale(1); } 78% { opacity: 1; transform: scale(1.012); animation-timing-function: ease-in-out; }
+  100% { opacity: 0; transform: scale(1.02); } }
+@keyframes flashSeq { 0% { opacity: 0; } 18% { opacity: 1; } 100% { opacity: 0; } }
+#intro.skip { transition: opacity .35s ease-out; opacity: 0 !important; }
 
 /* ---------- loading ---------- */
 #loading { z-index: 2; opacity: 0; transition: opacity .7s; background: #000; justify-content: flex-end; }
@@ -106,6 +120,10 @@ html, body { margin: 0; height: 100%; background: #000; color: var(--ink); overf
     <svg class="mark" viewBox="0 0 230 230"><path d="M30 6 H200 L224 30 V200 L200 224 H30 L6 200 V30 Z" fill="none" stroke="url(#brass)" stroke-width="6" /><use href="#halberd" x="25" y="20" width="180" height="190" fill="url(#steel)" /></svg>
     <div class="name">HALBERD</div><div class="rule"></div><div class="sub">STUDIO</div>
     <div class="presents" id="presents">PRESENTS</div>
+  </div>
+  <div class="glow" aria-hidden="true">
+    <svg class="mark" viewBox="0 0 230 230"><path d="M30 6 H200 L224 30 V200 L200 224 H30 L6 200 V30 Z" fill="none" stroke="#f1d79a" stroke-width="6" /><use href="#halberd" x="25" y="20" width="180" height="190" fill="#fff6e0" /></svg>
+    <div class="name" style="color:#fff3d6">HALBERD</div><div class="rule"></div><div class="sub" style="color:#fff3d6">STUDIO</div><div class="presents">PRESENTS</div>
   </div>
   <div class="game" id="game">
     <svg class="emb" viewBox="0 0 200 200"><path d="M28 4 H172 L196 28 V172 L172 196 H28 L4 172 V28 Z" fill="#1d2219" stroke="url(#brass)" stroke-width="5" /><use href="#chevrons" x="10" y="12" width="180" height="180" fill="url(#steel)" /></svg>
@@ -197,20 +215,16 @@ html, body { margin: 0; height: 100%; background: #000; color: var(--ink); overf
   const step = async (ms) => { const t0 = performance.now(); while (performance.now() - t0 < ms) { if (skipped) return false; await wait(30); } return true; };
 
   async function run() {
-    await document.fonts.ready;
-    // 1. low fade-in from black, then the studio mark lights up bright
-    await step(400);
-    if (!skipped) { play(sReveal); studio.classList.add('dim'); }
-    if (await step(1150)) { studio.classList.remove('dim'); studio.classList.add('lit'); }
-    if (await step(500)) presents.style.opacity = 1;
-    if (await step(1100)) { studio.classList.add('out'); }
-    // 2. the game logo hits
-    if (await step(250)) { play(sImpact); }
-    if (await step(480)) { game.classList.add('pop'); $('flash').classList.add('go'); }
-    if (await step(1400)) { game.classList.add('out'); }
-    await step(450);
+    await Promise.race([document.fonts.ready, wait(1500)]);
+    // the whole intro is one graphics-chip timeline (see #intro.play in the styles); JavaScript only starts the sounds
+    const tStart = performance.now();
+    intro.classList.add('play');
+    const at = async (ms) => { while (!skipped && performance.now() - tStart < ms) await wait(16); return !skipped; };
+    if (await at(900)) play(sReveal);            // its hit lands as the studio mark brightens (about 2.15 s)
+    if (await at(4290)) play(sImpact);           // its boom lands as the game logo hits (about 4.8 s)
+    await at(6550);
+    if (skipped) { intro.classList.add('skip'); fadeTo(sReveal, 0, 300); fadeTo(sImpact, 0, 300); await wait(350); }
     // 3. loading screen
-    if (skipped) { fadeTo(sReveal, 0, 300); fadeTo(sImpact, 0, 300); }
     $('loading').classList.add('on'); intro.style.opacity = 0; setTimeout(() => intro.remove(), 600);
     play(sLoop); fadeTo(sLoop, .55, 1500);
     const t0 = performance.now(); let shown = 0;
