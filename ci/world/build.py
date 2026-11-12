@@ -495,7 +495,17 @@ if sat:
     deep = ~near
     dl, nd_ = ndi.label(deep)
     deep &= np.isin(dl, np.nonzero(np.bincount(dl.ravel()) >= 900)[0][1:])        # no small deep pockets inside enclosed seas
-    coast8 = ndi.gaussian_filter((~deep).astype(np.float32), 3.0)                 # coastal waters, soft-cornered outline
+    bathy_f = os.path.join(DATA, 'ne_10m_bathymetry_K_200.geojson')
+    if os.path.exists(bathy_f):
+        # like CoN: the light band is the real shallow sea (continental shelf, deeper than 200 m is deep water),
+        # widened a little so every coast has some, and narrow seas like the Gulf are fully light
+        d200 = raster([(1, [f['geometry'] for f in load('ne_10m_bathymetry_K_200.geojson')])], (M, MH))[::8, ::8] > 0   # 1 = deeper than 200 m
+        near = (~d200) | (ndi.distance_transform_edt(lf8 < 0.5) < 5)
+        deep = ~near
+        dl, nd_ = ndi.label(deep)
+        deep &= np.isin(dl, np.nonzero(np.bincount(dl.ravel()) >= 400)[0][1:])
+        print('shelf band from bathymetry', round(float(near.mean()), 3))
+    coast8 = ndi.gaussian_filter((~deep).astype(np.float32), 1.6)                 # coastal waters, soft-cornered outline
     del lab8, dl
     rng8 = np.random.default_rng(21)
     _c1 = ndi.gaussian_filter(rng8.standard_normal(lf8.shape), 2.2); _c1 /= _c1.std()

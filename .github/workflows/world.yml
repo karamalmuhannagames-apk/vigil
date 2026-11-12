@@ -21,7 +21,7 @@ jobs:
         run: |
           mkdir -p data && cd data
           NE=https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson
-          for f in ne_10m_admin_0_countries_pse ne_10m_admin_0_countries ne_10m_admin_1_states_provinces ne_10m_populated_places ne_10m_lakes ne_10m_rivers_lake_centerlines; do
+          for f in ne_10m_admin_0_countries_pse ne_10m_admin_0_countries ne_10m_admin_1_states_provinces ne_10m_populated_places ne_10m_lakes ne_10m_rivers_lake_centerlines ne_10m_bathymetry_K_200; do
             curl -sSfL -o $f.geojson $NE/$f.geojson && echo "got $f" || echo "missing $f"
           done
           cd .. && python3 ci/world/fetch_sat.py data/world.sat.jpg || echo "satellite download failed"
