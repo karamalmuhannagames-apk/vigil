@@ -511,16 +511,24 @@ if sat:
     deep = ~near
     dl, nd_ = ndi.label(deep)
     deep &= np.isin(dl, np.nonzero(np.bincount(dl.ravel()) >= 900)[0][1:])        # no small deep pockets inside enclosed seas
-    bathy_n = next((n for n in ('ne_10m_bathymetry_J_1000.geojson', 'ne_10m_bathymetry_K_200.geojson') if os.path.exists(os.path.join(DATA, n))), None)
-    if bathy_n:   # CoN's light band is wide: the shelf and slope down to ~1000 m
-        # like CoN: the light band is the real shallow sea (continental shelf, deeper than 200 m is deep water),
-        # widened a little so every coast has some, and narrow seas like the Gulf are fully light
-        d200 = raster([(1, [f['geometry'] for f in load(bathy_n)])], (M, MH))[::8, ::8] > 0   # 1 = deep water
-        near = (~d200) | (ndi.distance_transform_edt(lf8 < 0.5) < 4)
-        deep = ~near
-        dl, nd_ = ndi.label(deep)
-        deep &= np.isin(dl, np.nonzero(np.bincount(dl.ravel()) >= 40000)[0][1:])   # like CoN: enclosed seas (Mediterranean, Black, Red Sea) stay light; only open oceans are deep
-        print('shelf band from bathymetry', bathy_n, round(float(near.mean()), 3))
+    # coastal waters (owner, 12 Nov): the sea near land, ~140 km out, following the coast's shape. Wide seas like the
+    # Mediterranean keep a deep passage down the middle (subs can pass Italy); narrow seas (Gulf, Red Sea, Baltic)
+    # are fully coastal; the Arctic shelf north of Scandinavia and Russia is all coastal, like CoN.
+    d_land = np.minimum(ndi.distance_transform_edt(~big8), ndi.distance_transform_edt(lf8 < 0.5) + 6)
+    near = d_land < 9
+    rows_lat = np.array([from_px(np.array([W / 2.0]), np.array([r * 4 + 2.0]))[1][0] for r in range(lf8.shape[0])])
+    arctic = (rows_lat > 62)[:, None] & np.ones_like(near)
+    shelf_n = 'ne_10m_bathymetry_K_200.geojson'
+    if os.path.exists(os.path.join(DATA, shelf_n)):
+        deep200 = raster([(1, [f['geometry'] for f in load(shelf_n)])], (M, MH))[::8, ::8] > 0
+        near |= arctic & ~deep200
+        del deep200
+    else:
+        near |= arctic & (d_land < 30)
+    deep = ~near & (lf8 < 0.5)
+    dl, nd_ = ndi.label(deep)
+    deep &= np.isin(dl, np.nonzero(np.bincount(dl.ravel()) >= 60)[0][1:])        # tiny deep pockets become coastal
+    print('coastal band', round(float((near & (lf8 < 0.5)).sum() / max(1, (lf8 < 0.5).sum())), 3))
     coast8 = ndi.gaussian_filter((~deep).astype(np.float32), 0.9)                 # crisp, irregular edge                 # coastal waters, soft-cornered outline
     del lab8, dl
     rng8 = np.random.default_rng(21)
