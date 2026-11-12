@@ -1,9 +1,9 @@
 # Fetch public-domain war photos for the loading screens from Wikimedia Commons.
 # Keeps only files whose licence is public domain (mostly US military photos), at least 1600 px wide.
 # Writes art/loading/raw/<topic>_<n>.jpg and art/loading/raw/credits.json
-import json, os, re, sys, time, urllib.parse, urllib.request
+import json, os, re, sys, time, urllib.error, urllib.parse, urllib.request
 API = 'https://commons.wikimedia.org/w/api.php'
-UA = {'User-Agent': 'HalberdStudio-asset-fetch/1.0 (loading screen research)'}
+UA = {'User-Agent': 'HalberdStudioAssetFetch/1.1 (https://github.com/karamalmuhannagames-apk; game loading screens) python-urllib'}
 TOPICS2 = {
   'cyber': 'Cyber Shield exercise soldiers computer',
   'cyber2': 'cyber protection team network defense',
@@ -75,7 +75,13 @@ if len(sys.argv) > 1 and sys.argv[1] == 'hq':
         d = get({'action': 'query', 'format': 'json', 'titles': t, 'prop': 'imageinfo', 'iiprop': 'url|size|extmetadata'})
         page = next(iter(d['query']['pages'].values())); ii = page['imageinfo'][0]
         name = f'{i:02d}.jpg'
-        with urllib.request.urlopen(urllib.request.Request(ii['url'], headers=UA), timeout=300) as r, open(f'{hq}/{name}', 'wb') as fo: fo.write(r.read())
+        for attempt in range(8):
+            try:
+                with urllib.request.urlopen(urllib.request.Request(ii['url'], headers=UA), timeout=300) as r, open(f'{hq}/{name}', 'wb') as fo: fo.write(r.read())
+                break
+            except urllib.error.HTTPError as e:
+                if e.code != 429 or attempt == 7: raise
+                time.sleep(15 * (attempt + 1))
         info[name] = {'title': t, 'width': ii['width'], 'height': ii['height'], 'licence': ii['extmetadata'].get('LicenseShortName', {}).get('value', '')}
-        print(name, ii['width'], ii['height'], t); time.sleep(0.5)
+        print(name, ii['width'], ii['height'], t); time.sleep(4)
     json.dump(info, open(f'{hq}/info.json', 'w'), indent=1)
