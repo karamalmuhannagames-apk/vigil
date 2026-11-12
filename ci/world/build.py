@@ -508,7 +508,7 @@ if sat:
     coast8 = ndi.gaussian_filter((~deep).astype(np.float32), 1.6)                 # coastal waters, soft-cornered outline
     del lab8, dl
     rng8 = np.random.default_rng(21)
-    _c1 = ndi.gaussian_filter(rng8.standard_normal(lf8.shape), 2.2); _c1 /= _c1.std()
+    _c1 = ndi.gaussian_filter(rng8.standard_normal(lf8.shape), 3.4); _c1 /= _c1.std()   # clumps ~100-190 km, like CoN
     _c2 = ndi.gaussian_filter(rng8.standard_normal(lf8.shape), 0.8); _c2 /= _c2.std()
     _c3 = ndi.gaussian_filter(rng8.standard_normal(lf8.shape), 9.0); _c3 /= _c3.std()
     clump8 = _c1 * 0.75 + _c2 * 0.45 + _c3 * 0.55                                                     # forest clumps: irregular, uneven spread
@@ -557,7 +557,7 @@ if sat:
         cl = ndi.zoom(clump8[a0 // 8:a1 // 8 + 2], 8, order=1)[:a1 - a0, :M]
         dry = np.clip((ndi.gaussian_filter(arid, 24) - 0.3) * 3, 0, 1)           # inside deserts: no satellite 'forest' (dark coasts, towns, oases)
         forest = forest * (1 - dry)
-        woods = np.clip((cl - 1.55) * 2.2, 0, 1) * (1 - arid) * (1 - dry)   # a few irregular woods, none in deserts
+        woods = np.clip((cl - 1.3) * 2.2, 0, 1) * (1 - arid) * (1 - dry)   # a few irregular woods, none in deserts
         forest = np.clip(np.maximum(forest * np.clip((forest - 0.25) * 2.2, 0, 1) * np.clip(cl * 0.35 + 0.8, 0, 1), woods), 0, 1)
         rock = np.clip(np.maximum(rough * (1 - forest), snow), 0, 1)
         lum = np.clip(0.5 * relief * broad + 0.25 * snow, 0, 1)

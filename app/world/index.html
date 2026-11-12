@@ -285,8 +285,8 @@ function drawCountryNames(s, sw, sh) {
   for (const L of countryLabels) {
     const span = Math.sqrt(L.px) * s;                       // rough width of the country on screen
     const mine = L.iso === ME;
-    const cap = 10 + 22 * smooth(0.2, 0.9, view.z);                 // CoN: small names far away, big ones at region zoom
-    let size = Math.max(mine ? 13 : 0, Math.min(cap, span * 0.17)) * dpr;   // your own country is always named
+    const cap = 10 + 28 * smooth(0.2, 0.9, view.z);   // up to ~90 px at region zoom, like CoN                 // CoN: small names far away, big ones at region zoom
+    let size = Math.max(mine ? 13 : 0, Math.min(cap, span * 0.24)) * dpr;   // your own country is always named
     const minS = (7 + 4 * smooth(0.2, 0.9, view.z)) * dpr;
     if (size < minS) continue;
     ctx.font = `700 ${size}px Plex, system-ui`;
