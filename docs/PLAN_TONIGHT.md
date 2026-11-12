@@ -24,7 +24,7 @@ must be better, never different for its own sake; calm land; space for cities an
 7. [x] Use the catalogue's "what reproductions get wrong" list: fix each item that applies.
 8. [x] Side-by-side sheet at the same places and zoom as CoN: Iraq close, Caspian region, Algeria, India south,
        Australia east, Europe far. An independent reviewer agent grades it; redo anything worse than CoN.
-9. [ ] Morning: send the owner one comparison sheet and a short honest summary (what is at CoN level, what is not yet).
+9. [x] Morning: send the owner one comparison sheet and a short honest summary (what is at CoN level, what is not yet).
 
 ## Log
 - 03:30 Border bug found (off-by-one window): country pairs with a drawn border 102 -> 339. Iraq–Saudi, Iran–Iraq, Egypt–Libya, France–Germany all drawn.
@@ -36,3 +36,5 @@ must be better, never different for its own sake; calm land; space for cities an
 - Enclosed seas (Mediterranean, Black, Red Sea) fully light like CoN; deep water only in open oceans.
 - 05:00 Independent review #1 graded ~4/10; fixes applied: gapless province lines, darker stranger land (CoN measured), rivers, stronger relief, calmer depth patches, thinner borders, lighter name outlines, cities with real streets and a dark vignette.
   Rejected one review point (tone down owner colours) because the owner asked for CoN's colours and CoN shows them.
+- 05:40 Review #2: grades up from ~4 to 5-6/10 per view; fixes applied: visible sea ripples, CoN-dark enemy red, own green +8%, shelf band from the 1000 m contour with a crisp edge, irregular forest clusters, border search window widened (no gaps).
+- Still below CoN (next): city graphics (grid stamps; capital landmark judged cheap by the reviewer), coastal band still narrower than CoN's around India, forests partly dot-like, CoN-style 3D city blocks.
