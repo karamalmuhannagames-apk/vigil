@@ -25,12 +25,12 @@ jobs:
       - name: Run the automatic tests
         run: npm test
 
-      - name: Signing key (from a secret if set, otherwise a throwaway test key)
+      - name: Signing key (from a secret if set, otherwise the fixed test key)
         env:
           KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
         run: |
           if [ -n "$KEYSTORE_B64" ]; then echo "$KEYSTORE_B64" | base64 -d > android/release.keystore
-          else keytool -genkeypair -keystore android/release.keystore -storepass android -keypass android -alias commander -keyalg RSA -keysize 2048 -validity 3650 -dname "CN=Halberd Studio Test, O=Halberd Studio" -noprompt; fi
+          else cp android/test-signing/test.keystore android/release.keystore; fi
 
       - name: Copy the game into the Android app
         run: |
