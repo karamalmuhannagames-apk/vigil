@@ -28,12 +28,12 @@ async function waitMap(page, ms = 45000) {
 async function introRun(browser, vp, locale, skipAt) {
   const name = `intro ${vp.join('x')} ${locale} skip=${skipAt}`;
   const { ctx, page, errors } = await newPage(browser, vp, locale);
-  await page.goto(BASE + '/app/start.html');
+  await page.goto(BASE + '/app/start.html', { waitUntil: 'domcontentloaded' });
   if (skipAt) { await page.waitForTimeout(skipAt); await page.mouse.click(vp[0] / 2, vp[1] / 2); }
   else {
     await page.waitForTimeout(2300);
-    const fit = await page.evaluate(() => { const r = document.querySelector('.studio .name').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth; });
-    ok(name + ' studio name fits', fit);
+    const fit = await page.evaluate(() => { const e = document.querySelector('.studio .name'); if (!e) return 'gone'; const r = e.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth; });
+    ok(name + ' studio name fits', fit === true, String(fit));
     await page.waitForTimeout(1900);
     const fit2 = await page.evaluate(() => [...document.querySelectorAll('.game .ar, .game .en')].every((e) => { const r = e.getBoundingClientRect(); return r.left >= -1 && r.right <= innerWidth + 1; }));
     ok(name + ' game logo fits', fit2);
@@ -50,7 +50,7 @@ async function introRun(browser, vp, locale, skipAt) {
 
 async function faultRun(browser, label, block, expect, locale = 'en-US') {
   const { ctx, page, errors } = await newPage(browser, [412, 915], locale, block);
-  await page.goto(BASE + '/app/start.html'); await page.mouse.click(200, 400);
+  await page.goto(BASE + '/app/start.html', { waitUntil: 'domcontentloaded' }); await page.mouse.click(200, 400);
   const s = await waitMap(page, 60000);
   if (expect === 'problem') {
     ok(`fault ${label}: problem card shown`, s.problem);
