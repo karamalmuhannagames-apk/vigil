@@ -5,7 +5,7 @@
 # Run: python3 ci/world/build.py <data dir> <out dir>      env: W=8192  WARP=1
 import json, math, os, sys, collections
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 from scipy import ndimage as ndi
 from pyproj import Geod
 
@@ -444,6 +444,22 @@ if sat:
         cd_.line(list(zip((xs * 2).tolist(), (ys * 2).tolist())), fill=255, width=5, joint='curve')
     nat4[np.asarray(cim) > 0] = -1
     del cim
+    # major rivers as thin dark channels (CoN shows the Tigris, Euphrates, Nile, Indus ...)
+    riv_f = os.path.join(DATA, 'ne_10m_rivers_lake_centerlines.geojson')
+    rimg = Image.new('L', (M, MH), 0)
+    if os.path.exists(riv_f):
+        rd = ImageDraw.Draw(rimg)
+        for f in load('ne_10m_rivers_lake_centerlines.geojson'):
+            sr = f['properties'].get('scalerank') or 9
+            if sr > 6 or f['properties'].get('featurecla', '').lower().startswith('lake'): continue
+            g = f['geometry']; lines = g['coordinates'] if g['type'] == 'MultiLineString' else [g['coordinates']]
+            wdt = 4 if sr <= 3 else 3 if sr <= 5 else 2
+            for ln in lines:
+                if len(ln) < 2: continue
+                xs, ys = to_px([q[0] for q in ln], [q[1] for q in ln])
+                rd.line(list(zip((np.asarray(xs) * 2).tolist(), (np.asarray(ys) * 2).tolist())), fill=255, width=wdt, joint='curve')
+    river = np.asarray(rimg.filter(ImageFilter.GaussianBlur(0.8)))
+    del rimg
     lf = (nat4 >= 0).astype(np.float32)
     shallow = np.clip(ndi.gaussian_filter(lf, 26) * 2.0, 0, 1) ** 1.4
     dsh = 9
@@ -500,7 +516,7 @@ if sat:
         # like CoN: the light band is the real shallow sea (continental shelf, deeper than 200 m is deep water),
         # widened a little so every coast has some, and narrow seas like the Gulf are fully light
         d200 = raster([(1, [f['geometry'] for f in load('ne_10m_bathymetry_K_200.geojson')])], (M, MH))[::8, ::8] > 0   # 1 = deeper than 200 m
-        near = (~d200) | (ndi.distance_transform_edt(lf8 < 0.5) < 5)
+        near = (~d200) | (ndi.distance_transform_edt(lf8 < 0.5) < 2)
         deep = ~near
         dl, nd_ = ndi.label(deep)
         deep &= np.isin(dl, np.nonzero(np.bincount(dl.ravel()) >= 40000)[0][1:])   # like CoN: enclosed seas (Mediterranean, Black, Red Sea) stay light; only open oceans are deep
@@ -550,7 +566,7 @@ if sat:
             hm = ndi.gaussian_filter(h, 16)
             hstd = np.sqrt(np.maximum(ndi.gaussian_filter(h * h, 16) - hm * hm, 0))
             mnt = np.clip((hstd - 0.03) / 0.04, 0, 1)
-            relief = np.clip(1 + 2.4 * (h - hm) * mnt + 0.25 * (hm - hs_mid) * mnt, 0.45, 1.5)
+            relief = np.clip(1 + 3.0 * (h - hm) * mnt + 0.3 * (hm - hs_mid) * mnt, 0.4, 1.55)
             rough = mnt * np.clip(np.abs(h - hm) * 8, 0, 1)
         else: relief = np.ones_like(L); rough = np.zeros_like(L)
         # forest as clumps: dense real forest keeps its own shape, everywhere else a few scattered woods
@@ -567,7 +583,8 @@ if sat:
         nidr = nat4[ty:ty + rows]
         seam = nidr < 0
         dp = ndi.zoom(depth8[ty // 8:(ty + rows) // 8 + 2], 8, order=1)[:rows, :M]
-        v = (128 - 82 * shadow[ty:ty + rows] + 22 * shallow[ty:ty + rows] - 15 * np.clip(dp, -1.5, 2.5)) / 255
+        v = (128 - 82 * shadow[ty:ty + rows] + 22 * shallow[ty:ty + rows] - 8 * np.clip(dp, -1.5, 2.5)) / 255
+        lum = lum * (1 - 0.45 * river[ty:ty + rows] / 255.0)                   # rivers on land
         lum = np.where(seam, v, lum)
         coast = np.clip((ndi.zoom(coast8[ty // 8:(ty + rows) // 8 + 2], 8, order=1)[:rows, :M] - 0.3) / 0.4, 0, 1)   # soft edge, like CoN's sea zones
         bio = np.dstack([np.where(seam, coast * 1.0, forest), np.where(seam, 0, arid), np.where(seam, 0, rock)])
@@ -621,12 +638,14 @@ def shared_borders(label, n_labels, same_group=None, tol=0.45):
                         v = nsub[py, px]
                         if v != ci: best = v
                 ok = best >= 0 and best > ci and (same_group is None or same_group(ci, best))
+                pt = (xx + x0, yy + y0)
                 if ok:
                     if owner_prev not in (None, best) and len(cur) > 1:
-                        segs[(ci, owner_prev)].append(cur); cur = []
-                    cur.append((xx + x0, yy + y0)); owner_prev = best
+                        segs[(ci, owner_prev)].append(cur + [pt]); cur = [cur[-1]]      # overlap: no gap where three meet
+                    if not cur and kk > 0: cur.append((cont[kk - 1][1] + x0, cont[kk - 1][0] + y0))   # start one step early
+                    cur.append(pt); owner_prev = best
                 else:
-                    if len(cur) > 1: segs[(ci, owner_prev)].append(cur)
+                    if len(cur) > 1: segs[(ci, owner_prev)].append(cur + [pt])          # end one step late
                     cur, owner_prev = [], None
             if len(cur) > 1: segs[(ci, owner_prev)].append(cur)
     out = []
