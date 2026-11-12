@@ -521,7 +521,7 @@ if sat:
     shelf_n = 'ne_10m_bathymetry_K_200.geojson'
     if os.path.exists(os.path.join(DATA, shelf_n)):
         deep200 = raster([(1, [f['geometry'] for f in load(shelf_n)])], (M, MH))[::8, ::8] > 0
-        near |= arctic & ~deep200
+        near |= arctic & (~deep200 | (d_land < 45))      # Barents, Kara, Laptev ...: all coastal like CoN
         del deep200
     else:
         near |= arctic & (d_land < 30)

@@ -385,7 +385,7 @@ function drawArmies(s, sw, sh, now) {
 // buildings of a capital set in, coloured with the same relation ramp as its land. Far away it melts into a
 // marker; close up it is a real town sitting in the terrain (not a sticker).
 const ART_ROOT = DATA + '../';
-const CR = {capital: 24, major: 17, minor: 11};          // city radius in world px (map scale is exaggerated for play)
+const CR = {capital: 36, major: 26, minor: 16};   // CoN draws cities 4-5x real size          // city radius in world px (map scale is exaggerated for play)
 const cityPics = new Map(), blockImg = {}, bldImg = {};
 function img(src) { return new Promise(r => { const i = new Image(); i.onload = () => r(i); i.onerror = () => r(null); i.src = src; }); }
 async function blocksFor(art) {
@@ -415,7 +415,7 @@ async function bakeCity(p, ci) {
   for (let q = 0; q < d.length; q += 4) {
     if (!d[q + 3]) continue;
     const l = (0.3 * d[q] + 0.59 * d[q + 1] + 0.11 * d[q + 2]) / 255;
-    const i = Math.max(0, Math.min(255, ((l - 0.35) * 1.25 + 0.2) * 255)) | 0;   // lit roofs bright, streets and shadows dark
+    const i = Math.max(0, Math.min(255, ((l - 0.4) * 1.7 + 0.2) * 255)) | 0;    // lit roofs bright, streets and shadows dark (strong, like CoN)
     d[q] = tl[i * 3]; d[q + 1] = tl[i * 3 + 1]; d[q + 2] = tl[i * 3 + 2];
   }
   g.putImageData(id, 0, 0);
@@ -430,6 +430,26 @@ async function bakeCity(p, ci) {
   if (own) { og.globalCompositeOperation = 'destination-in'; og.drawImage(own, 0, 0, N, N); og.globalCompositeOperation = 'source-over'; }
   og.drawImage(cv2, 0, 0);
   return out;
+}
+// country ids around a city, read from the sharpest id tiles (2 px per world px)
+const idTiles = new Map();
+function idTile(tx, ty) {
+  const k = `${tx}_${ty}`;
+  if (!idTiles.has(k)) idTiles.set(k, (manifest && !manifest[4]?.has(k)) ? Promise.resolve(null) : img(`${DATA}tiles/4/${k}_n.png`));
+  return idTiles.get(k);
+}
+async function ownLand(p, ci, N) {
+  const R = p.r, x0 = (p.x - R) * 2, y0 = (p.y - R) * 2, n = Math.ceil(R * 4);
+  const c = document.createElement('canvas'); c.width = c.height = n;
+  const g = c.getContext('2d', {willReadFrequently: true});
+  for (let ty = Math.floor(y0 / T); ty <= Math.floor((y0 + n) / T); ty++)
+    for (let tx = Math.floor(x0 / T); tx <= Math.floor((x0 + n) / T); tx++) {
+      const im = await idTile(tx, ty); if (im) g.drawImage(im, tx * T - x0, ty * T - y0);
+    }
+  const id = g.getImageData(0, 0, n, n), d = id.data;
+  for (let q = 0; q < d.length; q += 4) { const v = d[q] + d[q + 1] * 256 - 1; d[q + 3] = v === ci ? 255 : 0; }
+  g.putImageData(id, 0, 0);
+  return c;
 }
 function cityPic(p, ci) {
   const k = `${gen}/${p.name_en}/${ci}`;
@@ -573,7 +593,7 @@ fetch(DATA + 'world.json').then(r => r.json()).then(async j => {
     let dmin = 1e9;
     for (const [q] of allC) if (q !== p) dmin = Math.min(dmin, Math.hypot(q.x - p.x, q.y - p.y));
     const fc = Math.min(1, Math.max(0.5, Math.sqrt(c.area_km2 || 1e5) / 550));
-    p.r = Math.max(4, Math.min(CR[p.kind] * fc, dmin * 0.36));
+    p.r = Math.max(5, Math.min(CR[p.kind] * fc, dmin * 0.46));
   }
   cityOrder = countries.flatMap((c, ci) => (c.cities || []).map(p => ({...p, ci, area: c.area_km2, cls: c.class})))
     .sort((a, b) => rank[a.kind] - rank[b.kind] || crank[a.cls] - crank[b.cls] || b.area - a.area || b.pop - a.pop);
