@@ -6,7 +6,7 @@
 import bpy, math, sys, os, random
 OUT = sys.argv[sys.argv.index('--') + 1] if '--' in sys.argv else 'art/citymarks'
 os.makedirs(OUT, exist_ok=True)
-os.environ.setdefault('SIZE', '512'); os.environ.setdefault('SAMPLES', '64')
+os.environ.setdefault('SIZE', '640'); os.environ.setdefault('SAMPLES', '64')
 import importlib.util
 spec = importlib.util.spec_from_file_location('bld', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'buildings.py'))
 src = open(spec.origin).read().split('\nonly = set(')[0]
@@ -141,7 +141,61 @@ def mark(reg, kind):
     bpy.ops.render.render(write_still=True)
     print('rendered mark', reg, kind, flush=True)
 
+def citypatch(reg, kind, v):
+    """the city itself as the map shows it (CoN style): a dense cluster of 3D blocks, tall core, ragged organic edge,
+    avenues, parks; seen from above at a steep angle; rendered on a transparent shadow catcher"""
+    s = reset(); G['MATS'].clear(); FAC.clear()
+    R = REGIONS[reg]; k = Kit(R); rnd = random.Random(hash((reg, kind, v)) & 0xffffff)
+    radius = {'capital': 58.0, 'major': 46.0, 'minor': 30.0}[kind]
+    hc = {'capital': 44, 'major': 32, 'minor': 10}[kind] * (0.5 if reg == 'europe' else 1.0)
+    walls = [facade(R['wall']), facade(R['wall2']), facade(tuple(min(1, c * 1.12) for c in R['wall'])), facade(tuple(c * 0.85 for c in R['wall2']))]
+    glassf = facade((0.46, 0.54, 0.60), glass=(0.16, 0.22, 0.27), floor=3.6, bay=1.8)
+    roof = mat(R['roof'], 0.7)
+    lobes = [(rnd.uniform(0, 6.283), rnd.uniform(0.75, 1.15), rnd.uniform(0.5, 1.4)) for _ in range(5)]
+    def edge(a):                                         # organic outline: radius varies with direction
+        return radius * (0.82 + 0.18 * sum(m * math.cos(a * (i + 2) + ph) for i, (ph, m, _) in enumerate(lobes)) / 3)
+    cores = [(0.0, 0.0, 1.0)] + [(rnd.uniform(-0.4, 0.4) * radius, rnd.uniform(-0.4, 0.4) * radius, rnd.uniform(0.4, 0.75)) for _ in range(2)]
+    avenues = [(rnd.uniform(0, 3.1416), rnd.uniform(-0.3, 0.3) * radius) for _ in range(2 if kind != 'minor' else 1)]
+    lot, street = 7.0, 2.1
+    n = int(radius * 1.2 / lot) + 1
+    rot = rnd.uniform(-20, 20)
+    ca, sa = math.cos(math.radians(rot)), math.sin(math.radians(rot))
+    for i in range(-n, n + 1):
+        for j in range(-n, n + 1):
+            gx, gy = i * lot, j * lot
+            x, y = gx * ca - gy * sa, gx * sa + gy * ca
+            r = math.hypot(x, y); a = math.atan2(y, x); e = edge(a)
+            if r > e: continue
+            d = r / e
+            if d > 0.7 and rnd.random() < (d - 0.7) * 2.6: continue          # ragged, broken suburbs
+            if any(abs(x * math.cos(t) + y * math.sin(t) - o) < 2.6 for t, o in avenues): continue   # avenues cut through
+            if rnd.random() < 0.06: k.plant(x, y); k.plant(x + 2, y + 1.5); continue   # small parks
+            core = max(f * math.exp(-((x - cx) ** 2 + (y - cy) ** 2) / (2 * (radius * 0.28) ** 2)) for cx, cy, f in cores)
+            h = 3 + (hc - 3) * core * rnd.uniform(0.35, 1.0) + rnd.uniform(0, 3)
+            w = lot - street - rnd.uniform(0, 1.8); dd = lot - street - rnd.uniform(0, 1.8)
+            wall = rnd.choice(walls)
+            if h < 8 and R['roof_kind'] == 'gable':
+                box(x, y, 0, w, dd, h, wall, bevel=0.08, rot=rot); gable(x, y, h, w, dd, 2.2, roof, rot=rot + rnd.choice((0, 90)), overhang=0.2)
+            elif h > 20:
+                box(x, y, 0, w, dd, 5, wall, bevel=0.08, rot=rot)
+                box(x, y, 5, w * 0.7, dd * 0.7, h - 5, glassf if rnd.random() < 0.65 else wall, bevel=0.1, rot=rot)
+                box(x, y, h, w * 0.35, dd * 0.35, 1.5, k.white, bevel=0.08, rot=rot)
+            else:
+                box(x, y, 0, w, dd, h, wall, bevel=0.08, rot=rot)
+                if h > 10 and rnd.random() < 0.5: box(x, y, h, w * 0.45, dd * 0.45, 1.2, k.white, bevel=0.08, rot=rot)
+    for _ in range(int(radius * 1.6)):                                     # trees scattered at the edge
+        a = rnd.random() * 6.283; r = edge(a) * rnd.uniform(0.7, 1.05)
+        k.plant(math.cos(a) * r, math.sin(a) * r)
+    cd = bpy.data.cameras.new('cam'); cd.type = 'ORTHO'; cd.ortho_scale = radius * 2.35
+    cam = bpy.data.objects.new('cam', cd); s.collection.objects.link(cam); s.camera = cam
+    el = math.radians(62)
+    cam.location = (0, -math.cos(el) * 300, math.sin(el) * 300 + 6); cam.rotation_euler = (math.radians(90 - 62), 0, 0)
+    s.render.filepath = os.path.abspath(os.path.join(OUT, f'city_{reg}_{kind}_{v}.png'))
+    bpy.ops.render.render(write_still=True)
+    print('rendered city', reg, kind, v, flush=True)
+
 regs = list(filter(None, os.environ.get('REGIONS', '').split(','))) or list(REGIONS)
 for reg in regs:
     for kind in ('capital', 'major', 'minor'):
-        mark(reg, kind)
+        for v in range(3):
+            citypatch(reg, kind, v)
