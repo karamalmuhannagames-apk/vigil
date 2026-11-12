@@ -803,7 +803,7 @@ fetch(DATA + 'world.json').then(r => { if (!r.ok) throw new Error('world.json ' 
     if (c.label && !LANG_EN) return {name: c.name_ar, iso: c.iso, x: c.label.x, y: c.label.y, lw: c.label.w, lh: c.label.h, th: c.label.th, lines: c.label.lines, px: tot};   // widest open spot inside the country
     if (c.label && LANG_EN) {
       ctx.font = '700 100px Plex, system-ui';
-      const en = c.name_en || c.name_ar; if (!en) return null; const sp = [...en.matchAll(/ /g)].map(m => m.index);
+      const en = ({CHN: 'China', USA: 'United States', RUS: 'Russia', COD: 'DR Congo', CAF: 'Central African Rep.'})[c.iso] || c.name_en || c.name_ar; if (!en) return null; const sp = [...en.matchAll(/ /g)].map(m => m.index);
       const lines = en.length > 12 && sp.length ? (() => { const k = sp.reduce((a, b) => Math.abs(b - en.length / 2) < Math.abs(a - en.length / 2) ? b : a); return [en.slice(0, k), en.slice(k + 1)]; })() : [en];
       const wAr = Math.max(...c.label.lines.map(l => ctx.measureText(l).width)) * c.label.th / 100, wEn = Math.max(...lines.map(l => ctx.measureText(l).width)) / 100;
       const th = Math.min(c.label.th * (c.label.lines.length > lines.length ? 1.6 : 1), wAr / wEn);

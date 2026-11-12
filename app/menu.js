@@ -133,7 +133,8 @@
   const regionOf = (c) => (['Western Asia', 'Northern Africa'].includes(c.subregion) ? 'mena' : c.region_un === 'Europe' ? 'europe' : c.region_un === 'Africa' ? 'africa' : c.region_un === 'Asia' ? 'asia' : c.region_un === 'Americas' ? 'americas' : 'oceania');
   const tier = (a) => (a < 120000 ? t('صغيرة', 'SMALL') : a < 450000 ? t('متوسطة', 'MEDIUM') : a < 1200000 ? t('كبيرة', 'LARGE') : a < 3000000 ? t('ضخمة', 'HUGE') : t('عملاقة', 'GIANT'));
   let region = 'all', picked = null;
-  const nm = (c) => (AR ? c.name_ar : c.name_en) || c.name_en;
+  const SHORT = {CHN: 'China', USA: 'United States', COD: 'DR Congo', CAF: 'Central African Republic'};
+  const nm = (c) => (AR ? c.name_ar : SHORT[c.iso] || c.name_en) || c.name_en;
   const fmtArea = (a) => (AR ? Math.round(a).toLocaleString('ar-EG') : Math.round(a).toLocaleString('en-US')) + t(' كم²', ' km²');
   function fillCountries() {
     if (!world) world = W()?.world_ && W().world_();
