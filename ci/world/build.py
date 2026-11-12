@@ -170,10 +170,13 @@ by_c = collections.defaultdict(list)
 for f in places:
     pr = f['properties']
     a3 = MERGE.get(pr.get('ADM0_A3'), pr.get('ADM0_A3'))
-    if a3 not in countries: continue
     lon, lat = f['geometry']['coordinates'][:2]
     if not (LAT_S < lat < LAT_N): continue
     x, y = to_px(lon, lat)
+    # a place belongs to the country whose land it stands on (codes differ: South Sudan, places in Palestine coded ISR)
+    _v = nation[int(np.clip(y, 0, H - 1)), int(np.clip(x, 0, W - 1))]
+    if _v >= 0: a3 = ids[_v]
+    if a3 not in countries: continue
     by_c[a3].append({'name_en': pr.get('NAME_EN') or pr.get('NAME'), 'name_ar': pr.get('NAME_AR') or pr.get('NAME'),
                      'pop': int(pr.get('POP_MAX') or 0), 'capital': 'Admin-0 capital' in (pr.get('FEATURECLA') or '') and 'alt' not in (pr.get('FEATURECLA') or '').lower(),
                      'x': float(x), 'y': float(y), 'lon': lon, 'lat': lat})
