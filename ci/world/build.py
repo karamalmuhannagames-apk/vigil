@@ -514,8 +514,15 @@ if sat:
     # coastal waters (owner, 12 Nov): the sea near land, ~140 km out, following the coast's shape. Wide seas like the
     # Mediterranean keep a deep passage down the middle (subs can pass Italy); narrow seas (Gulf, Red Sea, Baltic)
     # are fully coastal; the Arctic shelf north of Scandinavia and Russia is all coastal, like CoN.
-    d_land = np.minimum(ndi.distance_transform_edt(~big8), ndi.distance_transform_edt(lf8 < 0.5) + 6)
-    near = d_land < 9
+    # width depends on the land: wide off continents, narrower off big islands, thin off small islands; and it
+    # varies along the coast (some stretches easy to defend, some not), like a real game map
+    sizes = np.bincount(lab8.ravel()); sizes[0] = 0
+    cont8 = np.isin(lab8, np.nonzero(sizes >= 300)[0])
+    mid8 = np.isin(lab8, np.nonzero((sizes >= 40) & (sizes < 300))[0])
+    vary = ndi.gaussian_filter(np.random.default_rng(5).standard_normal(lf8.shape), 6.0); vary /= vary.std()
+    w_cont = np.clip(8.5 + 3.0 * vary, 4.5, 13)
+    d_land = np.minimum(ndi.distance_transform_edt(~cont8), ndi.distance_transform_edt(lf8 < 0.5) + 6)
+    near = (ndi.distance_transform_edt(~cont8) < w_cont) | (ndi.distance_transform_edt(~mid8) < np.clip(4 + 1.5 * vary, 2.5, 6)) | (ndi.distance_transform_edt(lf8 < 0.5) < 2.2)
     rows_lat = np.array([from_px(np.array([W / 2.0]), np.array([r * 4 + 2.0]))[1][0] for r in range(lf8.shape[0])])
     arctic = (rows_lat > 62)[:, None] & np.ones_like(near)
     shelf_n = 'ne_10m_bathymetry_K_200.geojson'
@@ -529,7 +536,21 @@ if sat:
     dl, nd_ = ndi.label(deep)
     deep &= np.isin(dl, np.nonzero(np.bincount(dl.ravel()) >= 60)[0][1:])        # tiny deep pockets become coastal
     print('coastal band', round(float((near & (lf8 < 0.5)).sum() / max(1, (lf8 < 0.5).sum())), 3))
-    coast8 = ndi.gaussian_filter((~deep).astype(np.float32), 0.9)                 # crisp, irregular edge                 # coastal waters, soft-cornered outline
+    # sharper outline: straight segments instead of soft curves (simplified contour polygons, filled even-odd)
+    from skimage import measure as _ms
+    cm = (~deep).astype(np.uint8); pad_ = np.pad(cm, 1)
+    acc_ = np.zeros(pad_.shape, np.uint8)
+    for ct in _ms.find_contours(pad_.astype(float), 0.5):
+        pg = _ms.approximate_polygon(ct, tolerance=1.6)
+        if len(pg) < 3: continue
+        im_ = Image.new('1', (pad_.shape[1], pad_.shape[0]), 0)
+        ImageDraw.Draw(im_).polygon([(float(q[1]), float(q[0])) for q in pg], fill=1)
+        acc_ ^= np.asarray(im_, np.uint8)
+    cm2 = acc_[1:-1, 1:-1].astype(bool)
+    deep = ~cm2 & (lf8 < 0.5)
+    coast8 = ndi.gaussian_filter((~deep).astype(np.float32), 0.35)
+    if False:
+     coast8 = ndi.gaussian_filter((~deep).astype(np.float32), 0.9)                 # crisp, irregular edge                 # coastal waters, soft-cornered outline
     del lab8, dl
     rng8 = np.random.default_rng(21)
     _c1 = ndi.gaussian_filter(rng8.standard_normal(lf8.shape), 3.4); _c1 /= _c1.std()   # clumps ~100-190 km, like CoN
