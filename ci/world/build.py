@@ -394,14 +394,48 @@ _edge[1:, :] |= _lab[1:, :] != _lab[:-1, :]; _edge[:-1, :] |= _lab[:-1, :] != _l
 _dd = ndi.distance_transform_edt(~_edge, sampling=(2.2, 1.0))
 _dv = ndi.distance_transform_edt(~_edge)
 _pos = ndi.maximum_position(_dd, labels=_lab, index=np.arange(1, len(ids) + 1))
-for i, a in enumerate(ids):
-    c = countries[a]; y, x = _pos[i]
-    if _lab[y, x] != i + 1: continue
+_objs = ndi.find_objects(_lab)
+def _spans(i, x, y):
     row = _lab[y]; l = x; r = x
     while l > 0 and row[l - 1] == i + 1 and x - l < 3000: l -= 1
     while r < W - 1 and row[r + 1] == i + 1 and r - x < 3000: r += 1
-    half = min(x - l, r - x)                                          # centred text: limited by the nearer side
-    c['label'] = {'x': int(x), 'y': int(y), 'w': int(2 * half), 'h': round(float(_dv[y, x]) * 2, 1)}
+    col = _lab[:, x]; t = y; bt = y
+    while t > 0 and col[t - 1] == i + 1 and y - t < 2000: t -= 1
+    while bt < H - 1 and col[bt + 1] == i + 1 and bt - y < 2000: bt += 1
+    return l, r, t, bt
+for i, a in enumerate(ids):
+    c = countries[a]; sl = _objs[i] if i < len(_objs) else None
+    if sl is None: continue
+    m = _lab[sl] == i + 1
+    # main landmass only (islands don't pull the name into the sea)
+    cl, ncl = ndi.label(m)
+    if ncl > 1: m = cl == (np.argmax(np.bincount(cl.ravel())[1:]) + 1)
+    yy, xx = np.nonzero(m)
+    cy, cx = yy.mean() + sl[0].start, xx.mean() + sl[1].start            # centre of the country
+    # candidates: the centre (moved onto land if it falls outside), and every point on a coarse grid; score = room for a
+    # wide name there, with a strong pull toward the centre, so names sit in the middle unless the middle is too thin
+    pts = [(int(round(cy)), int(round(cx)))]
+    if _lab[pts[0]] != i + 1:
+        d2 = (yy + sl[0].start - cy) ** 2 + (xx + sl[1].start - cx) ** 2; k = int(np.argmin(d2))
+        pts = [(int(yy[k] + sl[0].start), int(xx[k] + sl[1].start))]
+    step = max(1, int(np.sqrt(len(yy)) / 14))
+    for k in range(0, len(yy), max(1, len(yy) // 400)):
+        pts.append((int(yy[k] + sl[0].start), int(xx[k] + sl[1].start)))
+    pts.append(tuple(int(v) for v in _pos[i]))
+    span = np.sqrt(len(yy))
+    best = None
+    for (y, x) in pts:
+        if _lab[y, x] != i + 1: continue
+        l, r, t, bt = _spans(i, x, y)
+        mx = (l + r) // 2                                              # centre the name in its row
+        hw = (r - l) / 2; hh = min(y - t, bt - y)
+        fit = min(hw / 2.6, hh)                                         # a name is ~2.6x wider than tall
+        far = np.hypot(mx - cx, y - cy) / (span + 1)
+        score = fit * (1 - 0.9 * min(far, 1))
+        if best is None or score > best[0]: best = (score, mx, y, r - l, 2 * hh)
+    if best:
+        _, x, y, w, h = best
+        c['label'] = {'x': int(x), 'y': int(y), 'w': int(w), 'h': round(float(h), 1)}
 del _lab, _edge, _dd, _dv
 print('country label anchors done')
 out = {'size': [W, H], 'projection': {'type': 'miller+magnify', 'lat': [LAT_S, LAT_N], 'mags': MAGS, 'frame': [X0, X1, YB0, YB1]},

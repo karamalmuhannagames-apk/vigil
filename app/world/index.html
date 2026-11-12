@@ -287,7 +287,7 @@ function pip(g, rel, r) {
 let countryLabels = [];
 // country names like CoN: centred in the widest part of the country, turned a little clockwise, long names on two
 // lines, sized to fit the country (small countries small but readable), never over another name
-const NAME_TILT = 0.17;                                  // ~10 degrees clockwise
+const NAME_TILT = 0;                                     // straight (our own style)
 function nameLayout(name, roomW, roomH, cap, minS) {
   // try one line, and two lines broken at the space nearest the middle; keep whichever fits bigger
   ctx.font = `700 100px Plex, system-ui`;
@@ -310,13 +310,13 @@ function drawCountryNames(s, sw, sh) {
   const placed = [];
   const cap = (17 + 21 * smooth(0.25, 0.9, view.z)) * dpr, minS = (7.5 + 3.5 * smooth(0.25, 0.9, view.z)) * dpr;   // CoN: big names even at the farthest zoom
   for (const L of countryLabels) {
-    const roomW = (L.lw || Math.sqrt(L.px) * 1.2) * s * 0.85 * dpr, roomH = Math.max(L.lh || 0, Math.sqrt(L.px) * 0.28) * s * 0.8 * dpr;   // big countries are never squeezed by one narrow spot
+    const roomW = (L.lw || Math.sqrt(L.px) * 1.2) * s * 1.0 * dpr, roomH = Math.max(L.lh || 0, Math.sqrt(L.px) * 0.25) * s * 0.85 * dpr;   // big countries are never squeezed by one narrow spot
     if (!L.name) continue;
     const lay = nameLayout(L.name, roomW, roomH, cap, minS);
     let size = lay.size;
     const mine = L.iso === ME;
     if (size < minS) {
-      if (!mine && size * 1.5 < minS) continue;                         // far too small to read here: shows when you zoom in
+      if (!mine && size * 1.7 < minS) continue;                         // far too small to read here: shows when you zoom in
       size = minS;
     }
     const sx = Math.round((L.x - view.x) * s + sw / 2), sy = Math.round((L.y - view.y) * s + sh / 2);
