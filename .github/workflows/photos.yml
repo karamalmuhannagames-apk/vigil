@@ -1,0 +1,18 @@
+name: Loading photos
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch public-domain photos
+        run: python3 ci/photos/fetch.py
+      - name: Save
+        run: |
+          git config user.name "Halberd Studio CI"; git config user.email "ci@users.noreply.github.com"
+          git add art/loading/raw
+          git commit -m "Loading screen photos (public domain) [skip ci]" || exit 0
+          git pull --rebase -X theirs && git push
