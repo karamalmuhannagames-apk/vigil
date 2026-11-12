@@ -230,7 +230,7 @@ function draw() {
     // one rule for every name: centred right under its city (under the marker far away, under the town close up).
     // Only if that spot is taken may it sit beside the marker, right or left, level with it. Otherwise it waits.
     const fadeM = 1 - smooth(0.8, 1.25, view.z), near = smooth(1.25, 1.8, view.z);
-    const below = Math.max(fs * 0.4, (p.kind === 'capital' ? markSize(p) * 0.42 : p.r * s * 0.55 * smooth(0.9, 1.1, view.z)) + fs * 0.85);
+    const below = Math.max(fs * 0.4, (p.r * s * 0.6 * smooth(0.9, 1.1, view.z)) + fs * 0.85);
     const spots = [[0, below, 'center']];
     if (p.kind === 'capital') spots.push([-(tw / 2 + 10 * dpr), fs * 0.35, 'left'], [tw / 2 + 10 * dpr, fs * 0.35, 'right']);   // a capital is never dropped: it may sit beside its city
     
@@ -398,81 +398,38 @@ async function building(type, art, L) {
   return bldImg[k];
 }
 function hash(s) { let h = 2166136261; for (const ch of s) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return (h >>> 0) / 4294967296; }
+// the city as a dense cluster of real 3D blocks (rendered in Blender per region, 3 variants per size), coloured with
+// the land's own colour table so it sits in the country like CoN's cities, never a sticker on top
+const cityImg = {};
 async function bakeCity(p, ci) {
   const c = countries[ci], art = c.art || 'americas', rel = relOf(ci);
-  const N = 640, R = N / 2;   // sharp enough for the deepest zoom
+  const N = 640, R = N / 2;
+  const seed = hash(p.name_en || p.name_ar), v = Math.floor(seed * 3) % 3;
+  const key = `${art}_${p.kind}_${v}`;
+  const src = await (cityImg[key] || (cityImg[key] = img(`${ART_ROOT}citymarks/city_${key}.png`).catch(() => null)));
+  if (!src) return null;
   const cv2 = document.createElement('canvas'); cv2.width = cv2.height = N;
   const g = cv2.getContext('2d', {willReadFrequently: true});
-  const bl = await blocksFor(art);
-  const seed = hash(p.name_en || p.name_ar);
-  if (bl.length) {
-    // the city fabric repeats at a finer scale than the patch, so streets and blocks are small and dense like a real city
-    const pat = g.createPattern(bl[Math.floor(seed * bl.length)], 'repeat'), bs = R * 2.3 / bl[0].width;
-    pat.setTransform(new DOMMatrix().translate(R, R).rotate(seed * 360).scale(bs, bs));
-    g.fillStyle = pat; g.fillRect(0, 0, N, N);
-  }
-  // main buildings in the heart of capitals and big cities
-  const set = p.kind === 'capital' ? [['factory', 3], ['airport', 2], ['training_camp', 2], ['hospital', 1]] : p.kind === 'major' ? [['factory', 1], ['training_camp', 1]] : [];
-  for (let k = 0; k < set.length; k++) {
-    const b = await building(set[k][0], art, set[k][1]); if (!b) continue;
-    const a = seed * 6.283 + k * 1.7, rr = k === 0 ? 0 : R * 0.36, sz = R * 0.62;
-    g.drawImage(b, R + Math.cos(a) * rr - sz / 2, R + Math.sin(a) * rr - sz / 2, sz, sz);
-  }
-  // same colour ramp as the land around it
-  const id = g.getImageData(0, 0, N, N), d = id.data;
-  const tl = LUT[rel];                                             // exactly the land's colour table: one hue, light and dark only
+  g.translate(R, R); g.rotate((seed - 0.5) * 0.5); g.drawImage(src, -R, -R, N, N); g.setTransform(1, 0, 0, 1, 0, 0);
+  const id = g.getImageData(0, 0, N, N), d = id.data, tl = LUT[rel];
   for (let q = 0; q < d.length; q += 4) {
+    if (!d[q + 3]) continue;
     const l = (0.3 * d[q] + 0.59 * d[q + 1] + 0.11 * d[q + 2]) / 255;
-    const i = Math.max(0, Math.min(255, ((l - 0.4) * 1.3 + 0.17) * 255)) | 0;   // built-up ground: darker than the fields, buildings stand out
+    const i = Math.max(0, Math.min(255, ((l - 0.35) * 1.25 + 0.2) * 255)) | 0;   // lit roofs bright, streets and shadows dark
     d[q] = tl[i * 3]; d[q + 1] = tl[i * 3 + 1]; d[q + 2] = tl[i * 3 + 2];
   }
   g.putImageData(id, 0, 0);
-  // irregular outline like a real built-up area: a cluster of overlapping lobes, densest in the middle
-  const m = document.createElement('canvas'); m.width = m.height = N; const mg = m.getContext('2d');
-  let rs = seed * 1000;
-  const rnd = () => { rs = (rs * 9301 + 49297) % 233280; return rs / 233280; };
-  mg.fillStyle = '#000';
-  mg.beginPath(); mg.arc(R, R, R * 0.42, 0, 7); mg.fill();
-  for (let k = 0; k < 26; k++) {
-    const a = rnd() * 6.283, rr = R * (0.15 + rnd() * 0.5), s2 = R * (0.12 + rnd() * 0.2);
-    mg.beginPath(); mg.arc(R + Math.cos(a) * rr, R + Math.sin(a) * rr, s2, 0, 7); mg.fill();
-  }
-  mg.globalAlpha = 0.6;
-  for (let k = 0; k < 18; k++) {                                   // suburbs reaching out along roads
-    const a = rnd() * 6.283, rr = R * (0.55 + rnd() * 0.3), s2 = R * (0.05 + rnd() * 0.08);
-    mg.beginPath(); mg.arc(R + Math.cos(a) * rr, R + Math.sin(a) * rr, s2, 0, 7); mg.fill();
-  }
-  mg.globalAlpha = 1;
-  // a town never spills into the sea or across a border: keep only its own country's land
+  // a city never spills into the sea or across a border: keep only its own country's land
   const own = await ownLand(p, ci, N);
-  if (own) { mg.globalCompositeOperation = 'destination-in'; mg.drawImage(own, 0, 0, N, N); mg.globalCompositeOperation = 'source-over'; }
-  g.globalCompositeOperation = 'destination-in'; g.filter = `blur(${Math.round(N / 90)}px)`; g.drawImage(m, 0, 0); g.filter = 'none';
-  // dark vignette under the city (CoN): built-up ground darkens softly toward the centre
+  if (own) { g.globalCompositeOperation = 'destination-in'; g.filter = 'blur(2px)'; g.drawImage(own, 0, 0, N, N); g.filter = 'none'; g.globalCompositeOperation = 'source-over'; }
+  // soft dark ground under the city (CoN)
   const out = document.createElement('canvas'); out.width = out.height = N; const og = out.getContext('2d');
-  const vg = og.createRadialGradient(R, R, R * 0.2, R, R, R);
-  vg.addColorStop(0, 'rgba(0,0,0,0.42)'); vg.addColorStop(0.7, 'rgba(0,0,0,0.18)'); vg.addColorStop(1, 'rgba(0,0,0,0)');
-  og.fillStyle = vg; og.fillRect(0, 0, N, N); og.drawImage(cv2, 0, 0);
+  const vg = og.createRadialGradient(R, R, R * 0.15, R, R, R * 0.95);
+  vg.addColorStop(0, 'rgba(0,0,0,0.38)'); vg.addColorStop(0.7, 'rgba(0,0,0,0.14)'); vg.addColorStop(1, 'rgba(0,0,0,0)');
+  og.fillStyle = vg; og.beginPath(); og.arc(R, R, R, 0, 7); og.fill();
+  if (own) { og.globalCompositeOperation = 'destination-in'; og.drawImage(own, 0, 0, N, N); og.globalCompositeOperation = 'source-over'; }
+  og.drawImage(cv2, 0, 0);
   return out;
-}
-// country ids around a city, read from the sharpest id tiles (2 px per world px)
-const idTiles = new Map();
-function idTile(tx, ty) {
-  const k = `${tx}_${ty}`;
-  if (!idTiles.has(k)) idTiles.set(k, (manifest && !manifest[4]?.has(k)) ? Promise.resolve(null) : img(`${DATA}tiles/4/${k}_n.png`));
-  return idTiles.get(k);
-}
-async function ownLand(p, ci, N) {
-  const R = p.r, x0 = (p.x - R) * 2, y0 = (p.y - R) * 2, n = Math.ceil(R * 4);
-  const c = document.createElement('canvas'); c.width = c.height = n;
-  const g = c.getContext('2d', {willReadFrequently: true});
-  for (let ty = Math.floor(y0 / T); ty <= Math.floor((y0 + n) / T); ty++)
-    for (let tx = Math.floor(x0 / T); tx <= Math.floor((x0 + n) / T); tx++) {
-      const im = await idTile(tx, ty); if (im) g.drawImage(im, tx * T - x0, ty * T - y0);
-    }
-  const id = g.getImageData(0, 0, n, n), d = id.data;
-  for (let q = 0; q < d.length; q += 4) { const v = d[q] + d[q + 1] * 256 - 1; d[q + 3] = v === ci ? 255 : 0; }
-  g.putImageData(id, 0, 0);
-  return c;
 }
 function cityPic(p, ci) {
   const k = `${gen}/${p.name_en}/${ci}`;
@@ -519,7 +476,7 @@ function drawMarks(s, sw, sh) {
 }
 function drawCities(s, sw, sh) {
   const show = smooth(0.9, 1.1, view.z);
-  if (show <= 0) { drawMarks(s, sw, sh); return; }
+  if (show <= 0) return;
   ctx.globalAlpha = show;
   for (let ci = 0; ci < countries.length; ci++) for (const p of countries[ci].cities || []) {
     const R = p.r * s, sx = (p.x - view.x) * s + sw / 2, sy = (p.y - view.y) * s + sh / 2;
@@ -527,7 +484,6 @@ function drawCities(s, sw, sh) {
     const pic = cityPic(p, ci); if (pic) ctx.drawImage(pic, sx - R, sy - R, R * 2, R * 2);
   }
   ctx.globalAlpha = 1;
-  drawMarks(s, sw, sh);
 }
 
 // smooth vector borders, styled by relation: none with allies, dashed for passage, solid for strangers, red for enemies
