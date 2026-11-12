@@ -57,11 +57,11 @@ Promise.all(['forest', 'forest_id', 'open', 'arid', 'rock', 'waves'].map(n => lo
   // waves: sea ripples, as a brightness texture around 1.0
   const WN = 512, wd = pixels(wv, WN, WN), wave = new Float32Array(WN * WN); let m = 0;
   for (let i = 0; i < WN * WN; i++) { wave[i] = wd[i * 4] * 0.3 + wd[i * 4 + 1] * 0.59 + wd[i * 4 + 2] * 0.11; m += wave[i]; }
-  m /= WN * WN; for (let i = 0; i < WN * WN; i++) wave[i] = 1 + (wave[i] / m - 1) * 0.32;
+  m /= WN * WN; for (let i = 0; i < WN * WN; i++) wave[i] = wave[i] / m - 1;      // ripple shape; contrast is set per zoom
   TEX = {FN, fl, fa, fv, open: one(op, 512), arid: one(ar, 512), rock: one(rk, 512), wave, WN};
   // open ocean with no tile: a deep-sea pattern built the same way
   const dc = document.createElement('canvas'); dc.width = dc.height = WN; const dg = dc.getContext('2d'), di = dg.createImageData(WN, WN);
-  for (let i = 0; i < WN * WN; i++) { const k = wave[i]; di.data[i * 4] = SEA.deep[0] * k; di.data[i * 4 + 1] = SEA.deep[1] * k; di.data[i * 4 + 2] = SEA.deep[2] * k; di.data[i * 4 + 3] = 255; }
+  for (let i = 0; i < WN * WN; i++) { const k = 1 + wave[i] * 0.12; di.data[i * 4] = SEA.deep[0] * k; di.data[i * 4 + 1] = SEA.deep[1] * k; di.data[i * 4 + 2] = SEA.deep[2] * k; di.data[i * 4 + 3] = 255; }
   dg.putImageData(di, 0, 0); deepPat = ctx.createPattern(dc, 'repeat');
   cache.clear(); draw();
 });
@@ -114,6 +114,7 @@ async function buildTile(z, tx, ty, C) {
   g.drawImage(bioI, 0, 0, C, C); const bd = g.getImageData(0, 0, C, C).data;
   const out = g.createImageData(C, C), d = out.data;
   const {FN, fl, fa, fv, open, arid, rock, wave, WN} = TEX;
+  const wamp = [0.1, 0.13, 0.18, 0.25, 0.32][z] || 0.32;          // CoN: same ripple size on screen, stronger close in
   const gx0 = tx * C, gy0 = ty * C;
   const lut = {};
   const idAt = (x, y) => { x = Math.max(0, Math.min(C - 1, x)); y = Math.max(0, Math.min(C - 1, y)); return own[y * C + x]; };
@@ -126,7 +127,7 @@ async function buildTile(z, tx, ty, C) {
       const L = ld[q] / 127.5;                                  // 1.0 = no extra light or shade
       let sr = 0, sg = 0, sb = 0;
       if (m < 170) {                                            // sea: coastal grey-blue or deep blue, ripples, land shadow
-        const cw = m > 0 ? 1 : bd[q] / 255, k = L * wave[wr + gx % WN];     // coastal share: soft edge between coastal and deep water
+        const cw = m > 0 ? 1 : bd[q] / 255, k = L * (1 + wamp * wave[wr + gx % WN]);     // coastal share: soft edge between coastal and deep water
         sr = (SEA.deep[0] + (SEA.coast[0] - SEA.deep[0]) * cw) * k; sg = (SEA.deep[1] + (SEA.coast[1] - SEA.deep[1]) * cw) * k; sb = (SEA.deep[2] + (SEA.coast[2] - SEA.deep[2]) * cw) * k;
         if (m > 14) { const e = 1 - 0.55 * Math.min(1, (m - 14) / 50); sr *= e; sg *= e; sb *= e; }   // thin dark rim along every coast
         if (m < 86) { d[q] = sr; d[q + 1] = sg; d[q + 2] = sb; d[q + 3] = 255; continue; }
@@ -557,9 +558,10 @@ function drawBorders(s, sw, sh) {
   }
   // country borders: a light line with a soft dark edge, so they read on every colour of ground
   const all = groups.foreign.concat(groups.neutral);
-  path(all); ctx.strokeStyle = 'rgba(4,8,10,0.38)'; ctx.lineWidth = 3.2 * dpr * thin; ctx.stroke();
-  path(groups.foreign); ctx.strokeStyle = 'rgba(226,232,234,0.72)'; ctx.lineWidth = 1.2 * dpr * thin; ctx.stroke();
-  path(groups.neutral); ctx.strokeStyle = 'rgba(240,244,246,0.92)'; ctx.lineWidth = 1.5 * dpr * thin; ctx.stroke();
+  // CoN: white at ~40% with a soft light glow; it takes the land's colour under it (pale green on green land)
+  path(all); ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 5.5 * dpr * thin; ctx.stroke();
+  ctx.strokeStyle = 'rgba(0,0,0,0.22)'; ctx.lineWidth = 2.6 * dpr * thin; ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 1.5 * dpr * thin; ctx.stroke();
   path(groups.passage); ctx.setLineDash([5 * dpr, 4 * dpr]); ctx.strokeStyle = 'rgba(245,247,250,0.9)'; ctx.lineWidth = 1.5 * dpr * thin; ctx.stroke(); ctx.setLineDash([]);
   path(groups.enemy); ctx.strokeStyle = 'rgba(255,40,40,0.25)'; ctx.lineWidth = 6 * dpr * thin; ctx.stroke();
   ctx.strokeStyle = 'rgba(255,60,55,0.95)'; ctx.lineWidth = 1.8 * dpr * thin; ctx.stroke();
