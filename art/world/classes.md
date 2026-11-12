@@ -1,92 +1,92 @@
 ## playable (109)
 
-- Russia / روسيا (RUS): 16,953,104 km², 9 cities, 37 provinces, art europe, doctrine eurasia
-- Canada / كندا (CAN): 9,945,629 km², 9 cities, 21 provinces, art americas, doctrine americas
-- United States of America / الولايات المتحدة (USA): 9,464,228 km², 9 cities, 37 provinces, art americas, doctrine americas
-- People's Republic of China / الصين (CHN): 9,375,234 km², 9 cities, 28 provinces, art asia, doctrine asia
-- Brazil / البرازيل (BRA): 8,472,402 km², 9 cities, 25 provinces, art americas, doctrine americas
-- Australia / أستراليا (AUS): 7,691,175 km², 9 cities, 19 provinces, art americas, doctrine americas
-- India / الهند (IND): 3,152,833 km², 9 cities, 27 provinces, art asia, doctrine asia
-- Argentina / الأرجنتين (ARG): 2,782,897 km², 9 cities, 26 provinces, art americas, doctrine americas
-- Kazakhstan / كازاخستان (KAZ): 2,720,765 km², 9 cities, 20 provinces, art asia, doctrine eurasia
-- Democratic Republic of the Congo / جمهورية الكونغو الديمقراطية (COD): 2,325,240 km², 9 cities, 19 provinces, art americas, doctrine africa
-- Algeria / الجزائر (DZA): 2,308,858 km², 9 cities, 21 provinces, art gulf, doctrine mena
-- Greenland / جرينلاند (GRL): 2,154,379 km², 9 cities, 17 provinces, art americas, doctrine americas
-- Mexico / المكسيك (MEX): 1,957,847 km², 9 cities, 26 provinces, art americas, doctrine americas
-- Saudi Arabia / السعودية (SAU): 1,921,725 km², 9 cities, 16 provinces, art gulf, doctrine mena
-- Indonesia / إندونيسيا (IDN): 1,879,827 km², 9 cities, 27 provinces, art asia, doctrine asia
-- Sudan / السودان (SDN): 1,844,738 km², 9 cities, 22 provinces, art gulf, doctrine mena
-- Libya / ليبيا (LBY): 1,623,761 km², 9 cities, 23 provinces, art gulf, doctrine mena
-- Iran / إيران (IRN): 1,622,498 km², 9 cities, 25 provinces, art gulf, doctrine mena
-- Mongolia / منغوليا (MNG): 1,564,649 km², 9 cities, 21 provinces, art asia, doctrine eurasia
-- Peru / بيرو (PER): 1,289,866 km², 9 cities, 25 provinces, art americas, doctrine americas
-- Chad / تشاد (TCD): 1,266,282 km², 9 cities, 23 provinces, art americas, doctrine africa
-- Mali / مالي (MLI): 1,252,724 km², 9 cities, 17 provinces, art americas, doctrine africa
-- Angola / أنغولا (AGO): 1,244,654 km², 9 cities, 22 provinces, art americas, doctrine africa
-- South Africa / جنوب أفريقيا (ZAF): 1,219,827 km², 9 cities, 18 provinces, art americas, doctrine africa
-- Niger / النيجر (NER): 1,181,301 km², 9 cities, 17 provinces, art americas, doctrine africa
-- Colombia / كولومبيا (COL): 1,135,118 km², 9 cities, 30 provinces, art americas, doctrine americas
-- Ethiopia / إثيوبيا (ETH): 1,127,376 km², 9 cities, 19 provinces, art americas, doctrine africa
-- Bolivia / بوليفيا (BOL): 1,086,811 km², 9 cities, 18 provinces, art americas, doctrine americas
-- Mauritania / موريتانيا (MRT): 1,036,392 km², 9 cities, 20 provinces, art gulf, doctrine mena
-- Egypt / مصر (EGY): 1,001,058 km², 9 cities, 21 provinces, art gulf, doctrine mena
-- Tanzania / تنزانيا (TZA): 941,506 km², 9 cities, 25 provinces, art americas, doctrine africa
-- Venezuela / فنزويلا (VEN): 912,684 km², 8 cities, 21 provinces, art americas, doctrine americas
-- Nigeria / نيجيريا (NGA): 907,501 km², 8 cities, 31 provinces, art americas, doctrine africa
-- Pakistan / باكستان (PAK): 872,939 km², 8 cities, 18 provinces, art gulf, doctrine asia
-- Namibia / ناميبيا (NAM): 822,713 km², 8 cities, 18 provinces, art americas, doctrine africa
-- Mozambique / موزمبيق (MOZ): 788,449 km², 8 cities, 20 provinces, art americas, doctrine africa
-- Turkey / تركيا (TUR): 780,080 km², 8 cities, 44 provinces, art gulf, doctrine mena
-- Zambia / زامبيا (ZMB): 751,915 km², 8 cities, 17 provinces, art americas, doctrine africa
-- Chile / تشيلي (CHL): 736,593 km², 8 cities, 21 provinces, art americas, doctrine americas
-- Morocco / المغرب (MAR): 682,240 km², 8 cities, 21 provinces, art gulf, doctrine mena
-- Myanmar / ميانمار (MMR): 663,159 km², 8 cities, 21 provinces, art asia, doctrine asia
-- Afghanistan / أفغانستان (AFG): 642,182 km², 8 cities, 27 provinces, art gulf, doctrine asia
-- Somalia / الصومال (SOM): 639,222 km², 8 cities, 19 provinces, art gulf, doctrine mena
-- France / فرنسا (FRA): 636,759 km², 8 cities, 42 provinces, art europe, doctrine europe
+- Russia / روسيا (RUS): 16,953,104 km², 8 cities, 36 provinces, art europe, doctrine eurasia
+- Canada / كندا (CAN): 9,945,629 km², 8 cities, 20 provinces, art americas, doctrine americas
+- United States of America / الولايات المتحدة (USA): 9,464,228 km², 8 cities, 36 provinces, art americas, doctrine americas
+- People's Republic of China / الصين (CHN): 9,375,234 km², 8 cities, 28 provinces, art asia, doctrine asia
+- Brazil / البرازيل (BRA): 8,472,402 km², 8 cities, 25 provinces, art americas, doctrine americas
+- Australia / أستراليا (AUS): 7,691,175 km², 8 cities, 18 provinces, art americas, doctrine americas
+- India / الهند (IND): 3,152,833 km², 8 cities, 27 provinces, art asia, doctrine asia
+- Argentina / الأرجنتين (ARG): 2,782,897 km², 7 cities, 26 provinces, art americas, doctrine americas
+- Kazakhstan / كازاخستان (KAZ): 2,720,765 km², 7 cities, 20 provinces, art asia, doctrine eurasia
+- Democratic Republic of the Congo / جمهورية الكونغو الديمقراطية (COD): 2,325,240 km², 7 cities, 19 provinces, art americas, doctrine africa
+- Algeria / الجزائر (DZA): 2,308,858 km², 7 cities, 21 provinces, art gulf, doctrine mena
+- Greenland / جرينلاند (GRL): 2,154,379 km², 7 cities, 17 provinces, art americas, doctrine americas
+- Mexico / المكسيك (MEX): 1,957,847 km², 7 cities, 26 provinces, art americas, doctrine americas
+- Saudi Arabia / السعودية (SAU): 1,921,725 km², 7 cities, 16 provinces, art gulf, doctrine mena
+- Indonesia / إندونيسيا (IDN): 1,879,827 km², 7 cities, 27 provinces, art asia, doctrine asia
+- Sudan / السودان (SDN): 1,844,738 km², 7 cities, 22 provinces, art gulf, doctrine mena
+- Libya / ليبيا (LBY): 1,623,761 km², 7 cities, 23 provinces, art gulf, doctrine mena
+- Iran / إيران (IRN): 1,622,498 km², 7 cities, 25 provinces, art gulf, doctrine mena
+- Mongolia / منغوليا (MNG): 1,564,649 km², 7 cities, 21 provinces, art asia, doctrine eurasia
+- Peru / بيرو (PER): 1,289,866 km², 7 cities, 25 provinces, art americas, doctrine americas
+- Chad / تشاد (TCD): 1,266,282 km², 7 cities, 23 provinces, art americas, doctrine africa
+- Mali / مالي (MLI): 1,252,724 km², 7 cities, 17 provinces, art americas, doctrine africa
+- Angola / أنغولا (AGO): 1,244,654 km², 7 cities, 22 provinces, art americas, doctrine africa
+- South Africa / جنوب أفريقيا (ZAF): 1,219,827 km², 7 cities, 18 provinces, art americas, doctrine africa
+- Niger / النيجر (NER): 1,181,301 km², 6 cities, 17 provinces, art americas, doctrine africa
+- Colombia / كولومبيا (COL): 1,135,118 km², 6 cities, 30 provinces, art americas, doctrine americas
+- Ethiopia / إثيوبيا (ETH): 1,127,376 km², 6 cities, 19 provinces, art americas, doctrine africa
+- Bolivia / بوليفيا (BOL): 1,086,811 km², 6 cities, 17 provinces, art americas, doctrine americas
+- Mauritania / موريتانيا (MRT): 1,036,392 km², 6 cities, 20 provinces, art gulf, doctrine mena
+- Egypt / مصر (EGY): 1,001,058 km², 6 cities, 21 provinces, art gulf, doctrine mena
+- Tanzania / تنزانيا (TZA): 941,506 km², 6 cities, 25 provinces, art americas, doctrine africa
+- Venezuela / فنزويلا (VEN): 912,684 km², 6 cities, 21 provinces, art americas, doctrine americas
+- Nigeria / نيجيريا (NGA): 907,501 km², 6 cities, 31 provinces, art americas, doctrine africa
+- Pakistan / باكستان (PAK): 872,939 km², 6 cities, 18 provinces, art gulf, doctrine asia
+- Namibia / ناميبيا (NAM): 822,713 km², 6 cities, 18 provinces, art americas, doctrine africa
+- Mozambique / موزمبيق (MOZ): 788,449 km², 6 cities, 20 provinces, art americas, doctrine africa
+- Turkey / تركيا (TUR): 780,080 km², 6 cities, 44 provinces, art gulf, doctrine mena
+- Zambia / زامبيا (ZMB): 751,915 km², 6 cities, 17 provinces, art americas, doctrine africa
+- Chile / تشيلي (CHL): 736,593 km², 6 cities, 21 provinces, art americas, doctrine americas
+- Morocco / المغرب (MAR): 682,240 km², 6 cities, 21 provinces, art gulf, doctrine mena
+- Myanmar / ميانمار (MMR): 663,159 km², 6 cities, 21 provinces, art asia, doctrine asia
+- Afghanistan / أفغانستان (AFG): 642,182 km², 6 cities, 26 provinces, art gulf, doctrine asia
+- Somalia / الصومال (SOM): 639,222 km², 6 cities, 19 provinces, art gulf, doctrine mena
+- France / فرنسا (FRA): 636,759 km², 6 cities, 42 provinces, art europe, doctrine europe
 - South Sudan / جنوب السودان (SDS): 626,844 km², 0 cities, 16 provinces, art americas, doctrine africa
-- Central African Republic / جمهورية أفريقيا الوسطى (CAF): 617,984 km², 8 cities, 21 provinces, art americas, doctrine africa
-- Ukraine / أوكرانيا (UKR): 599,095 km², 8 cities, 25 provinces, art europe, doctrine europe
-- Madagascar / مدغشقر (MDG): 592,984 km², 8 cities, 22 provinces, art americas, doctrine africa
-- Kenya / كينيا (KEN): 582,302 km², 8 cities, 20 provinces, art americas, doctrine africa
-- Botswana / بوتسوانا (BWA): 579,029 km², 8 cities, 18 provinces, art americas, doctrine africa
-- Thailand / تايلاند (THA): 514,454 km², 7 cities, 34 provinces, art asia, doctrine asia
-- Spain / إسبانيا (ESP): 506,884 km², 7 cities, 34 provinces, art europe, doctrine europe
-- Turkmenistan / تركمانستان (TKM): 470,850 km², 7 cities, 15 provinces, art asia, doctrine eurasia
-- Papua New Guinea / بابوا غينيا الجديدة (PNG): 465,147 km², 7 cities, 20 provinces, art americas, doctrine americas
-- Cameroon / الكاميرون (CMR): 464,319 km², 7 cities, 15 provinces, art americas, doctrine africa
-- Yemen / اليمن (YEM): 453,076 km², 7 cities, 23 provinces, art gulf, doctrine mena
-- Uzbekistan / أوزبكستان (UZB): 447,830 km², 7 cities, 18 provinces, art asia, doctrine eurasia
-- Sweden / السويد (SWE): 446,178 km², 7 cities, 21 provinces, art europe, doctrine europe
-- Iraq / العراق (IRQ): 437,367 km², 7 cities, 20 provinces, art gulf, doctrine mena
-- Paraguay / باراغواي (PRY): 399,901 km², 7 cities, 19 provinces, art americas, doctrine americas
-- Zimbabwe / زيمبابوي (ZWE): 389,337 km², 7 cities, 15 provinces, art americas, doctrine africa
-- Norway / النرويج (NOR): 382,067 km², 7 cities, 20 provinces, art europe, doctrine europe
-- Japan / اليابان (JPN): 373,508 km², 7 cities, 27 provinces, art asia, doctrine asia
-- Germany / ألمانيا (DEU): 357,674 km², 7 cities, 16 provinces, art europe, doctrine europe
-- Republic of the Congo / جمهورية الكونغو (COG): 344,889 km², 7 cities, 14 provinces, art americas, doctrine africa
-- Finland / فنلندا (FIN): 333,059 km², 7 cities, 20 provinces, art europe, doctrine europe
-- Vietnam / فيتنام (VNM): 328,892 km², 7 cities, 22 provinces, art asia, doctrine asia
-- Malaysia / ماليزيا (MYS): 327,885 km², 7 cities, 15 provinces, art asia, doctrine asia
-- Ivory Coast / ساحل العاج (CIV): 320,677 km², 6 cities, 19 provinces, art americas, doctrine africa
-- Poland / بولندا (POL): 313,431 km², 6 cities, 16 provinces, art europe, doctrine europe
-- Oman / سلطنة عمان (OMN): 311,213 km², 6 cities, 15 provinces, art gulf, doctrine mena
-- Italy / إيطاليا (ITA): 301,185 km², 6 cities, 20 provinces, art europe, doctrine europe
-- Philippines / الفلبين (PHL): 293,291 km², 6 cities, 20 provinces, art asia, doctrine asia
-- Burkina Faso / بوركينا فاسو (BFA): 272,769 km², 6 cities, 18 provinces, art americas, doctrine africa
-- New Zealand / نيوزيلندا (NZL): 268,501 km², 6 cities, 16 provinces, art americas, doctrine americas
-- Gabon / الغابون (GAB): 259,968 km², 6 cities, 10 provinces, art americas, doctrine africa
-- Ecuador / الإكوادور (ECU): 255,014 km², 6 cities, 17 provinces, art americas, doctrine americas
-- Guinea / غينيا (GIN): 244,302 km², 6 cities, 16 provinces, art americas, doctrine africa
-- United Kingdom / المملكة المتحدة (GBR): 243,783 km², 6 cities, 16 provinces, art europe, doctrine europe
-- Uganda / أوغندا (UGA): 241,854 km², 6 cities, 16 provinces, art americas, doctrine africa
-- Ghana / غانا (GHA): 238,669 km², 6 cities, 11 provinces, art americas, doctrine africa
-- Romania / رومانيا (ROU): 236,377 km², 6 cities, 16 provinces, art europe, doctrine europe
-- Laos / لاوس (LAO): 228,114 km², 6 cities, 15 provinces, art asia, doctrine asia
-- Guyana / غيانا (GUY): 211,214 km², 6 cities, 11 provinces, art americas, doctrine americas
-- Belarus / بيلاروسيا (BLR): 207,499 km², 6 cities, 7 provinces, art europe, doctrine eurasia
-- Kyrgyzstan / قيرغيزستان (KGZ): 198,990 km², 6 cities, 9 provinces, art asia, doctrine eurasia
-- Senegal / السنغال (SEN): 196,224 km², 6 cities, 13 provinces, art americas, doctrine africa
+- Central African Republic / جمهورية أفريقيا الوسطى (CAF): 617,984 km², 6 cities, 21 provinces, art americas, doctrine africa
+- Ukraine / أوكرانيا (UKR): 599,095 km², 6 cities, 25 provinces, art europe, doctrine europe
+- Madagascar / مدغشقر (MDG): 592,984 km², 6 cities, 22 provinces, art americas, doctrine africa
+- Kenya / كينيا (KEN): 582,302 km², 6 cities, 20 provinces, art americas, doctrine africa
+- Botswana / بوتسوانا (BWA): 579,029 km², 6 cities, 18 provinces, art americas, doctrine africa
+- Thailand / تايلاند (THA): 514,454 km², 6 cities, 34 provinces, art asia, doctrine asia
+- Spain / إسبانيا (ESP): 506,884 km², 6 cities, 34 provinces, art europe, doctrine europe
+- Turkmenistan / تركمانستان (TKM): 470,850 km², 6 cities, 15 provinces, art asia, doctrine eurasia
+- Papua New Guinea / بابوا غينيا الجديدة (PNG): 465,147 km², 6 cities, 20 provinces, art americas, doctrine americas
+- Cameroon / الكاميرون (CMR): 464,319 km², 6 cities, 15 provinces, art americas, doctrine africa
+- Yemen / اليمن (YEM): 453,076 km², 6 cities, 23 provinces, art gulf, doctrine mena
+- Uzbekistan / أوزبكستان (UZB): 447,830 km², 5 cities, 18 provinces, art asia, doctrine eurasia
+- Sweden / السويد (SWE): 446,178 km², 5 cities, 21 provinces, art europe, doctrine europe
+- Iraq / العراق (IRQ): 437,367 km², 5 cities, 20 provinces, art gulf, doctrine mena
+- Paraguay / باراغواي (PRY): 399,901 km², 5 cities, 19 provinces, art americas, doctrine americas
+- Zimbabwe / زيمبابوي (ZWE): 389,337 km², 5 cities, 15 provinces, art americas, doctrine africa
+- Norway / النرويج (NOR): 382,067 km², 5 cities, 20 provinces, art europe, doctrine europe
+- Japan / اليابان (JPN): 373,508 km², 5 cities, 27 provinces, art asia, doctrine asia
+- Germany / ألمانيا (DEU): 357,674 km², 5 cities, 15 provinces, art europe, doctrine europe
+- Republic of the Congo / جمهورية الكونغو (COG): 344,889 km², 5 cities, 14 provinces, art americas, doctrine africa
+- Finland / فنلندا (FIN): 333,059 km², 5 cities, 20 provinces, art europe, doctrine europe
+- Vietnam / فيتنام (VNM): 328,892 km², 5 cities, 22 provinces, art asia, doctrine asia
+- Malaysia / ماليزيا (MYS): 327,885 km², 5 cities, 15 provinces, art asia, doctrine asia
+- Ivory Coast / ساحل العاج (CIV): 320,677 km², 5 cities, 19 provinces, art americas, doctrine africa
+- Poland / بولندا (POL): 313,431 km², 5 cities, 16 provinces, art europe, doctrine europe
+- Oman / سلطنة عمان (OMN): 311,213 km², 5 cities, 15 provinces, art gulf, doctrine mena
+- Italy / إيطاليا (ITA): 301,185 km², 5 cities, 20 provinces, art europe, doctrine europe
+- Philippines / الفلبين (PHL): 293,291 km², 5 cities, 20 provinces, art asia, doctrine asia
+- Burkina Faso / بوركينا فاسو (BFA): 272,769 km², 5 cities, 18 provinces, art americas, doctrine africa
+- New Zealand / نيوزيلندا (NZL): 268,501 km², 5 cities, 15 provinces, art americas, doctrine americas
+- Gabon / الغابون (GAB): 259,968 km², 5 cities, 9 provinces, art americas, doctrine africa
+- Ecuador / الإكوادور (ECU): 255,014 km², 5 cities, 17 provinces, art americas, doctrine americas
+- Guinea / غينيا (GIN): 244,302 km², 5 cities, 16 provinces, art americas, doctrine africa
+- United Kingdom / المملكة المتحدة (GBR): 243,783 km², 5 cities, 16 provinces, art europe, doctrine europe
+- Uganda / أوغندا (UGA): 241,854 km², 5 cities, 16 provinces, art americas, doctrine africa
+- Ghana / غانا (GHA): 238,669 km², 5 cities, 11 provinces, art americas, doctrine africa
+- Romania / رومانيا (ROU): 236,377 km², 5 cities, 16 provinces, art europe, doctrine europe
+- Laos / لاوس (LAO): 228,114 km², 5 cities, 15 provinces, art asia, doctrine asia
+- Guyana / غيانا (GUY): 211,214 km², 5 cities, 11 provinces, art americas, doctrine americas
+- Belarus / بيلاروسيا (BLR): 207,499 km², 5 cities, 7 provinces, art europe, doctrine eurasia
+- Kyrgyzstan / قيرغيزستان (KGZ): 198,990 km², 5 cities, 8 provinces, art asia, doctrine eurasia
+- Senegal / السنغال (SEN): 196,224 km², 5 cities, 13 provinces, art americas, doctrine africa
 - Syria / سوريا (SYR): 187,133 km², 5 cities, 12 provinces, art gulf, doctrine mena
 - Cambodia / كمبوديا (KHM): 181,060 km², 5 cities, 12 provinces, art asia, doctrine asia
 - Uruguay / الأوروغواي (URY): 177,342 km², 5 cities, 12 provinces, art americas, doctrine americas
@@ -97,12 +97,12 @@
 - Bangladesh / بنغلاديش (BGD): 136,904 km², 5 cities, 7 provinces, art asia, doctrine asia
 - Greece / اليونان (GRC): 131,353 km², 5 cities, 9 provinces, art europe, doctrine europe
 - Nicaragua / نيكاراغوا (NIC): 128,685 km², 5 cities, 9 provinces, art americas, doctrine americas
-- Eritrea / إريتريا (ERI): 122,538 km², 4 cities, 7 provinces, art gulf, doctrine africa
+- Eritrea / إريتريا (ERI): 122,538 km², 5 cities, 7 provinces, art gulf, doctrine africa
 - North Korea / كوريا الشمالية (PRK): 122,379 km², 5 cities, 8 provinces, art asia, doctrine asia
-- Malawi / مالاوي (MWI): 119,398 km², 5 cities, 8 provinces, art americas, doctrine africa
-- Benin / بنين (BEN): 116,113 km², 5 cities, 8 provinces, art americas, doctrine africa
-- Bulgaria / بلغاريا (BGR): 112,761 km², 5 cities, 8 provinces, art europe, doctrine europe
-- Honduras / هندوراس (HND): 112,237 km², 5 cities, 7 provinces, art americas, doctrine americas
+- Malawi / مالاوي (MWI): 119,398 km², 4 cities, 8 provinces, art americas, doctrine africa
+- Benin / بنين (BEN): 116,113 km², 4 cities, 8 provinces, art americas, doctrine africa
+- Bulgaria / بلغاريا (BGR): 112,761 km², 4 cities, 8 provinces, art europe, doctrine europe
+- Honduras / هندوراس (HND): 112,237 km², 4 cities, 7 provinces, art americas, doctrine americas
 - Cuba / كوبا (CUB): 109,929 km², 4 cities, 7 provinces, art americas, doctrine americas
 - Guatemala / غواتيمالا (GTM): 108,811 km², 4 cities, 7 provinces, art americas, doctrine americas
 - Iceland / آيسلندا (ISL): 102,390 km², 4 cities, 7 provinces, art europe, doctrine europe
@@ -168,7 +168,7 @@
 - Jamaica / جامايكا (JAM): 11,033 km², 2 cities, 2 provinces, art americas, doctrine americas
 - None / None (B13): 10,876 km², 0 cities, 1 provinces, art americas, doctrine americas
 - The Gambia / غامبيا (GMB): 10,501 km², 2 cities, 2 provinces, art americas, doctrine africa
-- Lebanon / لبنان (LBN): 10,022 km², 1 cities, 2 provinces, art gulf, doctrine mena
+- Lebanon / لبنان (LBN): 10,022 km², 2 cities, 3 provinces, art gulf, doctrine mena
 - Cyprus / قبرص (CYP): 9,056 km², 2 cities, 2 provinces, art europe, doctrine europe
 - Puerto Rico / بورتوريكو (PRI): 9,006 km², 2 cities, 2 provinces, art americas, doctrine americas
 
