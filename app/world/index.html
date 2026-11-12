@@ -218,8 +218,8 @@ function draw() {
   for (const p of cityOrder) {
     // when names appear: big playable capitals first, small and computer-run countries only closer in
     const big = p.area >= 300000;
-    const capAt = p.cls === 'neutral' ? 1.4 : p.cls === 'ai' ? 1.15 : 0.95;      // cities speak from country zoom in
-    const show = p.kind === 'capital' ? smooth(capAt, capAt * 1.25, view.z) : p.kind === 'major' ? smooth(1.1, 1.35, view.z) : smooth(1.6, 1.9, view.z);
+    const capAt = p.cls === 'neutral' ? 2.1 : p.cls === 'ai' ? 1.85 : 1.7;       // cities speak from country zoom in
+    const show = p.kind === 'capital' ? smooth(capAt, capAt * 1.12, view.z) : p.kind === 'major' ? smooth(1.75, 1.95, view.z) : smooth(2.0, 2.3, view.z);
     if (!show) continue;
     const sx = (p.x - view.x) * s + sw / 2, sy = (p.y - view.y) * s + sh / 2;
     if (sx < -100 || sy < -50 || sx > sw + 100 || sy > sh + 50) continue;
@@ -277,7 +277,7 @@ function pip(g, rel, r) {
 // ---------- country names: big, printed on the land at world zoom ----------
 let countryLabels = [];
 function drawCountryNames(s, sw, sh) {
-  const a = 1 - smooth(1.0, 1.3, view.z);   // like CoN: up to region zoom the map speaks in country names
+  const a = 1 - smooth(1.55, 1.85, view.z);   // like CoN: up to region zoom the map speaks only in country names
   if (a <= 0) return [];
   const dpr = devicePixelRatio;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -285,12 +285,14 @@ function drawCountryNames(s, sw, sh) {
   for (const L of countryLabels) {
     const span = Math.sqrt(L.px) * s;                       // rough width of the country on screen
     const mine = L.iso === ME;
-    let size = Math.max(mine ? 14 : 0, Math.min(36, span * 0.17)) * dpr;   // your own country is always named
-    if (size < 12 * dpr) continue;
+    const cap = 13 + 23 * smooth(0.3, 1.5, view.z);                 // CoN: small names far away, big ones at region zoom
+    let size = Math.max(mine ? 13 : 0, Math.min(cap, span * 0.17)) * dpr;   // your own country is always named
+    const minS = (9 + 3 * smooth(0.3, 1.5, view.z)) * dpr;
+    if (size < minS) continue;
     ctx.font = `700 ${size}px Plex, system-ui`;
     let w = ctx.measureText(L.name).width;
     const fit = span * 1.05 * dpr;                            // a name never runs far past its own land
-    if (w > fit && !mine) { size *= fit / w; w = fit; if (size < 12 * dpr) continue; ctx.font = `700 ${size}px Plex, system-ui`; }
+    if (w > fit && !mine) { size *= fit / w; w = fit; if (size < minS) continue; ctx.font = `700 ${size}px Plex, system-ui`; }
     const sx = Math.round((L.x - view.x) * s + sw / 2), sy = Math.round((L.y - view.y) * s + sh / 2);
     if (sx + w / 2 < 0 || sy < -40 || sx - w / 2 > sw || sy > sh + 40) continue;
     const box = [sx - w / 2 - 4 * dpr, sy - size * 0.55, sx + w / 2 + 4 * dpr, sy + size * 0.55];
@@ -542,7 +544,7 @@ function drawBorders(s, sw, sh) {
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   const thin = Math.min(1, 0.6 + view.z * 0.5);
   // province outlines: thin and quiet, like CoN's inner lines; they appear as you zoom in
-  const pv = 0.55 * smooth(1.0, 1.4, view.z) + 0.45 * smooth(1.8, 2.4, view.z);   // like CoN: faint from country zoom, clear at province zoom
+  const pv = 0.5 * smooth(1.0, 1.4, view.z) + 0.5 * smooth(1.4, 1.8, view.z);   // like CoN: faint from country zoom, clear at province zoom
   if (pv > 0 && provLines.length) {
     ctx.beginPath();
     for (const L of provLines) {

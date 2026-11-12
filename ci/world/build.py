@@ -557,7 +557,7 @@ if sat:
         nidr = nat4[ty:ty + rows]
         seam = nidr < 0
         dp = ndi.zoom(depth8[ty // 8:(ty + rows) // 8 + 2], 8, order=1)[:rows, :M]
-        v = (128 - 82 * shadow[ty:ty + rows] + 22 * shallow[ty:ty + rows] - 9 * np.clip(dp, -1.5, 2.5)) / 255
+        v = (128 - 82 * shadow[ty:ty + rows] + 22 * shallow[ty:ty + rows] - 15 * np.clip(dp, -1.5, 2.5)) / 255
         lum = np.where(seam, v, lum)
         coast = np.clip((ndi.zoom(coast8[ty // 8:(ty + rows) // 8 + 2], 8, order=1)[:rows, :M] - 0.3) / 0.4, 0, 1)   # soft edge, like CoN's sea zones
         bio = np.dstack([np.where(seam, coast * 1.0, forest), np.where(seam, 0, arid), np.where(seam, 0, rock)])
