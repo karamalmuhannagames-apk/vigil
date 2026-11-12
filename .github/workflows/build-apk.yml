@@ -36,6 +36,7 @@ jobs:
         run: |
           A=android/app/src/main/assets; mkdir -p $A/art/world $A/art/citymarks
           cp -r app core $A/
+          sed -i "s/<meta name=\"build\" content=\"dev\">/<meta name=\"build\" content=\"${{ github.run_number }}\">/" $A/app/start.html
           rm -rf $A/app/fonts/compare.html $A/app/index.html $A/app/main.js $A/app/render.js $A/app/style.css $A/app/i18n.js $A/app/map $A/app/art
           cp art/world/world.json art/world/borders.json art/world/province_lines.json $A/art/world/
           cp -r art/world/tiles $A/art/world/

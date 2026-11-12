@@ -190,14 +190,16 @@ def ncities(c):
     a = c['area_km2']
     return 4 if a < 120000 else 5 if a < 450000 else 6 if a < 1200000 else 7 if a < 3000000 else 8
 # Arabic names that the source data gets wrong (a wrong city, a Persian or Urdu letter, or an admin word like 'province of')
-AR_FIX = {'Busan': 'بوسان', 'Taza': 'تازة', 'Koidu': 'كويدو', 'Francistown': 'فرانسيستاون', 'Mérida': 'ميريدا', 'Sukkur': 'سكر',
+AR_FIX = {'Busan': 'بوسان', 'Koidu': 'كويدو', 'Francistown': 'فرانسيستاون', 'Mérida': 'ميريدا', 'Sukkur': 'سكر',
           'Treinta y Tres': 'ترينتا إي تريس', 'Sunyani': 'سونياني', 'Karonga': 'كارونغا', 'Mzimba': 'مزيمبا', 'Daru': 'دارو',
           'Sohar': 'صحار', 'Sur': 'صور', 'Sokoto': 'سوكوتو', 'Jumla': 'جوملا', 'Siddharthanagar': 'سيدهارثاناغار',
           'San Juan de Nicaragua': 'سان خوان دي نيكاراغوا', 'Brokopondo': 'بروكوبوندو', 'Koh Kong': 'كوه كونغ', 'Dakhla': 'الداخلة',
           'Batumi': 'باتومي', 'Djado': 'جادو', 'Kandi': 'كاندي', 'Khorugh': 'خوروغ', 'Moçâmedes': 'موساميديس', 'Fukuoka': 'فوكوكا'}
+EN_FIX = {('Berenice Troglodytica', 'برنيس'): 'Berenice', ('Atlético Morelia', 'كوكيمبو'): 'Coquimbo', ('Niamey', 'مرادي'): 'Maradi', ('Taza', 'وجدة'): 'Oujda'}
 AR_STRIP = ('ولاية ', 'محافظة ', 'بلدية ', 'مدينة ', 'ريف ', 'حي ', 'حوض ')
 for _lst in by_c.values():
     for _p in _lst:
+        if (_p['name_en'], _p['name_ar']) in EN_FIX: _p['name_en'] = EN_FIX[(_p['name_en'], _p['name_ar'])]   # English name of a different place
         if _p['name_en'] in AR_FIX: _p['name_ar'] = AR_FIX[_p['name_en']]
         for _w in AR_STRIP:
             if _p['name_ar'].startswith(_w) and len(_p['name_ar']) > len(_w) + 2 and _p['name_en'] not in ('Ho Chi Minh City', 'Kuwait City', 'Mexico City', 'Panama City', 'Quebec City', 'Guatemala City', 'Luxembourg', 'Brussels', 'San Marino'):

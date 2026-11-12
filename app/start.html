@@ -4,7 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#000000">
+<meta name="build" content="dev">
 <title>COMMANDER</title>
+<link rel="stylesheet" href="menu.css">
 <style>
 @font-face { font-family: Changa; src: url(fonts/Changa.ttf); font-weight: 200 800; font-display: block; }
 @font-face { font-family: Kufi; src: url(fonts/NotoKufiArabic.ttf); font-weight: 100 900; font-display: block; }
@@ -146,8 +148,15 @@ html, body { margin: 0; height: 100%; background: #000; color: var(--ink); overf
 <div id="problem" class="screen"><div class="card"><h2 id="pTitle"></h2><p id="pWhat"></p><p class="fix" id="pFix"></p><button id="pBtn"></button></div></div>
 
 <script>
+  // language first, so the menus build in the right language
+  (() => { let l = null; try { l = localStorage.getItem('cmd.lang'); } catch (e) {} const ar = l ? l === 'ar' : (navigator.language || 'en').toLowerCase().startsWith('ar'); if (ar) { document.documentElement.lang = 'ar'; document.documentElement.dir = 'rtl'; } })();
+</script>
+<script src="menu.js"></script>
+<script>
 (() => {
-  const AR = (navigator.language || 'en').toLowerCase().startsWith('ar');
+  let langPref = null; try { langPref = localStorage.getItem('cmd.lang'); } catch (e) {}
+  const AR = langPref ? langPref === 'ar' : (navigator.language || 'en').toLowerCase().startsWith('ar');
+  const FROM_MENU = new URLSearchParams(location.search).get('menu') === '1';   // coming back from a language change: no intro
   if (AR) { document.documentElement.lang = 'ar'; document.documentElement.dir = 'rtl'; }
   const T = AR ? {
     presents: 'تقدّم', label: 'معلومة ميدانية', stages: ['تجهيز غرفة العمليات', 'تحميل خريطة العالم', 'رسم الحدود والأقاليم', 'نشر المدن', 'جاهز'],
@@ -185,6 +194,7 @@ html, body { margin: 0; height: 100%; background: #000; color: var(--ink); overf
   let frameLoaded = false, failed = false, peak = 0;
   frame.addEventListener('load', () => { frameLoaded = true; });
   document.body.appendChild(frame);
+  window.Menu && Menu.attach(frame);
   const progress = () => {
     if (!frameLoaded) return 0.05;
     let w; try { w = frame.contentWindow; } catch (e) { return 0.1; }
@@ -216,6 +226,7 @@ html, body { margin: 0; height: 100%; background: #000; color: var(--ink); overf
 
   async function run() {
     await Promise.race([document.fonts.ready, wait(1500)]);
+    if (FROM_MENU) skip();
     // the whole intro is one graphics-chip timeline (see #intro.play in the styles); JavaScript only starts the sounds
     const tStart = performance.now();
     intro.classList.add('play');
@@ -226,7 +237,7 @@ html, body { margin: 0; height: 100%; background: #000; color: var(--ink); overf
     if (skipped) { intro.classList.add('skip'); fadeTo(sReveal, 0, 300); fadeTo(sImpact, 0, 300); await wait(350); }
     // 3. loading screen
     $('loading').classList.add('on'); intro.style.opacity = 0; setTimeout(() => intro.remove(), 600);
-    play(sLoop); fadeTo(sLoop, .55, 1500);
+    play(sLoop); fadeTo(sLoop, .55 * (() => { try { return Number(localStorage.getItem('cmd.music') ?? 60) / 60; } catch (e) { return 1; } })(), 1500);
     const t0 = performance.now(); let shown = 0;
     while (true) {
       const p = progress(); shown += (p - shown) * 0.12; const k = Math.max(0, Math.min(1, shown));
@@ -239,8 +250,14 @@ html, body { margin: 0; height: 100%; background: #000; color: var(--ink); overf
     }
     cells.forEach((c) => c.classList.add('on')); $('pct').textContent = '100%'; $('stage').textContent = T.stages[4];
     await wait(350);
-    fadeTo(sLoop, 0, 1200);
+    // the menus open over the live map; the loading music carries on quietly under them and fades out when a match starts
+    const musicV = () => { try { return Number(localStorage.getItem('cmd.music') ?? 60) / 100; } catch (e) { return .6; } };
+    fadeTo(sLoop, .35 * musicV(), 1200);
+    window.addEventListener('menuClosed', () => fadeTo(sLoop, 0, 1500));
+    window.addEventListener('menuOpened', () => { play(sLoop); fadeTo(sLoop, .35 * musicV(), 1500); });
+    window.addEventListener('musicVolume', () => fadeTo(sLoop, .35 * musicV(), 200));
     frame.classList.add('on'); $('loading').style.opacity = 0; setTimeout(() => $('loading').remove(), 800);
+    if (window.Menu) Menu.open();
   }
   function problem() {
     $('pTitle').textContent = T.pTitle; $('pWhat').textContent = T.pWhat; $('pFix').textContent = T.pFix; $('pBtn').textContent = T.pBtn;
@@ -249,7 +266,7 @@ html, body { margin: 0; height: 100%; background: #000; color: var(--ink); overf
   // Back button (from the Android shell): skips the intro; inside the game it goes back a screen.
   window.gameBack = () => {
     if (document.getElementById('intro') && !skipped) { skip(); return true; }
-    try { const g = frame.contentWindow.gameBack; if (g) return !!g(); } catch (e) {}
+    if (window.Menu && document.getElementById('menu')) return Menu.back();
     return false;
   };
   // pause and resume sound when the phone leaves or returns to the game

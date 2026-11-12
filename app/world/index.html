@@ -25,7 +25,12 @@ const DEBUG = new URLSearchParams(location.search).has('debug');
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const T = 512;
 // screen density for the map: phones report up to 3-4; painting at 1.5 keeps it sharp and four times lighter
-const MAPDPR = Math.min(window.devicePixelRatio || 1, 1.5);
+// player settings (saved on the phone by the menus); every read is guarded, a blocked store just means defaults
+const PREF = (k, d) => { try { const v = localStorage.getItem('cmd.' + k); return v === null ? d : v; } catch (e) { return d; } };
+const QUALITY = {smooth: 1.0, balanced: 1.5, sharp: 2.0};
+let MAPDPR = Math.min(window.devicePixelRatio || 1, QUALITY[PREF('quality', 'balanced')] || 1.5);
+const LANG_EN = PREF('lang', (navigator.language || 'en').toLowerCase().startsWith('ar') ? 'ar' : 'en') === 'en';
+const cityName = (p) => (LANG_EN ? p.name_en : p.name_ar) || p.name_ar || p.name_en;
 let W, H, world, countries = [], byIso = {}, cityOrder = [];
 const cityStates = new Map(), countryStates = new Map(); let labelState = new Map(), countryState = new Map(), labelClock = 0, frameDt = 0;
 // Relation colours measured from CoN screenshots: 7 colour stops per relation, darkest to lightest, taken from
@@ -45,8 +50,8 @@ for (const [k, st] of Object.entries(STOPS)) {
   LUT[k] = t;
 }
 const SEA = {coast: [64, 90, 103], deep: [25, 55, 81]};   // measured from CoN: coastal waters and open ocean
-let ME = (new URLSearchParams(location.search).get('me') || 'JOR').toUpperCase();   // ?me=SAU to try another country
-let REL = {SAU: 'ally', EGY: 'ally', IRQ: 'passage', IRN: 'enemy'};   // everyone else: neutral (dark slate)
+let ME = (new URLSearchParams(location.search).get('me') || PREF('country', 'JOR')).toUpperCase();   // the last country you commanded
+let REL = {};   // at the start of a battle nobody is an ally or an enemy yet
 const relOf = i => { const iso = countries[i]?.iso; return iso === ME ? 'me' : (REL[iso] || 'neutral'); };
 let view = {x: 0, y: 0, z: 1};
 let manifest = null, ZMAX = 3, TEX = null, deepPat = null;
@@ -305,7 +310,7 @@ function drawCopy(s, sw, sh, dpr) {
     if (sx < -sw * 0.6 || sy < -sh * 0.6 || sx > sw * 1.6 || sy > sh * 1.6) return;   // wide margin: off-screen names still hold their room
     const fs = ((p.kind === 'capital' ? 16 : p.kind === 'major' ? 15 : 14) + 7 * smooth(1.1, 4, view.z)) * dpr;
     const font = p.kind === 'capital' ? `700 ${fs}px Plex, system-ui` : `500 ${fs}px Plex, system-ui`;
-    if (p._font !== font) { ctx.font = font; p._tw = ctx.measureText(p.name_ar).width; p._font = font; }
+    if (p._font !== font) { ctx.font = font; p._tw = ctx.measureText(cityName(p)).width; p._font = font; }
     const tw = p._tw;
     const below = Math.max(fs * 0.4, (p.r * s * 0.6 * smooth(0.9, 1.1, view.z)) + fs * 0.85);
     const spots = [[0, below]];
@@ -342,9 +347,9 @@ function drawCopy(s, sw, sh, dpr) {
     const lx = st.x, ly = st.y;
     ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(2, st.fs * 0.16); ctx.strokeStyle = 'rgba(6,10,14,0.9)';
     ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 4 * dpr; ctx.shadowOffsetY = 1.5 * dpr;
-    ctx.strokeText(p.name_ar, lx, ly);
+    ctx.strokeText(cityName(p), lx, ly);
     ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-    ctx.fillStyle = '#F3EFE4'; ctx.fillText(p.name_ar, lx, ly);
+    ctx.fillStyle = '#F3EFE4'; ctx.fillText(cityName(p), lx, ly);
   }
   if (fading) requestDraw();
   ctx.globalAlpha = 1;
@@ -684,7 +689,7 @@ function resize() { cv.width = Math.round(innerWidth * MAPDPR); cv.height = Math
 let drag = null, pinch = null;
 // Camera: the map follows the finger with a slight smoothing and coasts to a stop when released,
 // a little slower than raw input so a big map feels heavy and calm, never laggy.
-const FOLLOW = 0.32, COAST = 0.9;      // share of the gap closed per frame; speed kept per frame while coasting
+let FOLLOW = {calm: 0.2, normal: 0.32, quick: 0.55}[PREF('glide', 'normal')] || 0.32; const COAST = 0.9;      // share of the gap closed per frame; speed kept per frame while coasting
 let tv = null, vel = {x: 0, y: 0}, anim = 0, lastMove = 0;
 const moving = () => !!(drag || pinch || anim);
 function target() { if (!tv) tv = {x: view.x, y: view.y, z: view.z}; return tv; }
@@ -760,6 +765,17 @@ window.setLabels = (o) => { for (const L of countryLabels) if (o[L.iso]) Object.
 window.setRelations = (me, rel) => { ME = me; REL = rel; gen++; cache.clear(); pending.clear(); sendRelations(); draw(); };
 window.tilesPending = () => [...cache.values()].filter(e => !e.canvas && !e.failed).length;
 window.world_ = () => world;
+// fly the camera to a country, framed by its size
+window.flyTo = (iso, zIn) => {
+  const c = byIso[iso]; if (!c) return false;
+  const L = countryLabels.find(l => l.iso === iso) || {x: (c.cities || [])[0]?.x, y: (c.cities || [])[0]?.y};
+  if (L.x === undefined) return false;
+  const z = zIn || Math.min(2.6, Math.max(zMin(), 2.2 * Math.sqrt(90000 / Math.max(2000, c.area_km2 || 90000))));
+  const t = target(); let x = L.x; while (x - view.x > W / 2) x -= W; while (view.x - x > W / 2) x += W;   // the short way round
+  t.x = x; t.y = L.y; t.z = z; clampT(t); vel = {x: 0, y: 0}; kick(); return true;
+};
+window.setQuality = (q) => { MAPDPR = Math.min(window.devicePixelRatio || 1, QUALITY[q] || 1.5); gen++; cache.clear(); pending.clear(); for (const c of cityOrder) c._font = null; resize(); };
+window.setGlide = (g) => { FOLLOW = {calm: 0.2, normal: 0.32, quick: 0.55}[g] || 0.32; };
 
 const bbox = p => { let a = 1e9, c = 1e9, d = -1e9, e = -1e9; for (let i = 0; i < p.length; i += 2) { a = Math.min(a, p[i]); d = Math.max(d, p[i]); c = Math.min(c, p[i + 1]); e = Math.max(e, p[i + 1]); } return [a, c, d, e]; };
 fetch(DATA + 'province_lines.json').then(r => r.ok ? r.json() : []).then(ls => { provLines = ls.map(p => ({p, bb: bbox(p)})); draw(); }, () => 0);
@@ -770,7 +786,9 @@ fetch(DATA + 'borders.json').then(r => r.ok ? r.json() : []).then(bs => {
 window.worldFailed = false;
 fetch(DATA + 'world.json').then(r => { if (!r.ok) throw new Error('world.json ' + r.status); return r.json(); }).then(async j => {
   try { const m = await (await fetch(DATA + 'tiles/tiles.json')).json(); manifest = {}; for (const k in m) manifest[k] = new Set(m[k]); ZMAX = Math.max(...Object.keys(m).map(Number)); } catch (e) {}
-  world = j; [W, H] = j.size; countries = j.countries; countries.forEach(c => byIso[c.iso] = c); sendRelations();
+  world = j; [W, H] = j.size; countries = j.countries; countries.forEach(c => byIso[c.iso] = c);
+  if (!byIso[ME]) ME = 'JOR';
+  sendRelations();
   const rank = {capital: 0, major: 1, minor: 2};
   const crank = {playable: 0, ai: 1, neutral: 2};
   // country name anchor: area-weighted centre of its provinces, but never in the sea between islands
@@ -782,8 +800,16 @@ fetch(DATA + 'world.json').then(r => { if (!r.ok) throw new Error('world.json ' 
     let x = ps.reduce((a, p) => a + p.centre[0] * p.px, 0) / tot, y = ps.reduce((a, p) => a + p.centre[1] * p.px, 0) / tot;
     const best = ps.reduce((b, p) => (Math.hypot(p.centre[0] - x, p.centre[1] - y) / Math.sqrt(p.px) < Math.hypot(b.centre[0] - x, b.centre[1] - y) / Math.sqrt(b.px) ? p : b), ps[0]);
     if (ps.length > 1 && Math.hypot(best.centre[0] - x, best.centre[1] - y) > Math.sqrt(best.px) * 0.8) { x = best.centre[0]; y = best.centre[1]; }
-    if (c.label) return {name: c.name_ar, iso: c.iso, x: c.label.x, y: c.label.y, lw: c.label.w, lh: c.label.h, th: c.label.th, lines: c.label.lines, px: tot};   // widest open spot inside the country
-    return {name: c.name_ar, iso: c.iso, x, y, px: tot};
+    if (c.label && !LANG_EN) return {name: c.name_ar, iso: c.iso, x: c.label.x, y: c.label.y, lw: c.label.w, lh: c.label.h, th: c.label.th, lines: c.label.lines, px: tot};   // widest open spot inside the country
+    if (c.label && LANG_EN) {
+      ctx.font = '700 100px Plex, system-ui';
+      const en = c.name_en || c.name_ar; if (!en) return null; const sp = [...en.matchAll(/ /g)].map(m => m.index);
+      const lines = en.length > 12 && sp.length ? (() => { const k = sp.reduce((a, b) => Math.abs(b - en.length / 2) < Math.abs(a - en.length / 2) ? b : a); return [en.slice(0, k), en.slice(k + 1)]; })() : [en];
+      const wAr = Math.max(...c.label.lines.map(l => ctx.measureText(l).width)) * c.label.th / 100, wEn = Math.max(...lines.map(l => ctx.measureText(l).width)) / 100;
+      const th = Math.min(c.label.th * (c.label.lines.length > lines.length ? 1.6 : 1), wAr / wEn);
+      return {name: en, iso: c.iso, x: c.label.x, y: c.label.y, th, lines, px: tot};
+    }
+    return {name: LANG_EN ? c.name_en : c.name_ar, iso: c.iso, x, y, px: tot};
   }).filter(Boolean).sort((a, b) => b.px - a.px);
   // each city's size: by importance, but never crowding its neighbours, and smaller in small countries,
   // so Jordan or Lebanon keep open land between their towns
@@ -810,7 +836,7 @@ fetch(DATA + 'world.json').then(r => { if (!r.ok) throw new Error('world.json ' 
   }
   addEventListener('resize', resize); resize();
   Promise.all([document.fonts.load('500 14px Plex', 'عمان'), document.fonts.load('700 14px Plex', 'عمان')]).then(() => { draw(); window.worldReady = true; }, () => { draw(); window.worldReady = true; });
-}).catch(() => { window.worldFailed = true; });
+}).catch((e) => { if (DEBUG) console.error(e); window.worldFailed = true; });
 </script>
 </body>
 </html>
