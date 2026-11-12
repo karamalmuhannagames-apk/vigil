@@ -97,7 +97,7 @@ async function pinchCheck(browser) {
     await T('touchEnd', [[cx + to, cy - 12, 1]]); await T('touchMove', [[cx + to, cy - 12, 1]]); await p.waitForTimeout(300);
     const after = await V(); await T('touchEnd', []); await p.waitForTimeout(500); const end = await V();
     worstJump = Math.max(worstJump, Math.hypot((after.x - before.x) * after.z, (after.y - before.y) * after.z));
-    if (end.top > 1 || end.bottom < 914 || end.left > 1 || end.right < 411) edgeShown++;
+    if (end.top > 1 || end.bottom < 914) edgeShown++;   // east and west wrap round: only north and south have an edge
   }
   ok(`two-finger zoom: no jump when a finger lifts (worst ${worstJump.toFixed(0)} px, limit 12)`, worstJump < 12);
   ok(`two-finger zoom: map edge never shows (${edgeShown} of 60)`, edgeShown === 0);

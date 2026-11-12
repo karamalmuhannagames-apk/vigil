@@ -27,7 +27,7 @@ const T = 512;
 // screen density for the map: phones report up to 3-4; painting at 1.5 keeps it sharp and four times lighter
 const MAPDPR = Math.min(window.devicePixelRatio || 1, 1.5);
 let W, H, world, countries = [], byIso = {}, cityOrder = [];
-const labelState = new Map(), countryState = new Map(); let labelClock = 0, countryClock = 0;
+const cityStates = new Map(), countryStates = new Map(); let labelState = new Map(), countryState = new Map(), labelClock = 0, frameDt = 0;
 // Relation colours measured from CoN screenshots: 7 colour stops per relation, darkest to lightest, taken from
 // real map pixels of each relation (own green, ally pale olive, stranger blue-grey slate, enemy blood red).
 // The painted ground's light and dark picks a colour along the stops, so terrain shows in every colour.
@@ -240,8 +240,10 @@ function draw() {
   ctx.fillRect(0, 0, sw, sh);
   const x0 = view.x - sw / 2 / s, y0 = view.y - sh / 2 / s, x1 = view.x + sw / 2 / s, y1 = view.y + sh / 2 / s;
   ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = moving() ? 'low' : 'high';   // fast while moving, finest when still
+  const NT = Math.round(W / (T * f)), wrapT = (t) => ((t % NT) + NT) % NT;   // the world goes round: east of the Pacific comes the west again
   for (let ty = Math.max(0, Math.floor(y0 / (T * f))); ty * T * f < Math.min(H, y1); ty++)
-    for (let tx = Math.max(0, Math.floor(x0 / (T * f))); tx * T * f < Math.min(W, x1); tx++) {
+    for (let ux = Math.floor(x0 / (T * f)); ux * T * f < x1; ux++) {
+      const tx = wrapT(ux);
       let c = tileFor(z, tx, ty, C), sx = 0, sy = 0, sz = null;
       if (c === 'deep') continue;
       if (!c) {   // while it paints: the same tile at another resolution, or the coarser parent, so there are no holes
@@ -252,7 +254,7 @@ function draw() {
         }
       }
       if (!c) continue;
-      const px = (tx * T * f - view.x) * s + sw / 2, py = (ty * T * f - view.y) * s + sh / 2;
+      const px = (ux * T * f - view.x) * s + sw / 2, py = (ty * T * f - view.y) * s + sh / 2;
       const X0 = Math.round(px), Y0 = Math.round(py), X1 = Math.round(px + tsz), Y1 = Math.round(py + tsz);   // whole pixels: no hairlines
       if (sz) ctx.drawImage(c, sx, sy, sz, sz, X0, Y0, X1 - X0, Y1 - Y0);
       else ctx.drawImage(c, X0, Y0, X1 - X0, Y1 - Y0);
@@ -260,8 +262,8 @@ function draw() {
   // paint ahead: a ring of tiles around the screen, and the coarse level two steps out, so moving never shows holes
   if (workers && !moving()) {
     const tx0 = Math.floor(x0 / (T * f)) - 1, tx1 = Math.floor(x1 / (T * f)) + 1, ty0 = Math.floor(y0 / (T * f)) - 1, ty1 = Math.floor(y1 / (T * f)) + 1;
-    for (let ty = Math.max(0, ty0); ty <= ty1 && ty * T * f < H; ty++) for (let tx = Math.max(0, tx0); tx <= tx1 && tx * T * f < W; tx++) tileFor(z, tx, ty, C);
-    if (z >= 2) { const zc = z - 2, fc = 2 ** (3 - zc); for (let ty = Math.max(0, Math.floor(y0 / (T * fc))); ty * T * fc < Math.min(H, y1); ty++) for (let tx = Math.max(0, Math.floor(x0 / (T * fc))); tx * T * fc < Math.min(W, x1); tx++) tileFor(zc, tx, ty, 512); }
+    for (let ty = Math.max(0, ty0); ty <= ty1 && ty * T * f < H; ty++) for (let ux = tx0; ux <= tx1; ux++) tileFor(z, wrapT(ux), ty, C);
+    if (z >= 2) { const zc = z - 2, fc = 2 ** (3 - zc), NC = Math.round(W / (T * fc)); for (let ty = Math.max(0, Math.floor(y0 / (T * fc))); ty * T * fc < Math.min(H, y1); ty++) for (let ux = Math.floor(x0 / (T * fc)); ux * T * fc < x1; ux++) tileFor(zc, ((ux % NC) + NC) % NC, ty, 512); }
   }
   // edge of the world (top and bottom of the map): fog beyond a thin glowing line, like CoN
   { const dpr = MAPDPR, yt = Math.round((0 - view.y) * s + sh / 2), yb = Math.round((H - view.y) * s + sh / 2);
@@ -271,6 +273,17 @@ function draw() {
     ctx.strokeStyle = 'rgba(84,220,231,0.9)'; ctx.lineWidth = 2 * dpr; ctx.shadowColor = 'rgba(84,220,231,0.8)'; ctx.shadowBlur = 8 * dpr;
     ctx.beginPath(); if (yt > -10) { ctx.moveTo(0, yt); ctx.lineTo(sw, yt); } if (yb < sh + 10) { ctx.moveTo(0, yb); ctx.lineTo(sw, yb); } ctx.stroke();
     ctx.shadowBlur = 0; }
+  const nowF = performance.now(); frameDt = Math.min(0.1, (nowF - (labelClock || nowF)) / 1000); labelClock = nowF;
+  const vx = view.x, mg = 0.6 * sw / s, k0 = Math.floor((x0 - mg) / W), k1 = Math.floor((x1 + mg) / W);
+  for (let kc = k0; kc <= k1; kc++) {
+    view.x = vx - kc * W; labelState = stateFor(cityStates, kc); countryState = stateFor(countryStates, kc);
+    try { drawCopy(s, sw, sh, dpr); } finally { view.x = vx; }
+  }
+  for (const kk of [...cityStates.keys()]) if (kk < k0 || kk > k1) { cityStates.delete(kk); countryStates.delete(kk); }
+  const hud = document.getElementById('hud'); if (hud) { if (DEBUG) hud.textContent = `zoom ${view.z.toFixed(2)} · tiles z${z}`; else hud.style.display = 'none'; }
+}
+function stateFor(m, k) { let v = m.get(k); if (!v) m.set(k, v = new Map()); return v; }
+function drawCopy(s, sw, sh, dpr) {
   drawCities(s, sw, sh);
   drawBorders(s, sw, sh);
   const countryBoxes = drawCountryNames(s, sw, sh) || [];
@@ -281,7 +294,7 @@ function draw() {
   //    never frees room for another one to pop up;
   //  - a name already showing keeps its spot first; a name only gives up its spot to a more important one;
   //  - names fade in and out over a fifth of a second instead of switching on and off.
-  const now = performance.now(), dt = Math.min(0.1, (now - (labelClock || now)) / 1000); labelClock = now;
+  const dt = frameDt;
   const placed = countryBoxes.slice();
   const want = new Map();
   const tryPlace = (p, prevOnly) => {
@@ -335,7 +348,6 @@ function draw() {
   }
   if (fading) requestDraw();
   ctx.globalAlpha = 1;
-  const hud = document.getElementById('hud'); if (hud) { if (DEBUG) hud.textContent = `zoom ${view.z.toFixed(2)} · tiles z${z}`; else hud.style.display = 'none'; }
 }
 
 
@@ -381,7 +393,7 @@ function drawCountryNames(s, sw, sh) {
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   const placed = [];
   const cap = 19 * dpr, minS = 9 * dpr;   // names keep one steady size on screen: they never swell as you zoom in
-  const nowC = performance.now(), fadeC = Math.min(1, Math.min(0.1, (nowC - (countryClock || nowC)) / 1000) * 7); countryClock = nowC; let cFading = false;
+  const fadeC = Math.min(1, frameDt * 7); let cFading = false;
   const ordered = countryLabels.filter(L => (countryState.get(L) || {}).on).concat(countryLabels.filter(L => !(countryState.get(L) || {}).on));
   for (const L of ordered) {
     const roomW = (L.lw || Math.sqrt(L.px) * 1.2) * s * 1.0 * dpr, roomH = Math.max(L.lh || 0, Math.sqrt(L.px) * 0.25) * s * 0.85 * dpr;   // big countries are never squeezed by one narrow spot
@@ -678,16 +690,16 @@ const moving = () => !!(drag || pinch || anim);
 function target() { if (!tv) tv = {x: view.x, y: view.y, z: view.z}; return tv; }
 function kick() { if (!anim) anim = requestAnimationFrame(step); }
 // limits: never zoom out past the point where the map stops filling the screen, never pan past its edges
-const zMin = () => Math.max(0.26, innerHeight / H, innerWidth / W), Z_MAX = 9;
+const zMin = () => Math.max(0.26, innerHeight / H), Z_MAX = 9;
 function clampT(t) {
   t.z = Math.min(Z_MAX, Math.max(zMin(), t.z));
-  const hw = innerWidth / 2 / t.z, hh = innerHeight / 2 / t.z;
-  t.x = Math.min(W - hw, Math.max(hw, t.x)); t.y = Math.min(H - hh, Math.max(hh, t.y));
+  const hh = innerHeight / 2 / t.z;
+  t.y = Math.min(H - hh, Math.max(hh, t.y));                  // north and south have an edge; east and west go round
 }
 function step() {
   anim = 0; const t = target();
   if (!drag && !pinch && (Math.abs(vel.x) + Math.abs(vel.y)) * view.z > 0.05) { t.x += vel.x; t.y += vel.y; vel.x *= COAST; vel.y *= COAST; }
-  const bx = t.x, by = t.y; clampT(t); if (t.x !== bx) vel.x = 0; if (t.y !== by) vel.y = 0;   // coasting stops at the edge, no bounce
+  const by = t.y; clampT(t); if (t.y !== by) vel.y = 0;   // coasting stops at the edge, no bounce
   const dz = t.z - view.z;
   // zoom eases in log space so zooming out is as even as zooming in; the point under the fingers stays put
   if (Math.abs(dz) / t.z > 1e-3) {

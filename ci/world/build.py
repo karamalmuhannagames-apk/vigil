@@ -13,7 +13,7 @@ DATA, OUT = sys.argv[1], sys.argv[2]
 os.makedirs(OUT, exist_ok=True)
 Image.MAX_IMAGE_PIXELS = None
 W = int(os.environ.get('W', '8192'))
-LAT_N, LAT_S = 80.0, -56.0          # Antarctica and the far Arctic are cut: nothing to fight over, wasted space
+LAT_N, LAT_S = 84.0, -58.5          # all land but Antarctica: the Arctic islands, northern Greenland and Cape Horn all fit
 GEOD = Geod(ellps='WGS84')
 
 # ---------- projection: Miller cylindrical + a gentle magnifier on crowded regions ----------
@@ -189,8 +189,21 @@ def ncities(c):
     # owner's rule (12 Nov): small playable 4, normal 5, mid 6, large 7, super large 8 (most countries land on 5-7)
     a = c['area_km2']
     return 4 if a < 120000 else 5 if a < 450000 else 6 if a < 1200000 else 7 if a < 3000000 else 8
+# Arabic names that the source data gets wrong (a wrong city, a Persian or Urdu letter, or an admin word like 'province of')
+AR_FIX = {'Busan': 'بوسان', 'Taza': 'تازة', 'Koidu': 'كويدو', 'Francistown': 'فرانسيستاون', 'Mérida': 'ميريدا', 'Sukkur': 'سكر',
+          'Treinta y Tres': 'ترينتا إي تريس', 'Sunyani': 'سونياني', 'Karonga': 'كارونغا', 'Mzimba': 'مزيمبا', 'Daru': 'دارو',
+          'Sohar': 'صحار', 'Sur': 'صور', 'Sokoto': 'سوكوتو', 'Jumla': 'جوملا', 'Siddharthanagar': 'سيدهارثاناغار',
+          'San Juan de Nicaragua': 'سان خوان دي نيكاراغوا', 'Brokopondo': 'بروكوبوندو', 'Koh Kong': 'كوه كونغ', 'Dakhla': 'الداخلة',
+          'Batumi': 'باتومي', 'Djado': 'جادو', 'Kandi': 'كاندي', 'Khorugh': 'خوروغ', 'Moçâmedes': 'موساميديس', 'Fukuoka': 'فوكوكا'}
+AR_STRIP = ('ولاية ', 'محافظة ', 'بلدية ', 'مدينة ', 'ريف ', 'حي ', 'حوض ')
 for _lst in by_c.values():
     for _p in _lst:
+        if _p['name_en'] in AR_FIX: _p['name_ar'] = AR_FIX[_p['name_en']]
+        for _w in AR_STRIP:
+            if _p['name_ar'].startswith(_w) and len(_p['name_ar']) > len(_w) + 2 and _p['name_en'] not in ('Ho Chi Minh City', 'Kuwait City', 'Mexico City', 'Panama City', 'Quebec City', 'Guatemala City', 'Luxembourg', 'Brussels', 'San Marino'):
+                _p['name_ar'] = _p['name_ar'][len(_w):]
+        _p['name_ar'] = _p['name_ar'].replace('ی', 'ي').replace('ھ', 'ه').replace('ک', 'ك')
+        if _p['name_ar'].endswith('ى') and _p['name_en'][-1:] in 'iy': _p['name_ar'] = _p['name_ar'][:-1] + 'ي'
         for _k in (_p['name_en'],):
             if _k in RENAME or any(_k.startswith(r) for r in ('Tel Aviv',)):
                 _p['name_en'], _p['name_ar'] = RENAME.get(_k, ('Jaffa', 'يافا'))
