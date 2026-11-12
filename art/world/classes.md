@@ -1,7 +1,7 @@
 ## playable (109)
 
 - Russia / روسيا (RUS): 16,953,104 km², 8 cities, 36 provinces, art europe, doctrine eurasia
-- Canada / كندا (CAN): 9,945,629 km², 8 cities, 20 provinces, art americas, doctrine americas
+- Canada / كندا (CAN): 9,945,629 km², 8 cities, 21 provinces, art americas, doctrine americas
 - United States of America / الولايات المتحدة (USA): 9,464,228 km², 8 cities, 36 provinces, art americas, doctrine americas
 - People's Republic of China / الصين (CHN): 9,375,234 km², 8 cities, 28 provinces, art asia, doctrine asia
 - Brazil / البرازيل (BRA): 8,472,402 km², 8 cities, 25 provinces, art americas, doctrine americas
@@ -11,7 +11,7 @@
 - Kazakhstan / كازاخستان (KAZ): 2,720,765 km², 7 cities, 20 provinces, art asia, doctrine eurasia
 - Democratic Republic of the Congo / جمهورية الكونغو الديمقراطية (COD): 2,325,240 km², 7 cities, 19 provinces, art americas, doctrine africa
 - Algeria / الجزائر (DZA): 2,308,858 km², 7 cities, 21 provinces, art gulf, doctrine mena
-- Greenland / جرينلاند (GRL): 2,154,379 km², 7 cities, 17 provinces, art americas, doctrine americas
+- Greenland / جرينلاند (GRL): 2,154,379 km², 7 cities, 18 provinces, art americas, doctrine americas
 - Mexico / المكسيك (MEX): 1,957,847 km², 7 cities, 26 provinces, art americas, doctrine americas
 - Saudi Arabia / السعودية (SAU): 1,921,725 km², 7 cities, 16 provinces, art gulf, doctrine mena
 - Indonesia / إندونيسيا (IDN): 1,879,827 km², 7 cities, 27 provinces, art asia, doctrine asia
@@ -165,11 +165,11 @@
 - Vanuatu / فانواتو (VUT): 12,297 km², 2 cities, 2 provinces, art americas, doctrine americas
 - Falkland Islands / جزر فوكلاند (FLK): 11,597 km², 2 cities, 2 provinces, art americas, doctrine americas
 - Qatar / قطر (QAT): 11,150 km², 1 cities, 2 provinces, art gulf, doctrine mena
-- Jamaica / جامايكا (JAM): 11,033 km², 2 cities, 2 provinces, art americas, doctrine americas
+- Jamaica / جامايكا (JAM): 11,033 km², 2 cities, 3 provinces, art americas, doctrine americas
 - None / None (B13): 10,876 km², 0 cities, 1 provinces, art americas, doctrine americas
 - The Gambia / غامبيا (GMB): 10,501 km², 2 cities, 2 provinces, art americas, doctrine africa
 - Lebanon / لبنان (LBN): 10,022 km², 2 cities, 3 provinces, art gulf, doctrine mena
-- Cyprus / قبرص (CYP): 9,056 km², 2 cities, 2 provinces, art europe, doctrine europe
+- Cyprus / قبرص (CYP): 9,056 km², 2 cities, 3 provinces, art europe, doctrine europe
 - Puerto Rico / بورتوريكو (PRI): 9,006 km², 2 cities, 2 provinces, art americas, doctrine americas
 
 ## neutral (86)
@@ -255,7 +255,7 @@
 - Brazilian Island / برازيليان آيلاند (BRI): 3 km², 0 cities, 1 provinces, art americas, doctrine americas
 - Ashmore and Cartier Islands / جزر أشمور وكارتيير (ATC): 3 km², 0 cities, 1 provinces, art americas, doctrine americas
 - None / None (UUU): 1 km², 0 cities, 1 provinces, art americas, doctrine americas
-- None / None (B21): 1 km², 0 cities, 0 provinces, art americas, doctrine americas
+- None / None (B21): 1 km², 0 cities, 1 provinces, art americas, doctrine americas
 - Vatican City / الفاتيكان (VAT): 0 km², 1 cities, 1 provinces, art europe, doctrine europe
 - Coral Sea Islands / جزر بحر المرجان (CSI): 0 km², 0 cities, 1 provinces, art americas, doctrine americas
 - None / None (KOD): 0 km², 0 cities, 1 provinces, art americas, doctrine americas
