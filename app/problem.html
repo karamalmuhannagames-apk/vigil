@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>COMMANDER</title>
+<style>
+@font-face { font-family: Plex; src: url(fonts/IBMPlexSansArabic-Medium.ttf); font-weight: 500; }
+@font-face { font-family: Plex; src: url(fonts/IBMPlexSansArabic-Bold.ttf); font-weight: 700; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
+html, body { margin: 0; height: 100%; background: #000; color: #ece7da; font-family: Plex, sans-serif; display: flex; align-items: center; justify-content: center; }
+.card { width: min(90vw, 460px); padding: 22px; background: #121611; border: 1px solid #3a4231;
+  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px)); }
+h2 { margin: 0 0 10px; font: 700 18px/1.4 Plex; color: #e6c98a; }
+p { margin: 0 0 8px; font: 500 15px/1.6 Plex; }
+.fix { color: #c9c2b2; }
+button { margin-top: 12px; width: 100%; padding: 12px; border: 0; background: #b8975a; color: #121611; font: 700 15px/1 Plex; letter-spacing: .08em;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px)); }
+</style>
+</head>
+<body>
+<div class="card"><h2 id="t"></h2><p id="w"></p><p class="fix" id="f"></p><button id="b"></button></div>
+<script>
+// Every problem says what happened and what to do. Never a code, never a system page.
+const AR = (navigator.language || 'en').toLowerCase().startsWith('ar');
+if (AR) { document.documentElement.lang = 'ar'; document.documentElement.dir = 'rtl'; }
+const kind = new URLSearchParams(location.search).get('kind') || 'load';
+const M = {
+  en: { load: ['Part of the game did not open', 'A screen of the game could not be loaded on this phone.', 'Tap below to start again. If it keeps happening, restart the phone or update the game from Google Play.'],
+        missing: ['A game file is missing', 'One of the files that came with the game could not be found.', 'Update the game from Google Play. Your progress is kept on the server and is not affected.'],
+        btn: 'Start again' },
+  ar: { load: ['تعذّر فتح جزء من اللعبة', 'لم تُحمَّل إحدى شاشات اللعبة على هذا الهاتف.', 'اضغط بالأسفل للبدء من جديد. إن تكرر ذلك، أعد تشغيل الهاتف أو حدّث اللعبة من Google Play.'],
+        missing: ['أحد ملفات اللعبة مفقود', 'لم يُعثر على أحد الملفات التي تأتي مع اللعبة.', 'حدّث اللعبة من Google Play. تقدّمك محفوظ على الخادم ولن يتأثر.'],
+        btn: 'البدء من جديد' },
+}[AR ? 'ar' : 'en'];
+const m = M[kind] || M.load;
+document.getElementById('t').textContent = m[0]; document.getElementById('w').textContent = m[1]; document.getElementById('f').textContent = m[2];
+const b = document.getElementById('b'); b.textContent = M.btn; b.onclick = () => location.replace('start.html');
+window.gameBack = () => false;
+</script>
+</body>
+</html>

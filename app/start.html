@@ -149,7 +149,18 @@ html, body { margin: 0; height: 100%; background: #000; color: var(--ink); overf
   const sReveal = snd('studio_reveal.ogg', .9), sImpact = snd('logo_impact.ogg', 1), sLoop = snd('loading_loop.ogg', 0);
   sLoop.loop = true;
   const play = (a) => { try { const p = a.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {} };
-  const fadeTo = (a, v, ms) => { const v0 = a.volume, t0 = performance.now(); const f = (t) => { const k = Math.min(1, (t - t0) / ms); a.volume = v0 + (v - v0) * k; if (k < 1) requestAnimationFrame(f); else if (v === 0) a.pause(); }; requestAnimationFrame(f); };
+  const fades = new Map();
+  const fadeTo = (a, v, ms) => {
+    // one fade per sound at a time; volume always kept inside 0..1 (phones throw on anything else)
+    const v0 = Math.min(1, Math.max(0, a.volume)), t0 = performance.now(), id = {}; fades.set(a, id);
+    const f = () => {
+      if (fades.get(a) !== id) return;
+      const k = Math.min(1, Math.max(0, (performance.now() - t0) / ms));
+      a.volume = Math.min(1, Math.max(0, v0 + (v - v0) * k));
+      if (k < 1) requestAnimationFrame(f); else { fades.delete(a); if (v === 0) a.pause(); }
+    };
+    requestAnimationFrame(f);
+  };
 
   // load the game behind the intro so the loading bar follows real progress
   const frame = document.createElement('iframe'); frame.id = 'game-frame'; frame.src = 'world/index.html' + location.search;
@@ -159,6 +170,7 @@ html, body { margin: 0; height: 100%; background: #000; color: var(--ink); overf
   const progress = () => {
     if (!frameLoaded) return 0.05;
     let w; try { w = frame.contentWindow; } catch (e) { return 0.1; }
+    if (w.worldFailed) { failed = true; return 0.25; }
     const world = w.world_ && w.world_(); if (!world) return 0.25;
     const pend = w.tilesPending ? w.tilesPending() : 0; peak = Math.max(peak, pend);
     return 0.45 + 0.55 * (peak ? 1 - pend / peak : 1);
@@ -167,10 +179,13 @@ html, body { margin: 0; height: 100%; background: #000; color: var(--ink); overf
   // segmented bar
   const bar = $('bar'); for (let i = 0; i < 40; i++) bar.appendChild(document.createElement('i'));
   const cells = [...bar.children];
-  // each photo with the point that must stay on screen when a tall phone crops it
-  const photos = [['01', 50], ['02', 42], ['03', 38], ['04', 50], ['05', 58], ['06', 62], ['07', 55], ['08', 68], ['09', 64], ['10', 66]];
-  const ph = photos[Math.floor(Math.random() * photos.length)];
-  $('photo').style.backgroundImage = `url(img/loading/${ph[0]}.jpg)`; $('photo').style.backgroundPosition = `${ph[1]}% 50%`;
+  // photos come with the point that must stay on screen when a tall phone crops them (credits.json)
+  fetch('img/loading/credits.json').then((r) => r.json()).then((list) => {
+    const names = Object.keys(list); if (!names.length) return;
+    const n = names[Math.floor(Math.random() * names.length)], img = new Image();
+    img.onload = () => { $('photo').style.backgroundImage = `url(img/loading/${n})`; $('photo').style.backgroundPosition = `${list[n].focus || 50}% 50%`; };
+    img.src = 'img/loading/' + n;
+  }).catch(() => {});
   let tipI = Math.floor(Math.random() * T.tips.length); const tip = $('tip'); tip.textContent = T.tips[tipI];
   setInterval(() => { tipI = (tipI + 1) % T.tips.length; tip.textContent = T.tips[tipI]; }, 5000);
 
@@ -205,7 +220,7 @@ html, body { margin: 0; height: 100%; background: #000; color: var(--ink); overf
       $('pct').textContent = Math.round(k * 100) + '%';
       $('stage').textContent = T.stages[Math.min(4, Math.floor(k * 4.2))];
       if (p >= 0.995 && shown > 0.97 && performance.now() - t0 > 2600) break;
-      if (performance.now() - t0 > 45000 && !frameLoaded) { problem(); return; }
+      if (failed || (performance.now() - t0 > 45000 && shown < 0.5)) { fadeTo(sLoop, 0, 600); problem(); return; }
       await wait(60);
     }
     cells.forEach((c) => c.classList.add('on')); $('pct').textContent = '100%'; $('stage').textContent = T.stages[4];
@@ -217,6 +232,17 @@ html, body { margin: 0; height: 100%; background: #000; color: var(--ink); overf
     $('pTitle').textContent = T.pTitle; $('pWhat').textContent = T.pWhat; $('pFix').textContent = T.pFix; $('pBtn').textContent = T.pBtn;
     $('problem').classList.add('on'); $('pBtn').onclick = () => location.reload();
   }
+  // Back button (from the Android shell): skips the intro; inside the game it goes back a screen.
+  window.gameBack = () => {
+    if (document.getElementById('intro') && !skipped) { skip(); return true; }
+    try { const g = frame.contentWindow.gameBack; if (g) return !!g(); } catch (e) {}
+    return false;
+  };
+  // pause and resume sound when the phone leaves or returns to the game
+  const all = [sReveal, sImpact, sLoop]; let paused = [];
+  document.addEventListener('appPause', () => { paused = all.filter((a) => !a.paused); paused.forEach((a) => a.pause()); });
+  document.addEventListener('appResume', () => { paused.forEach(play); paused = []; });
+  document.addEventListener('visibilitychange', () => document.dispatchEvent(new Event(document.hidden ? 'appPause' : 'appResume')));
   window.addEventListener('error', () => {}, true);
   run().catch(problem);
 })();

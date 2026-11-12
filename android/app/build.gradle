@@ -1,28 +1,30 @@
 plugins { id 'com.android.application' }
 def vCode = (System.getenv('VERSION_CODE') ?: '1') as Integer
 android {
-    namespace 'com.vigil.game'
-    compileSdk 34
+    namespace 'com.halberdstudio.commander'
+    compileSdk 36
     defaultConfig {
-        applicationId 'com.vigil.game'
+        applicationId 'com.halberdstudio.commander'
         minSdk 26
-        targetSdk 34
+        targetSdk 36
         versionCode vCode
         versionName "0.1.${vCode}"
+        resourceConfigurations += ['en', 'ar']
     }
     signingConfigs {
-        // The key never lives in the repository: CI writes it from a secret, or makes a throwaway one.
+        // The key never lives in the repository: CI writes it from a secret, or makes a throwaway test key.
         fixed {
-            storeFile file(System.getenv('KEYSTORE_FILE') ?: '../vigil.keystore')
+            storeFile file(System.getenv('KEYSTORE_FILE') ?: '../release.keystore')
             storePassword System.getenv('KEYSTORE_PASS') ?: 'android'
-            keyAlias System.getenv('KEY_ALIAS') ?: 'vigil'
+            keyAlias System.getenv('KEY_ALIAS') ?: 'commander'
             keyPassword System.getenv('KEYSTORE_PASS') ?: 'android'
         }
     }
     buildTypes {
-        release { minifyEnabled false; signingConfig signingConfigs.fixed }
+        release { minifyEnabled true; shrinkResources true; proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'; signingConfig signingConfigs.fixed }
         debug { signingConfig signingConfigs.fixed }
     }
+    androidResources { noCompress += ['ogg', 'jpg', 'png'] }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }
-dependencies { implementation 'androidx.webkit:webkit:1.11.0' }
+dependencies { implementation 'androidx.webkit:webkit:1.14.0' }

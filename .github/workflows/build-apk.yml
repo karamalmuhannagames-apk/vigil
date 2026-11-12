@@ -1,4 +1,4 @@
-name: Build APK
+name: Build Commander APK
 
 on:
   # manual for now: the app is being rebuilt around the real world map; runs when a build is wanted
@@ -25,28 +25,22 @@ jobs:
       - name: Run the automatic tests
         run: npm test
 
-      - name: Balance report
-        run: node ci/balance.mjs
-
-      - name: Download fonts
-        run: |
-          base=https://raw.githubusercontent.com/google/fonts/main/ofl
-          mkdir -p app/fonts
-          for w in SemiBold Bold; do curl -fsSL "$base/rajdhani/Rajdhani-$w.ttf" -o "app/fonts/Rajdhani-$w.ttf" || echo "font Rajdhani-$w missing"; done
-          for w in Medium Bold; do curl -fsSL "$base/tajawal/Tajawal-$w.ttf" -o "app/fonts/Tajawal-$w.ttf" || echo "font Tajawal-$w missing"; done
-          ls -la app/fonts
-
       - name: Signing key (from a secret if set, otherwise a throwaway test key)
         env:
           KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
         run: |
-          if [ -n "$KEYSTORE_B64" ]; then echo "$KEYSTORE_B64" | base64 -d > android/vigil.keystore
-          else keytool -genkeypair -keystore android/vigil.keystore -storepass android -keypass android -alias vigil -keyalg RSA -keysize 2048 -validity 3650 -dname "CN=Vigil Test" -noprompt; fi
+          if [ -n "$KEYSTORE_B64" ]; then echo "$KEYSTORE_B64" | base64 -d > android/release.keystore
+          else keytool -genkeypair -keystore android/release.keystore -storepass android -keypass android -alias commander -keyalg RSA -keysize 2048 -validity 3650 -dname "CN=Halberd Studio Test, O=Halberd Studio" -noprompt; fi
 
       - name: Copy the game into the Android app
         run: |
-          mkdir -p android/app/src/main/assets
-          cp -r app core android/app/src/main/assets/
+          A=android/app/src/main/assets; mkdir -p $A/art/world $A/art/citymarks
+          cp -r app core $A/
+          rm -rf $A/app/fonts/compare.html $A/app/index.html $A/app/main.js $A/app/render.js $A/app/style.css $A/app/i18n.js $A/app/map $A/app/art
+          cp art/world/world.json art/world/borders.json art/world/province_lines.json $A/art/world/
+          cp -r art/world/tiles $A/art/world/
+          cp art/citymarks/*.png $A/art/citymarks/
+          du -sh $A
 
       - uses: actions/setup-java@v5
         with:
@@ -55,7 +49,7 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.7'
+          gradle-version: '8.13'
 
       - name: Build the signed APK
         env:
@@ -66,11 +60,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp android/app/build/outputs/apk/release/app-release.apk "vigil-${{ github.run_number }}.apk"
-          gh release create "build-${{ github.run_number }}" "vigil-${{ github.run_number }}.apk" \
-            --title "Vigil build ${{ github.run_number }}" --notes "Automatic build from $(git rev-parse --short HEAD)." --latest
+          cp android/app/build/outputs/apk/release/app-release.apk "commander-${{ github.run_number }}.apk"
+          gh release create "build-${{ github.run_number }}" "commander-${{ github.run_number }}.apk" \
+            --title "Commander build ${{ github.run_number }}" --notes "Automatic build from $(git rev-parse --short HEAD)." --latest
 
       - uses: actions/upload-artifact@v4
         with:
-          name: vigil-apk
-          path: vigil-*.apk
+          name: commander-apk
+          path: commander-*.apk

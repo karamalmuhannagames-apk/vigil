@@ -632,7 +632,8 @@ fetch(DATA + 'borders.json').then(r => r.ok ? r.json() : []).then(bs => {
   borders = bs.map(b => { let a = 1e9, c = 1e9, d = -1e9, e = -1e9; for (let i = 0; i < b.p.length; i += 2) { a = Math.min(a, b.p[i]); d = Math.max(d, b.p[i]); c = Math.min(c, b.p[i + 1]); e = Math.max(e, b.p[i + 1]); } return {...b, bb: [a, c, d, e]}; });
   draw();
 }, () => 0);
-fetch(DATA + 'world.json').then(r => r.json()).then(async j => {
+window.worldFailed = false;
+fetch(DATA + 'world.json').then(r => { if (!r.ok) throw new Error('world.json ' + r.status); return r.json(); }).then(async j => {
   try { const m = await (await fetch(DATA + 'tiles/tiles.json')).json(); manifest = {}; for (const k in m) manifest[k] = new Set(m[k]); ZMAX = Math.max(...Object.keys(m).map(Number)); } catch (e) {}
   world = j; [W, H] = j.size; countries = j.countries; countries.forEach(c => byIso[c.iso] = c);
   const rank = {capital: 0, major: 1, minor: 2};
@@ -673,8 +674,8 @@ fetch(DATA + 'world.json').then(r => r.json()).then(async j => {
     view = {x: (x0 + x1) / 2, y: (y0 + y1) / 2, z: Math.min(3.5, Math.max(0.35, z))}; tv = null;
   }
   addEventListener('resize', resize); resize();
-  Promise.all([document.fonts.load('500 14px Plex', 'عمان'), document.fonts.load('700 14px Plex', 'عمان')]).then(() => { draw(); document.title = 'World ready'; });
-});
+  Promise.all([document.fonts.load('500 14px Plex', 'عمان'), document.fonts.load('700 14px Plex', 'عمان')]).then(() => { draw(); window.worldReady = true; }, () => { draw(); window.worldReady = true; });
+}).catch(() => { window.worldFailed = true; });
 </script>
 </body>
 </html>
