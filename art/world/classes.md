@@ -44,11 +44,11 @@
 - Afghanistan / أفغانستان (AFG): 642,182 km², 6 cities, 26 provinces, art gulf, doctrine asia
 - Somalia / الصومال (SOM): 639,222 km², 6 cities, 19 provinces, art gulf, doctrine mena
 - France / فرنسا (FRA): 636,759 km², 6 cities, 42 provinces, art europe, doctrine europe
-- South Sudan / جنوب السودان (SDS): 626,844 km², 0 cities, 16 provinces, art americas, doctrine africa
+- South Sudan / جنوب السودان (SDS): 626,844 km², 6 cities, 16 provinces, art americas, doctrine africa
 - Central African Republic / جمهورية أفريقيا الوسطى (CAF): 617,984 km², 6 cities, 21 provinces, art americas, doctrine africa
 - Ukraine / أوكرانيا (UKR): 599,095 km², 6 cities, 25 provinces, art europe, doctrine europe
 - Madagascar / مدغشقر (MDG): 592,984 km², 6 cities, 22 provinces, art americas, doctrine africa
-- Kenya / كينيا (KEN): 582,302 km², 6 cities, 20 provinces, art americas, doctrine africa
+- Kenya / كينيا (KEN): 582,302 km², 6 cities, 21 provinces, art americas, doctrine africa
 - Botswana / بوتسوانا (BWA): 579,029 km², 6 cities, 18 provinces, art americas, doctrine africa
 - Thailand / تايلاند (THA): 514,454 km², 6 cities, 34 provinces, art asia, doctrine asia
 - Spain / إسبانيا (ESP): 506,884 km², 6 cities, 34 provinces, art europe, doctrine europe
