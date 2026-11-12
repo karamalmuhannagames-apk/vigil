@@ -9,3 +9,4 @@ android/vigil.keystore
 *.jks
 *.keystore
 __pycache__/
+!android/test-signing/test.keystore
