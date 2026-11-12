@@ -27,6 +27,7 @@ const T = 512;
 // screen density for the map: phones report up to 3-4; painting at 1.5 keeps it sharp and four times lighter
 const MAPDPR = Math.min(window.devicePixelRatio || 1, 1.5);
 let W, H, world, countries = [], byIso = {}, cityOrder = [];
+const labelState = new Map(), countryState = new Map(); let labelClock = 0, countryClock = 0;
 // Relation colours measured from CoN screenshots: 7 colour stops per relation, darkest to lightest, taken from
 // real map pixels of each relation (own green, ally pale olive, stranger blue-grey slate, enemy blood red).
 // The painted ground's light and dark picks a colour along the stops, so terrain shows in every colour.
@@ -164,7 +165,7 @@ async function buildTile(z, tx, ty, C) {
       const L = ld[q] / 127.5;                                  // 1.0 = no extra light or shade
       let sr = 0, sg = 0, sb = 0;
       if (m < 170) {                                            // sea: coastal grey-blue or deep blue, ripples, land shadow
-        const cw = m > 0 ? 1 : bd[q] / 255, k = L * Math.max(0.45, 1 + wamp * wave[wr + gx % WN]);     // coastal share: soft edge between coastal and deep water
+        const cw = m > 0 ? 0.35 : Math.pow(bd[q] / 255, 3) * 0.22, k = (1 + (L - 1) * 0.3) * Math.max(0.45, 1 + wamp * wave[wr + gx % WN]);     // coastal share: soft edge between coastal and deep water
         sr = (SEA.deep[0] + (SEA.coast[0] - SEA.deep[0]) * cw) * k; sg = (SEA.deep[1] + (SEA.coast[1] - SEA.deep[1]) * cw) * k; sb = (SEA.deep[2] + (SEA.coast[2] - SEA.deep[2]) * cw) * k;
         if (m > 14) { const e = 1 - 0.55 * Math.min(1, (m - 14) / 50); sr *= e; sg *= e; sb *= e; }   // thin dark rim along every coast
         if (m < 86) { d[q] = sr; d[q + 1] = sg; d[q + 2] = sb; d[q + 3] = 255; continue; }
@@ -275,46 +276,64 @@ function draw() {
   const countryBoxes = drawCountryNames(s, sw, sh) || [];
   // drawArmies(s, sw, sh, performance.now());   // paused until the ground is right
   // cities: most important first; a label that would overlap one already placed (or a country name) is skipped
-  ctx.textAlign = 'center';
+  // City names. Names never blink while the map moves:
+  //  - room is decided for every name near the screen, not only the ones on it, so a name leaving the screen
+  //    never frees room for another one to pop up;
+  //  - a name already showing keeps its spot first; a name only gives up its spot to a more important one;
+  //  - names fade in and out over a fifth of a second instead of switching on and off.
+  const now = performance.now(), dt = Math.min(0.1, (now - (labelClock || now)) / 1000); labelClock = now;
   const placed = countryBoxes.slice();
-  for (const p of cityOrder) {
-    // when names appear: big playable capitals first, small and computer-run countries only closer in
-    const big = p.area >= 300000;
-    const capAt = p.cls === 'neutral' ? 1.4 : 1.0;                                // cities speak from country zoom in; quick, clean switch
+  const want = new Map();
+  const tryPlace = (p, prevOnly) => {
+    const capAt = p.cls === 'neutral' ? 1.4 : 1.0;
     const show = p.kind === 'capital' ? smooth(capAt, capAt + 0.08, view.z) : p.kind === 'major' ? smooth(1.0, 1.08, view.z) : smooth(1.35, 1.45, view.z);
-    if (!show) continue;
+    if (!show) return;
     const sx = (p.x - view.x) * s + sw / 2, sy = (p.y - view.y) * s + sh / 2;
-    if (sx < -100 || sy < -50 || sx > sw + 100 || sy > sh + 50) continue;
-    const fs = ((p.kind === 'capital' ? 16 : p.kind === 'major' ? 15 : 14) + 7 * smooth(1.1, 4, view.z)) * dpr;   // CoN: 35 px growing to 55 px on a 1080-px screen
-    ctx.font = p.kind === 'capital' ? `700 ${fs}px Plex, system-ui` : `500 ${fs}px Plex, system-ui`;
-    const tw = ctx.measureText(p.name_ar).width;
-    // one rule for every name: centred right under its city (under the marker far away, under the town close up).
-    // Only if that spot is taken may it sit beside the marker, right or left, level with it. Otherwise it waits.
-    const fadeM = 1 - smooth(0.8, 1.25, view.z), near = smooth(1.25, 1.8, view.z);
+    if (sx < -sw * 0.6 || sy < -sh * 0.6 || sx > sw * 1.6 || sy > sh * 1.6) return;   // wide margin: off-screen names still hold their room
+    const fs = ((p.kind === 'capital' ? 16 : p.kind === 'major' ? 15 : 14) + 7 * smooth(1.1, 4, view.z)) * dpr;
+    const font = p.kind === 'capital' ? `700 ${fs}px Plex, system-ui` : `500 ${fs}px Plex, system-ui`;
+    if (p._font !== font) { ctx.font = font; p._tw = ctx.measureText(p.name_ar).width; p._font = font; }
+    const tw = p._tw;
     const below = Math.max(fs * 0.4, (p.r * s * 0.6 * smooth(0.9, 1.1, view.z)) + fs * 0.85);
-    const spots = [[0, below, 'center']];
-    if (p.kind === 'capital') spots.push([-(tw / 2 + 10 * dpr), fs * 0.35, 'left'], [tw / 2 + 10 * dpr, fs * 0.35, 'right']);   // a capital is never dropped: it may sit beside its city
-    
-    let spot = null;
-    for (const [dx, dy] of spots) {
-      const cx = sx + dx, by = sy + dy, box = [cx - tw / 2 - 3 * dpr, by - fs * 0.95, cx + tw / 2 + 3 * dpr, by + fs * 0.35];
-      if (dx && (box[0] < 0 || box[2] > sw)) continue;
-      const pad = 10 * dpr;
+    const spots = [[0, below]];
+    if (p.kind === 'capital') spots.push([-(tw / 2 + 10 * dpr), fs * 0.35], [tw / 2 + 10 * dpr, fs * 0.35]);
+    const st = labelState.get(p);
+    const order = st && st.spot ? [st.spot, ...spots.keys()].filter((v, i, arr) => arr.indexOf(v) === i) : [...spots.keys()];
+    const pad = 10 * dpr;
+    for (const k of order) {
+      const [dx, dy] = spots[k], cx = sx + dx, by = sy + dy, box = [cx - tw / 2 - 3 * dpr, by - fs * 0.95, cx + tw / 2 + 3 * dpr, by + fs * 0.35];
       if (placed.some(b => box[0] - pad < b[2] && box[2] + pad > b[0] && box[1] - pad < b[3] && box[3] + pad > b[1])) continue;
-      placed.push(box); spot = [cx, by]; break;
+      placed.push(box); want.set(p, {spot: k, x: cx, y: by, fs, font, show}); return;
     }
-    if (!spot) continue;
-    ctx.globalAlpha = show;
-    // (city markers: rendered skyline miniatures come next; no stuck-on symbols)
-    // our own lettering: warm white, a thin dark edge and a short soft shadow
-    const lx = Math.round(spot[0]), ly = Math.round(spot[1]);
-    ctx.textAlign = 'center';
-    ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(2, fs * 0.16); ctx.strokeStyle = 'rgba(6,10,14,0.9)';
+  };
+  // first the names already on show (in importance order), then the rest
+  for (const p of cityOrder) { const st = labelState.get(p); if (st && st.on) tryPlace(p); }
+  for (const p of cityOrder) { const st = labelState.get(p); if (!(st && st.on) && !want.has(p)) tryPlace(p); }
+  let fading = false;
+  const fadeK = Math.min(1, dt * 7);
+  for (const p of cityOrder) {
+    const w = want.get(p); let st = labelState.get(p);
+    if (!w && !st) continue;
+    if (!st) { const off = w.x < -100 || w.y < -40 || w.x > sw + 100 || w.y > sh + 40; st = {a: off ? 1 : 0, spot: w.spot}; labelState.set(p, st); }   // a name that arrives off-screen is simply there when it scrolls in
+    const target = w ? 1 : 0; st.on = !!w;
+    st.a += (target - st.a) * fadeK; if (Math.abs(target - st.a) < 0.02) st.a = target; else fading = true;
+    if (w) { st.spot = w.spot; st.x = w.x; st.y = w.y; st.fs = w.fs; st.font = w.font; st.show = w.show; }
+    else if (st.x !== undefined) {   // fading out: keep it where it was on the land
+      st.x = (p.x - view.x) * s + sw / 2 + (st.dx || 0); st.y = (p.y - view.y) * s + sh / 2 + (st.dy || 0);
+    }
+    if (w) { st.dx = w.x - ((p.x - view.x) * s + sw / 2); st.dy = w.y - ((p.y - view.y) * s + sh / 2); }
+    if (st.a <= 0) { labelState.delete(p); continue; }
+    if (st.x < -200 || st.y < -60 || st.x > sw + 200 || st.y > sh + 60) continue;
+    ctx.globalAlpha = st.a * (st.show || 1);
+    ctx.font = st.font; ctx.textAlign = 'center';
+    const lx = st.x, ly = st.y;
+    ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(2, st.fs * 0.16); ctx.strokeStyle = 'rgba(6,10,14,0.9)';
     ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 4 * dpr; ctx.shadowOffsetY = 1.5 * dpr;
     ctx.strokeText(p.name_ar, lx, ly);
     ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
     ctx.fillStyle = '#F3EFE4'; ctx.fillText(p.name_ar, lx, ly);
   }
+  if (fading) requestDraw();
   ctx.globalAlpha = 1;
   const hud = document.getElementById('hud'); if (hud) { if (DEBUG) hud.textContent = `zoom ${view.z.toFixed(2)} · tiles z${z}`; else hud.style.display = 'none'; }
 }
@@ -361,11 +380,13 @@ function drawCountryNames(s, sw, sh) {
   const dpr = MAPDPR;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   const placed = [];
-  const cap = (17 + 21 * smooth(0.25, 0.9, view.z)) * dpr, minS = (7.5 + 3.5 * smooth(0.25, 0.9, view.z)) * dpr;   // CoN: big names even at the farthest zoom
-  for (const L of countryLabels) {
+  const cap = 19 * dpr, minS = 9 * dpr;   // names keep one steady size on screen: they never swell as you zoom in
+  const nowC = performance.now(), fadeC = Math.min(1, Math.min(0.1, (nowC - (countryClock || nowC)) / 1000) * 7); countryClock = nowC; let cFading = false;
+  const ordered = countryLabels.filter(L => (countryState.get(L) || {}).on).concat(countryLabels.filter(L => !(countryState.get(L) || {}).on));
+  for (const L of ordered) {
     const roomW = (L.lw || Math.sqrt(L.px) * 1.2) * s * 1.0 * dpr, roomH = Math.max(L.lh || 0, Math.sqrt(L.px) * 0.25) * s * 0.85 * dpr;   // big countries are never squeezed by one narrow spot
     if (!L.name || (L.lines && !L.lines[0])) continue;
-    const capL = cap * Math.min(1.7, Math.max(1, Math.sqrt(L.px) / 600));   // the biggest countries get bigger names
+    const capL = cap * Math.min(1.3, Math.max(1, Math.sqrt(L.px) / 700));   // the biggest countries get slightly bigger names
     let lay;
     if (L.th) {                                                         // fitted in the build: biggest box that stays on its land
       ctx.font = `700 100px Plex, system-ui`;
@@ -374,21 +395,23 @@ function drawCountryNames(s, sw, sh) {
     let size = lay.size;
     const mine = L.iso === ME;
     if (size < minS) {
-      if (!mine && size * 1.7 < minS) continue;                         // far too small to read here: shows when you zoom in
+      if (!mine && size * 1.3 < minS) continue;                         // far too small to read here: shows when you zoom in
       size = minS;
     }
-    const sx = Math.round((L.x - view.x) * s + sw / 2), sy = Math.round((L.y - view.y) * s + sh / 2);
+    const sx = (L.x - view.x) * s + sw / 2, sy = (L.y - view.y) * s + sh / 2;
     const w = lay.w100 * size / 100, h = size * (lay.lines.length === 1 ? 1.1 : 2.2);
-    if (sx + w / 2 < 0 || sy < -h || sx - w / 2 > sw || sy > sh + h) continue;
-    const ext = w / 2 * Math.cos(NAME_TILT) + h / 2 * Math.sin(NAME_TILT), exty = w / 2 * Math.sin(NAME_TILT) + h / 2 * Math.cos(NAME_TILT);
-    const box = [sx - ext, sy - exty * 0.85, sx + ext, sy + exty * 0.85];
-    const ar = (b) => (b[2] - b[0]) * (b[3] - b[1]);
-    if (placed.some(b => { const ox = Math.min(box[2], b[2]) - Math.max(box[0], b[0]), oy = Math.min(box[3], b[3]) - Math.max(box[1], b[1]);
-                           return ox > 0 && oy > 0 && ox * oy > 0.06 * Math.min(ar(box), ar(b)); })) continue;   // a slight touch is fine
-    placed.push(box);
-    ctx.save(); ctx.translate(sx, sy); ctx.rotate(NAME_TILT);
+    if (sx + w / 2 < -sw * 0.6 || sy < -sh * 0.6 || sx - w / 2 > sw * 1.6 || sy > sh * 1.6) { countryState.delete(L); continue; }   // room is decided off-screen too
+    const box = [sx - w / 2, sy - h / 2 * 0.85, sx + w / 2, sy + h / 2 * 0.85];
+    const pad = 3 * dpr;
+    const st = countryState.get(L) || {a: (sx + w / 2 < 0 || sx - w / 2 > sw || sy < -h || sy > sh + h) ? 1 : 0};
+    const free = !placed.some(b => box[0] - pad < b[2] && box[2] + pad > b[0] && box[1] - pad < b[3] && box[3] + pad > b[1]);   // names never overlap
+    if (free) placed.push(box);
+    st.a += ((free ? 1 : 0) - st.a) * fadeC; if (Math.abs((free ? 1 : 0) - st.a) < 0.02) st.a = free ? 1 : 0; else cFading = true;
+    st.on = free; countryState.set(L, st);
+    if (st.a <= 0 || sx + w / 2 < 0 || sy < -h || sx - w / 2 > sw || sy > sh + h) continue;
+    ctx.save(); ctx.translate(sx, sy);
     ctx.font = `700 ${size}px Plex, system-ui`;
-    ctx.globalAlpha = 0.85 * a;
+    ctx.globalAlpha = 0.85 * a * st.a;
     const lh = size * 1.02, y0 = -(lay.lines.length - 1) * lh / 2;
     ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(1.6 * dpr, size * 0.09); ctx.strokeStyle = 'rgba(7,11,17,0.6)';
     ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = size * 0.25;
@@ -397,6 +420,7 @@ function drawCountryNames(s, sw, sh) {
     lay.lines.forEach((l, i) => ctx.fillText(l, 0, y0 + i * lh));
     ctx.restore();
   }
+  if (cFading) requestDraw();
   ctx.globalAlpha = 1; ctx.textBaseline = 'alphabetic';
   return a > 0.4 ? placed : [];
 }
@@ -653,33 +677,73 @@ let tv = null, vel = {x: 0, y: 0}, anim = 0, lastMove = 0;
 const moving = () => !!(drag || pinch || anim);
 function target() { if (!tv) tv = {x: view.x, y: view.y, z: view.z}; return tv; }
 function kick() { if (!anim) anim = requestAnimationFrame(step); }
+// limits: never zoom out past the point where the map stops filling the screen, never pan past its edges
+const zMin = () => Math.max(0.26, innerHeight / H, innerWidth / W), Z_MAX = 9;
+function clampT(t) {
+  t.z = Math.min(Z_MAX, Math.max(zMin(), t.z));
+  const hw = innerWidth / 2 / t.z, hh = innerHeight / 2 / t.z;
+  t.x = Math.min(W - hw, Math.max(hw, t.x)); t.y = Math.min(H - hh, Math.max(hh, t.y));
+}
 function step() {
   anim = 0; const t = target();
   if (!drag && !pinch && (Math.abs(vel.x) + Math.abs(vel.y)) * view.z > 0.05) { t.x += vel.x; t.y += vel.y; vel.x *= COAST; vel.y *= COAST; }
-  const dz = t.z - view.z, dx = t.x - view.x, dy = t.y - view.y;
-  view.z += dz * FOLLOW; view.x += dx * FOLLOW; view.y += dy * FOLLOW;
+  const bx = t.x, by = t.y; clampT(t); if (t.x !== bx) vel.x = 0; if (t.y !== by) vel.y = 0;   // coasting stops at the edge, no bounce
+  const dz = t.z - view.z;
+  // zoom eases in log space so zooming out is as even as zooming in; the point under the fingers stays put
+  if (Math.abs(dz) / t.z > 1e-3) {
+    // the screen point that is the same in the current view and the target stays fixed while zooming,
+    // so the map grows or shrinks around the fingers instead of sliding sideways or down
+    const nz = view.z * Math.pow(t.z / view.z, FOLLOW);
+    const fx = (view.x * view.z - t.x * t.z) / (view.z - t.z), fy = (view.y * view.z - t.y * t.z) / (view.z - t.z);
+    view.x = fx - (fx - view.x) * view.z / nz; view.y = fy - (fy - view.y) * view.z / nz; view.z = nz;
+  } else { view.z = t.z; view.x += (t.x - view.x) * FOLLOW; view.y += (t.y - view.y) * FOLLOW; }
   draw();
-  if (Math.abs(dz) > 1e-4 || (Math.abs(dx) + Math.abs(dy)) * view.z > 0.05 || (Math.abs(vel.x) + Math.abs(vel.y)) * view.z > 0.05) kick();
+  if (Math.abs(t.z - view.z) / t.z > 1e-4 || (Math.abs(t.x - view.x) + Math.abs(t.y - view.y)) * view.z > 0.05 || (Math.abs(vel.x) + Math.abs(vel.y)) * view.z > 0.05) kick();
   else { view.x = t.x; view.y = t.y; view.z = t.z; requestDraw(); }   // one last fine-quality frame when it settles
 }
 cv.addEventListener('wheel', e => { e.preventDefault(); zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.0012)); }, {passive: false});
 function zoomAt(cx, cy, k) {
   const t = target();
   const wx = (cx - innerWidth / 2) / t.z + t.x, wy = (cy - innerHeight / 2) / t.z + t.y;
-  t.z = Math.min(9, Math.max(0.22, t.z * k));   // farthest zoom like CoN: about half of Eurasia on a phone
-  t.x = wx - (cx - innerWidth / 2) / t.z; t.y = wy - (cy - innerHeight / 2) / t.z; kick();
+  t.z = Math.min(Z_MAX, Math.max(zMin(), t.z * k));
+  t.x = wx - (cx - innerWidth / 2) / t.z; t.y = wy - (cy - innerHeight / 2) / t.z; clampT(t); kick();
 }
-cv.addEventListener('pointerdown', e => { drag = {x: e.clientX, y: e.clientY}; vel = {x: 0, y: 0}; target(); });
-addEventListener('pointerup', () => { drag = null; if (performance.now() - lastMove > 80) vel = {x: 0, y: 0}; kick(); });
-addEventListener('pointermove', e => {
-  if (!drag || pinch) return; const t = target();
-  const mx = (e.clientX - drag.x) / t.z, my = (e.clientY - drag.y) / t.z;
-  t.x -= mx; t.y -= my; vel = {x: -mx * 0.6 + vel.x * 0.4, y: -my * 0.6 + vel.y * 0.4}; lastMove = performance.now();
-  drag = {x: e.clientX, y: e.clientY}; kick();
+// Fingers: every finger is tracked on its own. One finger drags; two fingers zoom and drag together.
+// When a finger is added or lifted the reference is reset, so the map never jumps to where the other finger was.
+const fingers = new Map();
+let ref = null;   // {mx, my, d}: midpoint and spread of the fingers at the last event
+function fingerRef() {
+  const ps = [...fingers.values()];
+  if (!ps.length) return null;
+  const mx = ps.reduce((a, p) => a + p.x, 0) / ps.length, my = ps.reduce((a, p) => a + p.y, 0) / ps.length;
+  const d = ps.length > 1 ? Math.hypot(ps[0].x - ps[1].x, ps[0].y - ps[1].y) : 0;
+  return {mx, my, d, n: ps.length};
+}
+cv.addEventListener('pointerdown', e => {
+  cv.setPointerCapture && cv.setPointerCapture(e.pointerId);
+  fingers.set(e.pointerId, {x: e.clientX, y: e.clientY}); ref = fingerRef(); vel = {x: 0, y: 0}; target();
+  drag = fingers.size === 1 ? ref : null; pinch = fingers.size > 1 ? ref : null;
 });
-cv.addEventListener('touchmove', e => { if (e.touches.length === 2) { const [a, b] = e.touches, d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); if (pinch) zoomAt((a.clientX + b.clientX) / 2, (a.clientY + b.clientY) / 2, d / pinch); pinch = d; vel = {x: 0, y: 0}; } }, {passive: true});
-cv.addEventListener('touchend', () => pinch = null);
-window.mapView = (x, y, z) => { view = {x, y, z}; tv = {x, y, z}; vel = {x: 0, y: 0}; draw(); };
+function lift(e) {
+  if (!fingers.has(e.pointerId)) return;
+  fingers.delete(e.pointerId); ref = fingerRef();
+  if (fingers.size === 0) { drag = null; pinch = null; if (performance.now() - lastMove > 80) vel = {x: 0, y: 0}; }
+  else { drag = fingers.size === 1 ? ref : null; pinch = fingers.size > 1 ? ref : null; vel = {x: 0, y: 0}; }   // one finger left: carry on dragging from where it is
+  kick();
+}
+addEventListener('pointerup', lift); addEventListener('pointercancel', lift);
+addEventListener('pointermove', e => {
+  if (!fingers.has(e.pointerId)) return;
+  fingers.set(e.pointerId, {x: e.clientX, y: e.clientY});
+  const r = fingerRef(), t = target();
+  if (!ref || r.n !== ref.n) { ref = r; return; }
+  if (r.n > 1 && ref.d > 0 && r.d > 0) zoomAt(r.mx, r.my, r.d / ref.d);
+  const mx = (r.mx - ref.mx) / t.z, my = (r.my - ref.my) / t.z;
+  t.x -= mx; t.y -= my; clampT(t);
+  if (r.n === 1) { vel = {x: -mx * 0.6 + vel.x * 0.4, y: -my * 0.6 + vel.y * 0.4}; lastMove = performance.now(); }
+  ref = r; kick();
+});
+window.mapView = (x, y, z) => { tv = {x, y, z}; clampT(tv); view = {...tv}; vel = {x: 0, y: 0}; draw(); };
 window.setLabels = (o) => { for (const L of countryLabels) if (o[L.iso]) Object.assign(L, {x: o[L.iso].x, y: o[L.iso].y, th: o[L.iso].th, lines: o[L.iso].lines}); draw(); };
 window.setRelations = (me, rel) => { ME = me; REL = rel; gen++; cache.clear(); pending.clear(); sendRelations(); draw(); };
 window.tilesPending = () => [...cache.values()].filter(e => !e.canvas && !e.failed).length;

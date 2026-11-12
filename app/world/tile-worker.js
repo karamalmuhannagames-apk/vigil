@@ -74,7 +74,7 @@ async function paint({ z, tx, ty, C, lumI, bioI, natI }) {
       const L = ld[q] / 127.5;
       let sr = 0, sg = 0, sb = 0;
       if (m < 170) {
-        const cw = m > 0 ? 1 : bd[q] / 255, k = L * Math.max(0.45, 1 + wamp * wave[wr + gx % WN]);
+        const cw = m > 0 ? 0.35 : Math.pow(bd[q] / 255, 3) * 0.22, k = (1 + (L - 1) * 0.3) * Math.max(0.45, 1 + wamp * wave[wr + gx % WN]);
         sr = (SEA.deep[0] + (SEA.coast[0] - SEA.deep[0]) * cw) * k; sg = (SEA.deep[1] + (SEA.coast[1] - SEA.deep[1]) * cw) * k; sb = (SEA.deep[2] + (SEA.coast[2] - SEA.deep[2]) * cw) * k;
         if (m > 14) { const e = 1 - 0.55 * Math.min(1, (m - 14) / 50); sr *= e; sg *= e; sb *= e; }
         if (m < 86) { d[q] = sr; d[q + 1] = sg; d[q + 2] = sb; d[q + 3] = 255; continue; }

@@ -77,6 +77,49 @@ async function phoneSpeed(browser) {
   await ctx.close();
 }
 
+
+// two-finger zoom: the map must zoom around the fingers, stop at the edge, and never jump when a finger lifts
+async function pinchCheck(browser) {
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, hasTouch: true, isMobile: true }); const p = await ctx.newPage();
+  const errors = []; p.on('pageerror', (e) => errors.push(e.message));
+  await p.goto(BASE + '/app/world/index.html'); await p.waitForFunction(() => window.worldReady === true, null, { timeout: 60000 });
+  const cdp = await ctx.newCDPSession(p);
+  const T = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map((q) => ({ x: q[0], y: q[1], id: q[2] })) });
+  const V = () => p.evaluate(() => ({ x: view.x, y: view.y, z: view.z, top: (0 - view.y) * view.z + innerHeight / 2, bottom: (H - view.y) * view.z + innerHeight / 2, left: (0 - view.x) * view.z + innerWidth / 2, right: (W - view.x) * view.z + innerWidth / 2 }));
+  let seed = 5; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  let worstJump = 0, edgeShown = 0;
+  for (let n = 0; n < 60; n++) {
+    await p.evaluate(([x, y, z]) => mapView(x, y, z), [1000 + rnd() * 6000, 600 + rnd() * 2600, 0.3 + rnd() * 3]); await p.waitForTimeout(100);
+    const cx = 60 + rnd() * 290, cy = 100 + rnd() * 700, from = 20 + rnd() * 120, to = 5 + rnd() * 150;
+    await T('touchStart', [[cx - from, cy, 0], [cx + from, cy, 1]]);
+    for (let i = 1; i <= 12; i++) { const d = from + (to - from) * i / 12; await T('touchMove', [[cx - d, cy + i, 0], [cx + d, cy - i, 1]]); }
+    await p.waitForTimeout(300); const before = await V();
+    await T('touchEnd', [[cx + to, cy - 12, 1]]); await T('touchMove', [[cx + to, cy - 12, 1]]); await p.waitForTimeout(300);
+    const after = await V(); await T('touchEnd', []); await p.waitForTimeout(500); const end = await V();
+    worstJump = Math.max(worstJump, Math.hypot((after.x - before.x) * after.z, (after.y - before.y) * after.z));
+    if (end.top > 1 || end.bottom < 914 || end.left > 1 || end.right < 411) edgeShown++;
+  }
+  ok(`two-finger zoom: no jump when a finger lifts (worst ${worstJump.toFixed(0)} px, limit 12)`, worstJump < 12);
+  ok(`two-finger zoom: map edge never shows (${edgeShown} of 60)`, edgeShown === 0);
+  ok('two-finger zoom: no errors', errors.length === 0, errors.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+// names must not blink on and off while the map is dragged
+async function namesSteady(browser) {
+  const { ctx, page } = await newPage(browser, [412, 915], 'en-US');
+  await page.goto(BASE + '/app/world/index.html'); await page.waitForFunction(() => window.worldReady === true, null, { timeout: 60000 });
+  for (const [x, y, z] of [[4500, 1600, 0.6], [4500, 1600, 1.1], [4400, 1500, 1.5], [4700, 1650, 2.5], [3000, 1200, 1.2], [6000, 1500, 0.8]]) {
+    await page.evaluate(([x, y, z]) => mapView(x, y, z), [x, y, z]); await page.waitForTimeout(1200);
+    const flips = await page.evaluate(([x0, y0, z]) => new Promise((res) => { let flips = 0, i = 0; const prev = new Map(), prevC = new Map(); const sw = innerWidth * MAPDPR, sh = innerHeight * MAPDPR;
+      const f = () => { mapView(x0 + i * 4 / z, y0 + i * 2 / z, z);
+        for (const [L, st] of labelState) { const was = prev.get(L); if (was !== undefined && was !== st.on && st.x > 0 && st.x < sw && st.y > 0 && st.y < sh) flips++; prev.set(L, st.on); }
+        for (const [L, st] of countryState) { const was = prevC.get(L); if (was !== undefined && was !== st.on) flips++; prevC.set(L, st.on); }
+        if (++i < 120) requestAnimationFrame(f); else res(flips); }; requestAnimationFrame(f); }), [x, y, z]);
+    ok(`names steady while dragging at zoom ${z} (${flips} switched)`, flips <= 1);
+  }
+  await ctx.close();
+}
+
 async function mapFuzz(browser, ops) {
   const { ctx, page, errors } = await newPage(browser, [412, 915], 'en-US');
   await page.goto(BASE + '/app/world/index.html');
@@ -119,6 +162,8 @@ async function mapFuzz(browser, ops) {
   await faultRun(browser, 'fonts missing', ['.ttf'], 'map');
   // C. phone speed
   await phoneSpeed(browser);
+  await pinchCheck(browser);
+  await namesSteady(browser);
   // D. thousands of random gestures on the map
   await mapFuzz(browser, Number(process.env.OPS || 3000));
   await browser.close();
