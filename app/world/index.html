@@ -81,21 +81,28 @@ let gen = 0;               // bumps when relations change: tinted tiles rebuilt
 // Tiles are painted by two workers off the screen thread; the page only draws finished pictures.
 let workers = null, wNext = 0; const pending = new Map();
 function startWorkers() {
-  if (workers !== null || typeof OffscreenCanvas === 'undefined' || typeof Worker === 'undefined') return;
-  try {
-    workers = [new Worker('tile-worker.js'), new Worker('tile-worker.js')];
-    for (const w of workers) {
+  if (workers !== null || typeof OffscreenCanvas === 'undefined' || typeof Worker === 'undefined' || typeof createImageBitmap === 'undefined') { if (workers === null) workers = false; return; }
+  workers = false;
+  // the worker's code is read by the page and started from memory: nothing for the phone to fetch from inside a worker
+  fetch('tile-worker.js').then(r => r.text()).then(code => {
+    const url = URL.createObjectURL(new Blob([code], {type: 'text/javascript'}));
+    const ws = [new Worker(url), new Worker(url)];
+    for (const w of ws) {
       w.postMessage({type: 'init', TEX, LUT, SEA});
       w.onmessage = (ev) => {
         const m = ev.data, e = pending.get(m.key); pending.delete(m.key);
         if (!e) { if (m.bmp) m.bmp.close(); return; }
-        if (m.failed) e.failed = true; else e.canvas = m.bmp;
-        requestDraw();
+        if (m.failed) paintHere(e, m.key); else { e.canvas = m.bmp; requestDraw(); }
       };
-      w.onerror = () => { workers = false; };
+      w.onerror = () => { workers = false; for (const [k, e] of pending) paintHere(e, k); pending.clear(); };
     }
-    sendRelations();
-  } catch (err) { workers = false; }
+    workers = ws; sendRelations(); cache.clear(); requestDraw();
+  }).catch(() => { workers = false; });
+}
+// fallback: the page paints the tile itself (a worker failed or is not available on this phone)
+function paintHere(e, k) {
+  const [, C, z, tx, ty] = k.split('/').map(Number);
+  queue.push(() => buildTile(z, tx, ty, C).then(c => { e.canvas = c; requestDraw(); }, () => { e.failed = true; })); pump();
 }
 function sendRelations() { if (!workers || !countries.length) return; const rel = countries.map((c, i) => relOf(i)); for (const w of workers) w.postMessage({type: 'rel', rel}); }
 const TILE_BASE = new URL(DATA + 'tiles/', location.href).href;
@@ -193,7 +200,13 @@ function tileFor(z, tx, ty, C) {
     e = {canvas: null}; cache.set(k, e);
     if (!TEX) { cache.delete(k); return null; }
     if (manifest && !manifest[z]?.has(`${tx}_${ty}`)) { e.canvas = 'deep'; return e.canvas; }   // open ocean
-    if (workers) { pending.set(k, e); workers[wNext++ % workers.length].postMessage({type: 'tile', key: k, z, tx, ty, C, base: TILE_BASE}); }
+    if (workers) {
+      pending.set(k, e); const w = workers[wNext++ % workers.length];
+      Promise.all([load(`${DATA}tiles/${z}/${tx}_${ty}.jpg`), load(`${DATA}tiles/${z}/${tx}_${ty}_b.png`), load(`${DATA}tiles/${z}/${tx}_${ty}_n.png`)])
+        .then(ims => Promise.all(ims.map(im => createImageBitmap(im))))
+        .then(([lumI, bioI, natI]) => { if (!pending.has(k)) { lumI.close(); bioI.close(); natI.close(); return; } w.postMessage({type: 'tile', key: k, z, tx, ty, C, lumI, bioI, natI}, [lumI, bioI, natI]); })
+        .catch(() => { pending.delete(k); e.failed = true; });
+    }
     else { queue.push(() => buildTile(z, tx, ty, C).then(c => { e.canvas = c; requestDraw(); }, () => { e.failed = true; })); pump(); }
     while (cache.size > 70) {   // memory budget: about 70 painted tiles; the oldest go first
       const [old, oe] = cache.entries().next().value; cache.delete(old); pending.delete(old);

@@ -27,8 +27,8 @@ function data(img, w, h) {
   g.drawImage(img, 0, 0, w, h); return g.getImageData(0, 0, w, h).data;
 }
 
-async function paint({ z, tx, ty, C, base }) {
-  const [lumI, bioI, natI] = await Promise.all([bitmap(`${base}${z}/${tx}_${ty}.jpg`), bitmap(`${base}${z}/${tx}_${ty}_b.png`), bitmap(`${base}${z}/${tx}_${ty}_n.png`)]);
+async function paint({ z, tx, ty, C, lumI, bioI, natI }) {
+  // the page hands over the three source images, so this worker never needs to load files itself
   const N0 = natI.width;
   const md = data(natI, N0, N0);
   const ids = new Int32Array(N0 * N0); for (let i = 0; i < N0 * N0; i++) ids[i] = md[i * 4] + md[i * 4 + 1] * 256 - 1;
