@@ -40,7 +40,7 @@ for (const [k, st] of Object.entries(STOPS)) {
   LUT[k] = t;
 }
 const SEA = {coast: [64, 90, 103], deep: [25, 55, 81]};   // measured from CoN: coastal waters and open ocean
-let ME = 'JOR';
+let ME = (new URLSearchParams(location.search).get('me') || 'JOR').toUpperCase();   // ?me=SAU to try another country
 let REL = {SAU: 'ally', EGY: 'ally', IRQ: 'passage', IRN: 'enemy'};   // everyone else: neutral (dark slate)
 const relOf = i => { const iso = countries[i]?.iso; return iso === ME ? 'me' : (REL[iso] || 'neutral'); };
 let view = {x: 0, y: 0, z: 1};
@@ -209,6 +209,14 @@ function draw() {
       if (sz) ctx.drawImage(c, sx, sy, sz, sz, X0, Y0, X1 - X0, Y1 - Y0);
       else ctx.drawImage(c, X0, Y0, X1 - X0, Y1 - Y0);
     }
+  // edge of the world (top and bottom of the map): fog beyond a thin glowing line, like CoN
+  { const dpr = devicePixelRatio, yt = Math.round((0 - view.y) * s + sh / 2), yb = Math.round((H - view.y) * s + sh / 2);
+    ctx.fillStyle = 'rgb(58,55,50)';
+    if (yt > 0) ctx.fillRect(0, 0, sw, yt);
+    if (yb < sh) ctx.fillRect(0, yb, sw, sh - yb);
+    ctx.strokeStyle = 'rgba(84,220,231,0.9)'; ctx.lineWidth = 2 * dpr; ctx.shadowColor = 'rgba(84,220,231,0.8)'; ctx.shadowBlur = 8 * dpr;
+    ctx.beginPath(); if (yt > -10) { ctx.moveTo(0, yt); ctx.lineTo(sw, yt); } if (yb < sh + 10) { ctx.moveTo(0, yb); ctx.lineTo(sw, yb); } ctx.stroke();
+    ctx.shadowBlur = 0; }
   drawCities(s, sw, sh);
   drawBorders(s, sw, sh);
   const countryBoxes = drawCountryNames(s, sw, sh) || [];
@@ -277,37 +285,57 @@ function pip(g, rel, r) {
 
 // ---------- country names: big, printed on the land at world zoom ----------
 let countryLabels = [];
+// country names like CoN: centred in the widest part of the country, turned a little clockwise, long names on two
+// lines, sized to fit the country (small countries small but readable), never over another name
+const NAME_TILT = 0.17;                                  // ~10 degrees clockwise
+function nameLayout(name, roomW, roomH, cap, minS) {
+  // try one line, and two lines broken at the space nearest the middle; keep whichever fits bigger
+  ctx.font = `700 100px Plex, system-ui`;
+  const opts = [[name]];
+  const sp = [...name.matchAll(/ /g)].map(m => m.index);
+  if (sp.length) { const mid = name.length / 2, k = sp.reduce((a, b) => Math.abs(b - mid) < Math.abs(a - mid) ? b : a); opts.push([name.slice(0, k), name.slice(k + 1)]); }
+  let best = null;
+  for (const lines of opts) {
+    const w100 = Math.max(...lines.map(l => ctx.measureText(l).width)), h100 = 100 * (lines.length === 1 ? 1 : 2.05);
+    const size = Math.min(cap, roomW / w100 * 100, roomH / h100 * 100);
+    if (!best || size > best.size * (lines.length === 1 ? 0.92 : 1.08)) best = {lines, size, w100};
+  }
+  return best;
+}
 function drawCountryNames(s, sw, sh) {
-  const a = 1 - smooth(0.95, 1.05, view.z);   // CoN switches at ~0.6 px/km   // like CoN: up to region zoom the map speaks only in country names
+  const a = 1 - smooth(0.95, 1.05, view.z);
   if (a <= 0) return [];
   const dpr = devicePixelRatio;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   const placed = [];
+  const cap = (17 + 21 * smooth(0.25, 0.9, view.z)) * dpr, minS = (7.5 + 3.5 * smooth(0.25, 0.9, view.z)) * dpr;   // CoN: big names even at the farthest zoom
   for (const L of countryLabels) {
-    // size from the room at the name's spot: as wide as ~80% of the free width, never taller than the free height
-    const cap = 10 + 28 * smooth(0.2, 0.9, view.z);
-    const roomW = (L.lw || Math.sqrt(L.px) * 1.2) * s * 0.8 * dpr, roomH = (L.lh || Math.sqrt(L.px) * 0.5) * s * 0.75 * dpr;
-    ctx.font = `700 ${100}px Plex, system-ui`;
-    const w100 = ctx.measureText(L.name).width;
-    let size = Math.min(cap * dpr, roomW / w100 * 100, roomH);
-    const mine = L.iso === ME, minS = (8 + 3 * smooth(0.2, 0.9, view.z)) * dpr;
-    if (size < minS) {                                                   // small countries: smallest readable size if it nearly fits
-      if (!mine && Math.min(roomW / w100 * 100 * 1.45, roomH * 1.6) < minS) continue;
+    const roomW = (L.lw || Math.sqrt(L.px) * 1.2) * s * 0.85 * dpr, roomH = Math.max(L.lh || 0, Math.sqrt(L.px) * 0.28) * s * 0.8 * dpr;   // big countries are never squeezed by one narrow spot
+    if (!L.name) continue;
+    const lay = nameLayout(L.name, roomW, roomH, cap, minS);
+    let size = lay.size;
+    const mine = L.iso === ME;
+    if (size < minS) {
+      if (!mine && size * 1.5 < minS) continue;                         // far too small to read here: shows when you zoom in
       size = minS;
     }
-    ctx.font = `700 ${size}px Plex, system-ui`;
-    let w = w100 * size / 100;
     const sx = Math.round((L.x - view.x) * s + sw / 2), sy = Math.round((L.y - view.y) * s + sh / 2);
-    if (sx + w / 2 < 0 || sy < -40 || sx - w / 2 > sw || sy > sh + 40) continue;
-    const box = [sx - w / 2 - 4 * dpr, sy - size * 0.55, sx + w / 2 + 4 * dpr, sy + size * 0.55];
+    const w = lay.w100 * size / 100, h = size * (lay.lines.length === 1 ? 1.1 : 2.2);
+    if (sx + w / 2 < 0 || sy < -h || sx - w / 2 > sw || sy > sh + h) continue;
+    const ext = w / 2 * Math.cos(NAME_TILT) + h / 2 * Math.sin(NAME_TILT), exty = w / 2 * Math.sin(NAME_TILT) + h / 2 * Math.cos(NAME_TILT);
+    const box = [sx - ext - 3 * dpr, sy - exty, sx + ext + 3 * dpr, sy + exty];
     if (placed.some(b => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1])) continue;
     placed.push(box);
-    // printed on the land like a map title: spaced, quiet, never a sticker
-    ctx.globalAlpha = 0.8 * a;
+    ctx.save(); ctx.translate(sx, sy); ctx.rotate(NAME_TILT);
+    ctx.font = `700 ${size}px Plex, system-ui`;
+    ctx.globalAlpha = 0.85 * a;
+    const lh = size * 1.02, y0 = -(lay.lines.length - 1) * lh / 2;
     ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(1.6 * dpr, size * 0.09); ctx.strokeStyle = 'rgba(7,11,17,0.6)';
-    ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = size * 0.25;
-    ctx.strokeText(L.name, sx, sy);
-    ctx.shadowBlur = 0; ctx.fillStyle = '#EFE6CF'; ctx.fillText(L.name, sx, sy);
+    ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = size * 0.25;
+    lay.lines.forEach((l, i) => ctx.strokeText(l, 0, y0 + i * lh));
+    ctx.shadowBlur = 0; ctx.fillStyle = '#EFE6CF';
+    lay.lines.forEach((l, i) => ctx.fillText(l, 0, y0 + i * lh));
+    ctx.restore();
   }
   ctx.globalAlpha = 1; ctx.textBaseline = 'alphabetic';
   return a > 0.4 ? placed : [];
@@ -554,7 +582,7 @@ let drag = null, pinch = null;
 cv.addEventListener('wheel', e => { e.preventDefault(); zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.0015)); }, {passive: false});
 function zoomAt(cx, cy, k) {
   const wx = (cx - innerWidth / 2) / view.z + view.x, wy = (cy - innerHeight / 2) / view.z + view.y;
-  view.z = Math.min(9, Math.max(0.08, view.z * k));
+  view.z = Math.min(9, Math.max(0.22, view.z * k));   // farthest zoom like CoN: about half of Eurasia on a phone
   view.x = wx - (cx - innerWidth / 2) / view.z; view.y = wy - (cy - innerHeight / 2) / view.z; draw();
 }
 cv.addEventListener('pointerdown', e => drag = {x: e.clientX, y: e.clientY});
@@ -603,7 +631,16 @@ fetch(DATA + 'world.json').then(r => r.json()).then(async j => {
     .sort((a, b) => rank[a.kind] - rank[b.kind] || crank[a.cls] - crank[b.cls] || b.area - a.area || b.pop - a.pop);
   setupArmies();
   const cap = (byIso[ME].cities || [])[0] || {x: W / 2, y: H / 2};
-  view = {x: cap.x, y: cap.y, z: 0.5};
+  // opens fitted to your own country (with room left to zoom in and out): Jordan opens close, Russia far
+  {
+    const ps = j.provinces.filter(p => p.country === ME);
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (const p of ps) { const r = Math.sqrt(p.px) * 0.6; x0 = Math.min(x0, p.centre[0] - r); x1 = Math.max(x1, p.centre[0] + r); y0 = Math.min(y0, p.centre[1] - r); y1 = Math.max(y1, p.centre[1] + r); }
+    if (!ps.length) { x0 = cap.x - 50; x1 = cap.x + 50; y0 = cap.y - 50; y1 = cap.y + 50; }
+    const sw0 = innerWidth, sh0 = innerHeight * 0.8, f = 1;
+    const z = Math.min(sw0 / ((x1 - x0) * 1.35), sh0 / ((y1 - y0) * 1.35)) / f;
+    view = {x: (x0 + x1) / 2, y: (y0 + y1) / 2, z: Math.min(3.5, Math.max(0.35, z))};
+  }
   addEventListener('resize', resize); resize();
   Promise.all([document.fonts.load('500 14px Plex', 'عمان'), document.fonts.load('700 14px Plex', 'عمان')]).then(() => { draw(); document.title = 'World ready'; });
 });
