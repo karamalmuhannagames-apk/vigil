@@ -588,7 +588,7 @@ def shared_borders(label, n_labels, same_group=None, tol=0.45):
     pad = 2
     objs = ndi.find_objects(label + 1)
     for ci in range(n_labels):
-        sl = objs[ci + 1] if ci + 1 < len(objs) else None
+        sl = objs[ci] if ci < len(objs) else None     # find_objects(label + 1)[ci] is label value ci
         if sl is None: continue
         y0, y1 = max(sl[0].start - pad, 0), min(sl[0].stop + pad, H)
         x0, x1 = max(sl[1].start - pad, 0), min(sl[1].stop + pad, W)
