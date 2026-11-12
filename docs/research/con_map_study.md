@@ -9,14 +9,17 @@ when it is clearly better than CoN, never just to be different.
 
 Measured with known distances between real cities in the screenshots:
 
-| CoN view (screenshot) | screen pixels per km | what you see |
+| CoN view (screenshot) | screen pixels per km (re-measured 12 Nov) | our matching zoom |
 |---|---|---|
-| world (Europe + Africa) | ~0.09 | half the world, country names only |
-| continent (Eurasia) | ~0.21 | country names, borders, coastal sea bands |
-| region (Caspian / Iran) | ~0.5 | big country names, woods and mountains readable |
-| country (Algeria, India south) | ~0.5–0.75 | province names with level, e.g. "وهران(5)" |
-| province (Iraq close) | ~1.5 | city patches, resource pins, province lines |
-| city (Sydney close) | ~4–5 | the city as a 3D block, buildings, port |
+| world (Europe + Africa) | ~0.2 | 0.35 |
+| continent (Eurasia, India) | ~0.48 | 0.8 |
+| region (Caspian / Iran) | ~1.0 | 1.7 |
+| country (Algeria) | ~1.1 | 1.9 |
+| province (Afghanistan, Iraq) | ~1.1–1.8 | 1.85–3 |
+| city (Sydney close) | ~4–5 | 7–8 |
+
+First measurement (11 Nov) was about 2× too low; corrected by measuring Barcelona–Oran, Kabul–Kandahar and
+Mosul–Basra on the screenshots. Our zoom → px/km on a 1080-px phone: px/km ≈ 0.585 × zoom.
 
 - CoN cities are **exaggerated about 4–5 times**: Baghdad's patch is about 300 px across at 1.5 px/km, so about 200 km wide.
 - Our map uses the same real geography. At latitude 33° one world pixel is about 4.1 km, so at our zoom z on a 1080-px

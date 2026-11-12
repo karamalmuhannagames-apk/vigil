@@ -491,7 +491,7 @@ if sat:
     lf8 = lf[::8, ::8]
     lab8, nl8 = ndi.label(lf8 > 0.5)
     big8 = np.isin(lab8, np.nonzero(np.bincount(lab8.ravel()) >= 40)[0][1:])      # islands smaller than ~15,000 km2 don't push the band out
-    near = (ndi.distance_transform_edt(~big8) < 13) | (ndi.distance_transform_edt(lf8 < 0.5) < 4)
+    near = (ndi.distance_transform_edt(~big8) < 20) | (ndi.distance_transform_edt(lf8 < 0.5) < 6)   # ~370 km coastal waters, like CoN
     deep = ~near
     dl, nd_ = ndi.label(deep)
     deep &= np.isin(dl, np.nonzero(np.bincount(dl.ravel()) >= 900)[0][1:])        # no small deep pockets inside enclosed seas
