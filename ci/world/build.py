@@ -181,6 +181,7 @@ for f in places:
                      'pop': int(pr.get('POP_MAX') or 0), 'capital': 'Admin-0 capital' in (pr.get('FEATURECLA') or '') and 'alt' not in (pr.get('FEATURECLA') or '').lower(),
                      'x': float(x), 'y': float(y), 'lon': lon, 'lat': lat})
 CAP_FIX = {'PSE': 'Jerusalem', 'MAR': 'Rabat'}
+RENAME = {'Tel Aviv-Yafo': ('Jaffa', 'يافا'), 'Tel Aviv': ('Jaffa', 'يافا'), 'Tel Aviv-Jaffa': ('Jaffa', 'يافا')}   # Arab-world names
 MIN_GAP = W * float(os.environ.get('CITY_GAP', '0.0085'))       # cities never closer than this on screen: no crowding (UK gets few, spaced cities)
 def ncities(c):
     if c['class'] == 'neutral': return 1
@@ -188,6 +189,11 @@ def ncities(c):
     # owner's rule (12 Nov): small playable 4, normal 5, mid 6, large 7, super large 8 (most countries land on 5-7)
     a = c['area_km2']
     return 4 if a < 120000 else 5 if a < 450000 else 6 if a < 1200000 else 7 if a < 3000000 else 8
+for _lst in by_c.values():
+    for _p in _lst:
+        for _k in (_p['name_en'],):
+            if _k in RENAME or any(_k.startswith(r) for r in ('Tel Aviv',)):
+                _p['name_en'], _p['name_ar'] = RENAME.get(_k, ('Jaffa', 'يافا'))
 for a3, c in countries.items():
     cand = sorted(by_c.get(a3, []), key=lambda p: (-(p['capital'] or p['name_en'] == CAP_FIX.get(a3)), -p['pop']))
     chosen = []
@@ -389,59 +395,68 @@ def save_ids(a, name):
     v = a + 1
     Image.fromarray(np.dstack([v % 256, v // 256, np.zeros_like(v)]).astype(np.uint8)).save(os.path.join(OUT, name))
 save_ids(nation, 'nations.png'); save_ids(province, 'provinces.png')
-# country name anchor: the widest open spot inside the country (not a thin strip like Norway's coast).
-# Distance to the nearest border or coast, with vertical distance counted 2.2x, so the spot favours room for a
-# wide line of text. label_w = free width there (world px), label_h = free height.
+# country name placement (owner, 12 Nov): straight text in the middle of the country, as big as fits with at most a
+# little outside the borders. For each country we search the biggest name box that stays >= 90% on its own land,
+# measured with the real font (IBM Plex Sans Arabic Bold), one line or two lines, with a pull toward the centre.
+from PIL import ImageFont as _IF
+try:
+    _font = _IF.truetype(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../app/fonts/IBMPlexSansArabic-Bold.ttf'), 100, layout_engine=_IF.Layout.RAQM)
+except Exception:
+    _font = None
+def _textw(t):                                   # width of the text at height 100
+    if _font is None: return 55 * len(t)
+    bb = _font.getbbox(t, direction='rtl'); return bb[2] - bb[0]
 _lab = nation + 1
-_edge = np.zeros(_lab.shape, bool)
-_edge[:, 1:] |= _lab[:, 1:] != _lab[:, :-1]; _edge[:, :-1] |= _lab[:, :-1] != _lab[:, 1:]
-_edge[1:, :] |= _lab[1:, :] != _lab[:-1, :]; _edge[:-1, :] |= _lab[:-1, :] != _lab[1:, :]
-_dd = ndi.distance_transform_edt(~_edge, sampling=(2.2, 1.0))
-_dv = ndi.distance_transform_edt(~_edge)
-_pos = ndi.maximum_position(_dd, labels=_lab, index=np.arange(1, len(ids) + 1))
 _objs = ndi.find_objects(_lab)
-def _spans(i, x, y):
-    row = _lab[y]; l = x; r = x
-    while l > 0 and row[l - 1] == i + 1 and x - l < 3000: l -= 1
-    while r < W - 1 and row[r + 1] == i + 1 and r - x < 3000: r += 1
-    col = _lab[:, x]; t = y; bt = y
-    while t > 0 and col[t - 1] == i + 1 and y - t < 2000: t -= 1
-    while bt < H - 1 and col[bt + 1] == i + 1 and bt - y < 2000: bt += 1
-    return l, r, t, bt
 for i, a in enumerate(ids):
     c = countries[a]; sl = _objs[i] if i < len(_objs) else None
     if sl is None: continue
-    m = _lab[sl] == i + 1
-    # main landmass only (islands don't pull the name into the sea)
+    pad_ = 40
+    sl = (slice(max(0, sl[0].start - pad_), min(H, sl[0].stop + pad_)), slice(max(0, sl[1].start - pad_), min(W, sl[1].stop + pad_)))
+    y0s, x0s = sl[0].start, sl[1].start
+    m = (_lab[sl] == i + 1)
+    ok_ = m | (_lab[sl] == 0)                      # a name may spill over its own sea, never far over a neighbour
+    io = np.pad(ok_.astype(np.int32), ((1, 0), (1, 0))).cumsum(0).cumsum(1)
     cl, ncl = ndi.label(m)
-    if ncl > 1: m = cl == (np.argmax(np.bincount(cl.ravel())[1:]) + 1)
-    yy, xx = np.nonzero(m)
-    cy, cx = yy.mean() + sl[0].start, xx.mean() + sl[1].start            # centre of the country
-    # candidates: the centre (moved onto land if it falls outside), and every point on a coarse grid; score = room for a
-    # wide name there, with a strong pull toward the centre, so names sit in the middle unless the middle is too thin
-    pts = [(int(round(cy)), int(round(cx)))]
-    if _lab[pts[0]] != i + 1:
-        d2 = (yy + sl[0].start - cy) ** 2 + (xx + sl[1].start - cx) ** 2; k = int(np.argmin(d2))
-        pts = [(int(yy[k] + sl[0].start), int(xx[k] + sl[1].start))]
-    step = max(1, int(np.sqrt(len(yy)) / 14))
-    for k in range(0, len(yy), max(1, len(yy) // 400)):
-        pts.append((int(yy[k] + sl[0].start), int(xx[k] + sl[1].start)))
-    pts.append(tuple(int(v) for v in _pos[i]))
-    span = np.sqrt(len(yy))
+    if ncl > 1:                                   # main landmass for the centre; islands may still hold part of a name
+        main = cl == (np.argmax(np.bincount(cl.ravel())[1:]) + 1)
+    else: main = m
+    ii = np.pad(m.astype(np.int32), ((1, 0), (1, 0))).cumsum(0).cumsum(1)
+    hh_, ww_ = m.shape
+    yy, xx = np.nonzero(main)
+    cy, cx = yy.mean(), xx.mean(); span = np.sqrt(len(yy)) + 1
+    step = max(1, int(span / 28))
+    cyx = np.stack(np.nonzero(main[::step, ::step]), 1) * step
+    if len(cyx) > 1500: cyx = cyx[np.random.default_rng(i).choice(len(cyx), 1500, replace=False)]
+    name = c.get('name_ar') or c.get('name_en') or ''
+    words = name.split(' ')
+    layouts = [(_textw(name) / 100.0, 1.0, [name])]
+    if len(words) > 1:
+        mid = len(name) / 2; k = min(range(1, len(words)), key=lambda j: abs(len(' '.join(words[:j])) - mid))
+        l1, l2 = ' '.join(words[:k]), ' '.join(words[k:])
+        layouts.append((max(_textw(l1), _textw(l2)) / 100.0, 2.05, [l1, l2]))
     best = None
-    for (y, x) in pts:
-        if _lab[y, x] != i + 1: continue
-        l, r, t, bt = _spans(i, x, y)
-        mx = (l + r) // 2                                              # centre the name in its row
-        hw = (r - l) / 2; hh = min(y - t, bt - y)
-        fit = min(hw / 2.6, hh)                                         # a name is ~2.6x wider than tall
-        far = np.hypot(mx - cx, y - cy) / (span + 1)
-        score = fit * (1 - 0.9 * min(far, 1))
-        if best is None or score > best[0]: best = (score, mx, y, r - l, 2 * hh)
+    for (ar, lines_h, lines) in layouts:
+        ys, xs = cyx[:, 0].astype(np.float64), cyx[:, 1].astype(np.float64)
+        lo = np.zeros(len(ys)); hi = np.full(len(ys), float(max(hh_, ww_)))
+        for _ in range(14):                       # binary search the biggest text height at every candidate
+            h = (lo + hi) / 2; bh = h * lines_h * 0.9; bw = h * ar
+            y1 = np.clip(np.round(ys - bh / 2), 0, hh_).astype(int); y2 = np.clip(np.round(ys + bh / 2), 0, hh_).astype(int)
+            x1 = np.clip(np.round(xs - bw / 2), 0, ww_).astype(int); x2 = np.clip(np.round(xs + bw / 2), 0, ww_).astype(int)
+            area = np.maximum(1, (bh) * (bw))
+            inside = (ii[y2, x2] - ii[y1, x2] - ii[y2, x1] + ii[y1, x1]) / area
+            okf = (io[y2, x2] - io[y1, x2] - io[y2, x1] + io[y1, x1]) / area
+            ok = (inside >= 0.9) | ((okf >= 0.93) & (inside >= 0.45))
+            lo = np.where(ok, h, lo); hi = np.where(ok, hi, h)
+        far = np.hypot(ys - cy, xs - cx) / span
+        score = lo * (1 - 0.55 * np.minimum(far, 1)) * (1.0 if lines_h == 1 else 0.93)
+        k = int(np.argmax(score))
+        if best is None or score[k] > best[0]:
+            best = (score[k], int(xs[k]) + x0s, int(ys[k]) + y0s, float(lo[k]), lines)
     if best:
-        _, x, y, w, h = best
-        c['label'] = {'x': int(x), 'y': int(y), 'w': int(w), 'h': round(float(h), 1)}
-del _lab, _edge, _dd, _dv
+        _, x, y, h, lines = best
+        c['label'] = {'x': x, 'y': y, 'th': round(h, 1), 'lines': lines}
+del _lab
 print('country label anchors done')
 out = {'size': [W, H], 'projection': {'type': 'miller+magnify', 'lat': [LAT_S, LAT_N], 'mags': MAGS, 'frame': [X0, X1, YB0, YB1]},
        'countries': [{k: v for k, v in c.items() if k != 'geoms'} | {'index': i} for i, c in enumerate(countries.values())],

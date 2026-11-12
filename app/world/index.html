@@ -311,9 +311,13 @@ function drawCountryNames(s, sw, sh) {
   const cap = (17 + 21 * smooth(0.25, 0.9, view.z)) * dpr, minS = (7.5 + 3.5 * smooth(0.25, 0.9, view.z)) * dpr;   // CoN: big names even at the farthest zoom
   for (const L of countryLabels) {
     const roomW = (L.lw || Math.sqrt(L.px) * 1.2) * s * 1.0 * dpr, roomH = Math.max(L.lh || 0, Math.sqrt(L.px) * 0.25) * s * 0.85 * dpr;   // big countries are never squeezed by one narrow spot
-    if (!L.name) continue;
+    if (!L.name || (L.lines && !L.lines[0])) continue;
     const capL = cap * Math.min(1.7, Math.max(1, Math.sqrt(L.px) / 600));   // the biggest countries get bigger names
-    const lay = nameLayout(L.name, roomW, roomH, capL, minS);
+    let lay;
+    if (L.th) {                                                         // fitted in the build: biggest box that stays on its land
+      ctx.font = `700 100px Plex, system-ui`;
+      lay = {lines: L.lines, size: Math.min(capL, L.th * s), w100: Math.max(...L.lines.map(l => ctx.measureText(l).width))};
+    } else lay = nameLayout(L.name, roomW, roomH, capL, minS);
     let size = lay.size;
     const mine = L.iso === ME;
     if (size < minS) {
@@ -324,8 +328,10 @@ function drawCountryNames(s, sw, sh) {
     const w = lay.w100 * size / 100, h = size * (lay.lines.length === 1 ? 1.1 : 2.2);
     if (sx + w / 2 < 0 || sy < -h || sx - w / 2 > sw || sy > sh + h) continue;
     const ext = w / 2 * Math.cos(NAME_TILT) + h / 2 * Math.sin(NAME_TILT), exty = w / 2 * Math.sin(NAME_TILT) + h / 2 * Math.cos(NAME_TILT);
-    const box = [sx - ext - 3 * dpr, sy - exty, sx + ext + 3 * dpr, sy + exty];
-    if (placed.some(b => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1])) continue;
+    const box = [sx - ext, sy - exty * 0.85, sx + ext, sy + exty * 0.85];
+    const ar = (b) => (b[2] - b[0]) * (b[3] - b[1]);
+    if (placed.some(b => { const ox = Math.min(box[2], b[2]) - Math.max(box[0], b[0]), oy = Math.min(box[3], b[3]) - Math.max(box[1], b[1]);
+                           return ox > 0 && oy > 0 && ox * oy > 0.06 * Math.min(ar(box), ar(b)); })) continue;   // a slight touch is fine
     placed.push(box);
     ctx.save(); ctx.translate(sx, sy); ctx.rotate(NAME_TILT);
     ctx.font = `700 ${size}px Plex, system-ui`;
@@ -592,6 +598,7 @@ addEventListener('pointermove', e => { if (!drag || pinch) return; view.x -= (e.
 cv.addEventListener('touchmove', e => { if (e.touches.length === 2) { const [a, b] = e.touches, d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); if (pinch) zoomAt((a.clientX + b.clientX) / 2, (a.clientY + b.clientY) / 2, d / pinch); pinch = d; } }, {passive: true});
 cv.addEventListener('touchend', () => pinch = null);
 window.mapView = (x, y, z) => { view = {x, y, z}; draw(); };
+window.setLabels = (o) => { for (const L of countryLabels) if (o[L.iso]) Object.assign(L, {x: o[L.iso].x, y: o[L.iso].y, th: o[L.iso].th, lines: o[L.iso].lines}); draw(); };
 window.setRelations = (me, rel) => { ME = me; REL = rel; gen++; cache.clear(); draw(); };
 window.tilesPending = () => [...cache.values()].filter(e => !e.canvas && !e.failed).length;
 window.world_ = () => world;
@@ -616,7 +623,7 @@ fetch(DATA + 'world.json').then(r => r.json()).then(async j => {
     let x = ps.reduce((a, p) => a + p.centre[0] * p.px, 0) / tot, y = ps.reduce((a, p) => a + p.centre[1] * p.px, 0) / tot;
     const best = ps.reduce((b, p) => (Math.hypot(p.centre[0] - x, p.centre[1] - y) / Math.sqrt(p.px) < Math.hypot(b.centre[0] - x, b.centre[1] - y) / Math.sqrt(b.px) ? p : b), ps[0]);
     if (ps.length > 1 && Math.hypot(best.centre[0] - x, best.centre[1] - y) > Math.sqrt(best.px) * 0.8) { x = best.centre[0]; y = best.centre[1]; }
-    if (c.label) return {name: c.name_ar, iso: c.iso, x: c.label.x, y: c.label.y, lw: c.label.w, lh: c.label.h, px: tot};   // widest open spot inside the country
+    if (c.label) return {name: c.name_ar, iso: c.iso, x: c.label.x, y: c.label.y, lw: c.label.w, lh: c.label.h, th: c.label.th, lines: c.label.lines, px: tot};   // widest open spot inside the country
     return {name: c.name_ar, iso: c.iso, x, y, px: tot};
   }).filter(Boolean).sort((a, b) => b.px - a.px);
   // each city's size: by importance, but never crowding its neighbours, and smaller in small countries,
