@@ -6,7 +6,7 @@ import numpy as np
 from PIL import Image, ImageEnhance, ImageFilter
 
 SRC, OUT = 'art/loading/hq', 'app/img/loading'
-FOCUS = {'01': 50, '02': 42, '03': 38, '04': 50, '05': 58, '06': 62, '07': 55, '08': 68, '09': 64, '10': 66, '11': 50, '12': 45, '13': 55}
+FOCUS = {'01': 42, '02': 62, '03': 55, '04': 50, '05': 55, '06': 55, '08': 42, '09': 68, '12': 74}
 info = json.load(open(f'{SRC}/info.json'))
 os.makedirs(OUT, exist_ok=True)
 for f in os.listdir(OUT):
@@ -29,7 +29,7 @@ for name in sorted(info):
     im = im.filter(ImageFilter.UnsharpMask(radius=1.2, percent=40, threshold=3))
     n += 1; out = f'{n:02d}.jpg'
     im.save(f'{OUT}/{out}', quality=84, optimize=True, progressive=True)
-    kept[out] = {**info[name], 'focus': FOCUS.get(name, 50)}
+    kept[out] = {**info[name], 'focus': FOCUS.get(name[:2], 50)}
     report.append(f'{name} -> {out}: {w}x{h} sharpness {sharp:.0f}, {os.path.getsize(f"{OUT}/{out}") // 1024} KB')
 json.dump(kept, open(f'{OUT}/credits.json', 'w'), indent=1, ensure_ascii=False)
 print('\n'.join(report))
