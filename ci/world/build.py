@@ -182,7 +182,9 @@ MIN_GAP = W * float(os.environ.get('CITY_GAP', '0.0085'))       # cities never c
 def ncities(c):
     if c['class'] == 'neutral': return 1
     if c['class'] == 'ai': return 2 if c['area_km2'] < 40000 else 3
-    return int(np.clip(round(3 + 1.3 * math.log2(max(c['area_km2'], 50000) / 50000)), 4, 9))
+    # owner's rule (12 Nov): small playable 4, normal 5, mid 6, large 7, super large 8 (most countries land on 5-7)
+    a = c['area_km2']
+    return 4 if a < 120000 else 5 if a < 450000 else 6 if a < 1200000 else 7 if a < 3000000 else 8
 for a3, c in countries.items():
     cand = sorted(by_c.get(a3, []), key=lambda p: (-(p['capital'] or p['name_en'] == CAP_FIX.get(a3)), -p['pop']))
     chosen = []
@@ -196,9 +198,9 @@ for a3, c in countries.items():
         if all(math.hypot(p['x'] - q['x'], p['y'] - q['y']) >= MIN_GAP for q in chosen):
             chosen.append(p)
         if len(chosen) >= ncities(c): break
-    want = ncities(c) if c['class'] != 'playable' else max(3, ncities(c))
+    want = ncities(c)
     gap = MIN_GAP
-    while len(chosen) < min(want, len(cand)) and gap > MIN_GAP * 0.3:   # small playable states still get 3+ cities
+    while len(chosen) < min(want, len(cand)) and gap > MIN_GAP * 0.2:   # every playable country reaches its count
         gap *= 0.75
         for p in cand:
             if p in chosen or len(chosen) >= want: continue
