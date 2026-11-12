@@ -620,7 +620,7 @@ from skimage import measure
 def shared_borders(label, n_labels, same_group=None, tol=0.45):
     """Smooth contour segments shared by two labels (never coastlines). same_group(a, b) filters pairs."""
     segs = collections.defaultdict(list)
-    pad = 2
+    pad = 6                      # wider than the 2.2-px side sample, so edge samples never fall outside the window
     objs = ndi.find_objects(label + 1)
     for ci in range(n_labels):
         sl = objs[ci] if ci < len(objs) else None     # find_objects(label + 1)[ci] is label value ci
