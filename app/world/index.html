@@ -2,12 +2,13 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>World map prototype</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>COMMANDER</title>
 <style>
   @font-face{font-family:Plex;src:url(../fonts/IBMPlexSansArabic-Medium.ttf);font-weight:500}
   @font-face{font-family:Plex;src:url(../fonts/IBMPlexSansArabic-Bold.ttf);font-weight:700}
-  html,body{margin:0;height:100%;background:#0d1b26;overflow:hidden;font-family:system-ui,sans-serif}
+  *{-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+  html,body{margin:0;height:100%;background:#0d1b26;overflow:hidden;font-family:Plex,sans-serif}
   canvas{display:block;width:100vw;height:100vh;touch-action:none}
   #hud{position:fixed;left:12px;bottom:12px;color:#cfe3d4;font:600 13px system-ui;background:#0d1b26cc;padding:6px 10px;border-radius:6px}
 </style>
@@ -20,6 +21,7 @@
 // Each tile = big light and shade + forest/desert/rock weights + a country-id image. The game paints the
 // ground from small textures and colours it by relation, live, so declaring war recolours the map instantly.
 const DATA = new URLSearchParams(location.search).get('data') || '../../art/world/';
+const DEBUG = new URLSearchParams(location.search).has('debug');
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const T = 512;
 let W, H, world, countries = [], byIso = {}, cityOrder = [];
@@ -263,7 +265,7 @@ function draw() {
     ctx.fillStyle = '#F3EFE4'; ctx.fillText(p.name_ar, lx, ly);
   }
   ctx.globalAlpha = 1;
-  document.getElementById('hud').textContent = `zoom ${view.z.toFixed(2)} · tiles z${z}`;
+  const hud = document.getElementById('hud'); if (hud) { if (DEBUG) hud.textContent = `zoom ${view.z.toFixed(2)} · tiles z${z}`; else hud.style.display = 'none'; }
 }
 
 
@@ -586,18 +588,39 @@ function drawBorders(s, sw, sh) {
 
 function resize() { cv.width = innerWidth * devicePixelRatio; cv.height = innerHeight * devicePixelRatio; draw(); }
 let drag = null, pinch = null;
-cv.addEventListener('wheel', e => { e.preventDefault(); zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.0015)); }, {passive: false});
-function zoomAt(cx, cy, k) {
-  const wx = (cx - innerWidth / 2) / view.z + view.x, wy = (cy - innerHeight / 2) / view.z + view.y;
-  view.z = Math.min(9, Math.max(0.22, view.z * k));   // farthest zoom like CoN: about half of Eurasia on a phone
-  view.x = wx - (cx - innerWidth / 2) / view.z; view.y = wy - (cy - innerHeight / 2) / view.z; draw();
+// Camera: the map follows the finger with a slight smoothing and coasts to a stop when released,
+// a little slower than raw input so a big map feels heavy and calm, never laggy.
+const FOLLOW = 0.32, COAST = 0.9;      // share of the gap closed per frame; speed kept per frame while coasting
+let tv = null, vel = {x: 0, y: 0}, anim = 0, lastMove = 0;
+function target() { if (!tv) tv = {x: view.x, y: view.y, z: view.z}; return tv; }
+function kick() { if (!anim) anim = requestAnimationFrame(step); }
+function step() {
+  anim = 0; const t = target();
+  if (!drag && !pinch && (Math.abs(vel.x) + Math.abs(vel.y)) * view.z > 0.05) { t.x += vel.x; t.y += vel.y; vel.x *= COAST; vel.y *= COAST; }
+  const dz = t.z - view.z, dx = t.x - view.x, dy = t.y - view.y;
+  view.z += dz * FOLLOW; view.x += dx * FOLLOW; view.y += dy * FOLLOW;
+  draw();
+  if (Math.abs(dz) > 1e-4 || (Math.abs(dx) + Math.abs(dy)) * view.z > 0.05 || (Math.abs(vel.x) + Math.abs(vel.y)) * view.z > 0.05) kick();
+  else { view.x = t.x; view.y = t.y; view.z = t.z; }
 }
-cv.addEventListener('pointerdown', e => drag = {x: e.clientX, y: e.clientY});
-addEventListener('pointerup', () => drag = null);
-addEventListener('pointermove', e => { if (!drag || pinch) return; view.x -= (e.clientX - drag.x) / view.z; view.y -= (e.clientY - drag.y) / view.z; drag = {x: e.clientX, y: e.clientY}; draw(); });
-cv.addEventListener('touchmove', e => { if (e.touches.length === 2) { const [a, b] = e.touches, d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); if (pinch) zoomAt((a.clientX + b.clientX) / 2, (a.clientY + b.clientY) / 2, d / pinch); pinch = d; } }, {passive: true});
+cv.addEventListener('wheel', e => { e.preventDefault(); zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.0012)); }, {passive: false});
+function zoomAt(cx, cy, k) {
+  const t = target();
+  const wx = (cx - innerWidth / 2) / t.z + t.x, wy = (cy - innerHeight / 2) / t.z + t.y;
+  t.z = Math.min(9, Math.max(0.22, t.z * k));   // farthest zoom like CoN: about half of Eurasia on a phone
+  t.x = wx - (cx - innerWidth / 2) / t.z; t.y = wy - (cy - innerHeight / 2) / t.z; kick();
+}
+cv.addEventListener('pointerdown', e => { drag = {x: e.clientX, y: e.clientY}; vel = {x: 0, y: 0}; target(); });
+addEventListener('pointerup', () => { drag = null; if (performance.now() - lastMove > 80) vel = {x: 0, y: 0}; kick(); });
+addEventListener('pointermove', e => {
+  if (!drag || pinch) return; const t = target();
+  const mx = (e.clientX - drag.x) / t.z, my = (e.clientY - drag.y) / t.z;
+  t.x -= mx; t.y -= my; vel = {x: -mx * 0.6 + vel.x * 0.4, y: -my * 0.6 + vel.y * 0.4}; lastMove = performance.now();
+  drag = {x: e.clientX, y: e.clientY}; kick();
+});
+cv.addEventListener('touchmove', e => { if (e.touches.length === 2) { const [a, b] = e.touches, d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); if (pinch) zoomAt((a.clientX + b.clientX) / 2, (a.clientY + b.clientY) / 2, d / pinch); pinch = d; vel = {x: 0, y: 0}; } }, {passive: true});
 cv.addEventListener('touchend', () => pinch = null);
-window.mapView = (x, y, z) => { view = {x, y, z}; draw(); };
+window.mapView = (x, y, z) => { view = {x, y, z}; tv = {x, y, z}; vel = {x: 0, y: 0}; draw(); };
 window.setLabels = (o) => { for (const L of countryLabels) if (o[L.iso]) Object.assign(L, {x: o[L.iso].x, y: o[L.iso].y, th: o[L.iso].th, lines: o[L.iso].lines}); draw(); };
 window.setRelations = (me, rel) => { ME = me; REL = rel; gen++; cache.clear(); draw(); };
 window.tilesPending = () => [...cache.values()].filter(e => !e.canvas && !e.failed).length;
@@ -647,7 +670,7 @@ fetch(DATA + 'world.json').then(r => r.json()).then(async j => {
     if (!ps.length) { x0 = cap.x - 50; x1 = cap.x + 50; y0 = cap.y - 50; y1 = cap.y + 50; }
     const sw0 = innerWidth, sh0 = innerHeight * 0.8, f = 1;
     const z = Math.min(sw0 / ((x1 - x0) * 1.35), sh0 / ((y1 - y0) * 1.35)) / f;
-    view = {x: (x0 + x1) / 2, y: (y0 + y1) / 2, z: Math.min(3.5, Math.max(0.35, z))};
+    view = {x: (x0 + x1) / 2, y: (y0 + y1) / 2, z: Math.min(3.5, Math.max(0.35, z))}; tv = null;
   }
   addEventListener('resize', resize); resize();
   Promise.all([document.fonts.load('500 14px Plex', 'عمان'), document.fonts.load('700 14px Plex', 'عمان')]).then(() => { draw(); document.title = 'World ready'; });

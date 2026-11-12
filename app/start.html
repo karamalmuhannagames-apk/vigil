@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#000000">
+<title>COMMANDER</title>
+<style>
+@font-face { font-family: Changa; src: url(fonts/Changa.ttf); font-weight: 200 800; font-display: block; }
+@font-face { font-family: Kufi; src: url(fonts/NotoKufiArabic.ttf); font-weight: 100 900; font-display: block; }
+@font-face { font-family: Plex; src: url(fonts/IBMPlexSansArabic-Medium.ttf); font-weight: 500; font-display: block; }
+@font-face { font-family: Plex; src: url(fonts/IBMPlexSansArabic-Bold.ttf); font-weight: 700; font-display: block; }
+:root { --ink: #ece7da; --brass: #b8975a; --brass2: #e6c98a; --olive: #20261d; --steel: #a59d8a; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+html, body { margin: 0; height: 100%; background: #000; color: var(--ink); overflow: hidden; font-family: Plex, sans-serif; }
+.screen { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+
+/* ---------- intro ---------- */
+#intro { background: #000; z-index: 3; transition: opacity .5s; }
+.studio, .game { position: absolute; display: flex; align-items: center; flex-direction: column; opacity: 0; }
+.studio .mark { width: min(26vw, 22vh); height: min(26vw, 22vh); }
+.studio .name { font: 800 min(9.5vw, 8vh)/1 Changa; letter-spacing: .32em; padding-left: .32em; margin-top: 4.2vh; }
+.studio .rule { width: min(56vw, 46vh); height: 2px; margin: 2.4vh 0 2vh; background: linear-gradient(90deg, transparent, var(--brass) 20%, var(--brass2) 50%, var(--brass) 80%, transparent); }
+.studio .sub { font: 500 min(3.6vw, 3vh)/1 Changa; letter-spacing: .9em; padding-left: .9em; color: #b9b2a2; }
+.studio .presents { font: 500 min(3.4vw, 2.8vh)/1 Changa; letter-spacing: .6em; padding-left: .6em; color: #8f8878; margin-top: 7vh; opacity: 0; transition: opacity .6s; }
+.studio .presents.ar { font-family: Kufi; letter-spacing: 0; padding-left: 0; font-weight: 500; }
+.studio.dim { animation: dimIn 1s ease-in forwards; }
+.studio.lit { animation: lit .45s ease-out forwards; }
+.studio.out { animation: out .5s ease-in forwards; }
+@keyframes dimIn { from { opacity: 0; filter: brightness(.25); } to { opacity: .55; filter: brightness(.45); } }
+@keyframes lit { from { opacity: .55; filter: brightness(.45); } 60% { filter: brightness(1.6) drop-shadow(0 0 30px rgba(255,236,200,.55)); } to { opacity: 1; filter: brightness(1.15) drop-shadow(0 0 18px rgba(255,236,200,.35)); } }
+@keyframes out { to { opacity: 0; filter: brightness(.3); } }
+.game .emb { width: min(24vw, 20vh); height: min(24vw, 20vh); }
+.game .ar { font: 900 min(16vw, 13vh)/1.25 Kufi; margin-top: 1vh; }
+.game .en { position: relative; font: 800 min(11vw, 9vh)/1 Changa; letter-spacing: .2em; padding-left: .2em; margin-top: -.6vh; }
+.game .en::after { content: ''; position: absolute; left: 0; right: -.2em; top: 52%; height: .05em; background: #000; }
+.game .bar { display: flex; gap: 14px; align-items: center; margin-top: 2.6vh; }
+.game .bar i { display: block; width: min(13vw, 11vh); height: 2px; background: #9a8754; }
+.game .bar b { font: 600 min(2.4vw, 2vh)/1 Changa; letter-spacing: .5em; padding-left: .5em; color: #9a8754; }
+.game.pop { animation: pop 1.25s cubic-bezier(.2,.8,.2,1) forwards; }
+.game.out { animation: out .45s ease-in forwards; }
+@keyframes pop { 0% { opacity: 0; transform: scale(1.18); filter: brightness(3) blur(6px); } 18% { opacity: 1; transform: scale(.985); filter: brightness(1.8) blur(0); } 40% { transform: scale(1.0); filter: brightness(1.05); } 100% { opacity: 1; transform: scale(1.02); filter: brightness(1); } }
+.flash { position: absolute; inset: 0; background: radial-gradient(circle, rgba(255,240,210,.55), transparent 60%); opacity: 0; pointer-events: none; }
+.flash.go { animation: flash .6s ease-out; }
+@keyframes flash { 0% { opacity: 0; } 15% { opacity: 1; } 100% { opacity: 0; } }
+
+/* ---------- loading ---------- */
+#loading { z-index: 2; opacity: 0; transition: opacity .7s; background: #000; justify-content: flex-end; }
+#loading.on { opacity: 1; }
+.photo { position: absolute; inset: -4%; background-size: cover; background-position: center; animation: drift 26s linear forwards; }
+@keyframes drift { from { transform: scale(1.0) translate(0, 0); } to { transform: scale(1.09) translate(-1.5%, -1%); } }
+.shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,.55) 0%, rgba(0,0,0,.05) 30%, rgba(0,0,0,.1) 55%, rgba(0,0,0,.88) 100%); }
+.grain { position: absolute; inset: 0; opacity: .12; background-image: repeating-linear-gradient(0deg, rgba(255,255,255,.06) 0 1px, transparent 1px 3px); pointer-events: none; }
+.corner { position: absolute; top: max(16px, env(safe-area-inset-top)); left: 16px; display: flex; align-items: center; gap: 10px; }
+[dir=rtl] .corner { left: auto; right: 16px; }
+.corner svg { width: 34px; height: 34px; }
+.corner b { font: 800 18px/1 Changa; letter-spacing: .2em; }
+.corner span { font: 900 17px/1 Kufi; color: var(--ink); opacity: .85; }
+.panel { position: relative; width: min(92vw, 720px); margin-bottom: max(26px, env(safe-area-inset-bottom)); }
+.tip { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; background: rgba(10,13,11,.72); border-left: 3px solid var(--brass);
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px)); }
+[dir=rtl] .tip { border-left: 0; border-right: 3px solid var(--brass); }
+.tip small { font: 700 12px/1.6 Plex; color: var(--brass2); letter-spacing: .12em; white-space: nowrap; }
+.tip p { margin: 0; font: 500 15px/1.6 Plex; color: var(--ink); }
+.bar2 { margin-top: 14px; display: grid; grid-template-columns: repeat(40, 1fr); gap: 3px; direction: ltr; }
+[dir=rtl] .bar2 { direction: rtl; }
+.bar2 i { height: 8px; background: rgba(236,231,218,.12); transform: skewX(-20deg); transition: background .2s; }
+.bar2 i.on { background: var(--brass2); box-shadow: 0 0 6px rgba(230,201,138,.5); }
+.status { display: flex; justify-content: space-between; margin-top: 8px; font: 500 12px/1 Plex; color: #a9a291; letter-spacing: .06em; }
+.status b { font-family: Changa; font-weight: 600; color: var(--ink); }
+
+/* ---------- problem card (never a raw error) ---------- */
+#problem { z-index: 5; background: rgba(0,0,0,.85); display: none; }
+#problem.on { display: flex; }
+.card { width: min(90vw, 460px); padding: 22px; background: #121611; border: 1px solid #3a4231;
+  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px)); }
+.card h2 { margin: 0 0 10px; font: 700 18px/1.4 Plex; color: var(--brass2); }
+.card p { margin: 0 0 8px; font: 500 15px/1.6 Plex; }
+.card .fix { color: #c9c2b2; }
+.card button { margin-top: 12px; width: 100%; padding: 12px; border: 0; background: var(--brass); color: #121611; font: 700 15px/1 Plex; letter-spacing: .08em;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px)); }
+
+#game-frame { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; z-index: 1; opacity: 0; transition: opacity .6s; background: #0b1220; }
+#game-frame.on { opacity: 1; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="halberd" viewBox="0 0 200 200">
+      <path d="M100 0 L111 38 L100 50 L89 38 Z" /><rect x="94" y="42" width="12" height="156" />
+      <path d="M106 56 L152 46 C182 74 182 110 152 136 L106 124 Z" /><path d="M94 70 L50 80 L36 98 L56 94 L94 92 Z" />
+      <rect x="90" y="128" width="20" height="7" /><rect x="90" y="141" width="20" height="5" />
+    </symbol>
+    <symbol id="chevrons" viewBox="0 0 200 200">
+      <path d="M100 30 L164 70 L164 94 L100 54 L36 94 L36 70 Z" /><path d="M100 76 L164 116 L164 140 L100 100 L36 140 L36 116 Z" />
+      <path d="M100 122 L164 162 L164 186 L100 146 L36 186 L36 162 Z" />
+    </symbol>
+    <linearGradient id="steel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbf8f0" /><stop offset=".55" stop-color="#d9d3c4" /><stop offset="1" stop-color="#a59d8a" /></linearGradient>
+    <linearGradient id="brass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f1d79a" /><stop offset="1" stop-color="#9c7c3e" /></linearGradient>
+  </defs>
+</svg>
+
+<div id="intro" class="screen">
+  <div class="studio" id="studio">
+    <svg class="mark" viewBox="0 0 230 230"><path d="M30 6 H200 L224 30 V200 L200 224 H30 L6 200 V30 Z" fill="none" stroke="url(#brass)" stroke-width="6" /><use href="#halberd" x="25" y="20" width="180" height="190" fill="url(#steel)" /></svg>
+    <div class="name">HALBERD</div><div class="rule"></div><div class="sub">STUDIO</div>
+    <div class="presents" id="presents">PRESENTS</div>
+  </div>
+  <div class="game" id="game">
+    <svg class="emb" viewBox="0 0 200 200"><path d="M28 4 H172 L196 28 V172 L172 196 H28 L4 172 V28 Z" fill="#1d2219" stroke="url(#brass)" stroke-width="5" /><use href="#chevrons" x="10" y="12" width="180" height="180" fill="url(#steel)" /></svg>
+    <div class="ar">القائد</div><div class="en">COMMANDER</div>
+    <div class="bar"><i></i><b>MODERN WAR</b><i></i></div>
+  </div>
+  <div class="flash" id="flash"></div>
+</div>
+
+<div id="loading" class="screen">
+  <div class="photo" id="photo"></div><div class="shade"></div><div class="grain"></div>
+  <div class="corner"><svg viewBox="0 0 200 200"><use href="#chevrons" width="200" height="200" fill="url(#steel)" /></svg><b>COMMANDER</b><span>القائد</span></div>
+  <div class="panel">
+    <div class="tip"><small id="tipLabel">FIELD NOTE</small><p id="tip"></p></div>
+    <div class="bar2" id="bar"></div>
+    <div class="status"><span id="stage"></span><b id="pct">0%</b></div>
+  </div>
+</div>
+
+<div id="problem" class="screen"><div class="card"><h2 id="pTitle"></h2><p id="pWhat"></p><p class="fix" id="pFix"></p><button id="pBtn"></button></div></div>
+
+<script>
+(() => {
+  const AR = (navigator.language || 'en').toLowerCase().startsWith('ar');
+  if (AR) { document.documentElement.lang = 'ar'; document.documentElement.dir = 'rtl'; }
+  const T = AR ? {
+    presents: 'تقدّم', label: 'معلومة ميدانية', stages: ['تجهيز غرفة العمليات', 'تحميل خريطة العالم', 'رسم الحدود والأقاليم', 'نشر المدن', 'جاهز'],
+    tips: ['الدفاع الجوي يطلق النار كل بضع دقائق، ضعه مع دباباتك.', 'الطرادات هي أفضل صيادي الغواصات.', 'المدينة الخالية تصبح لك لحظة دخول أي وحدة برية.', 'السفن تُصلَح فقط في موانئك أو موانئ تحالفك أو حلفائك.', 'الصواريخ أقوى سلاح في اللعبة، لكنها بطيئة التذخير ويمكن إسقاطها.', 'لا تعبر أي وحدة برية نهرًا بلا جسر.', 'المدينة المضمومة ترتفع إلى 80% من إنتاجها خلال خمسة أيام لعب.', 'الدبابات لا تستطيع إصابة المروحيات؛ احمها بدفاع جوي قصير المدى.'],
+    pTitle: 'تعذّر تحميل الخريطة', pWhat: 'لم تكتمل ملفات الخريطة داخل اللعبة.', pFix: 'أعد فتح اللعبة. إن تكرر ذلك، حدّث اللعبة من متجر Google Play.', pBtn: 'إعادة المحاولة'
+  } : {
+    presents: 'PRESENTS', label: 'FIELD NOTE', stages: ['Raising the command post', 'Loading the world map', 'Drawing borders and provinces', 'Placing the cities', 'Ready'],
+    tips: ['Air defence fires every few minutes. Keep it with your tanks.', 'Cruisers are the best submarine hunters.', 'An empty city is yours the moment a ground unit enters it.', 'Ships heal only in your own, coalition or allied ports.', 'Missiles hit hardest of all, but reload slowly and can be shot down.', 'No ground unit can cross a river without a bridge.', 'An annexed city rises to 80% of its output over five game days.', 'Tanks cannot hit helicopters. Cover them with short-range air defence.'],
+    pTitle: 'The map could not load', pWhat: 'Some of the game\'s map files did not open.', pFix: 'Close and reopen the game. If it happens again, update the game from Google Play.', pBtn: 'Try again'
+  };
+  const $ = (id) => document.getElementById(id);
+  const presents = $('presents'); presents.textContent = T.presents; if (AR) presents.classList.add('ar');
+  $('tipLabel').textContent = T.label;
+
+  // sounds: never an error if the phone blocks them; the game simply continues silently
+  const snd = (f, v = 1) => { const a = new Audio('audio/' + f); a.volume = v; a.preload = 'auto'; return a; };
+  const sReveal = snd('studio_reveal.ogg', .9), sImpact = snd('logo_impact.ogg', 1), sLoop = snd('loading_loop.ogg', 0);
+  sLoop.loop = true;
+  const play = (a) => { try { const p = a.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {} };
+  const fadeTo = (a, v, ms) => { const v0 = a.volume, t0 = performance.now(); const f = (t) => { const k = Math.min(1, (t - t0) / ms); a.volume = v0 + (v - v0) * k; if (k < 1) requestAnimationFrame(f); else if (v === 0) a.pause(); }; requestAnimationFrame(f); };
+
+  // load the game behind the intro so the loading bar follows real progress
+  const frame = document.createElement('iframe'); frame.id = 'game-frame'; frame.src = 'world/index.html' + location.search;
+  let frameLoaded = false, failed = false, peak = 0;
+  frame.addEventListener('load', () => { frameLoaded = true; });
+  document.body.appendChild(frame);
+  const progress = () => {
+    if (!frameLoaded) return 0.05;
+    let w; try { w = frame.contentWindow; } catch (e) { return 0.1; }
+    const world = w.world_ && w.world_(); if (!world) return 0.25;
+    const pend = w.tilesPending ? w.tilesPending() : 0; peak = Math.max(peak, pend);
+    return 0.45 + 0.55 * (peak ? 1 - pend / peak : 1);
+  };
+
+  // segmented bar
+  const bar = $('bar'); for (let i = 0; i < 40; i++) bar.appendChild(document.createElement('i'));
+  const cells = [...bar.children];
+  // each photo with the point that must stay on screen when a tall phone crops it
+  const photos = [['01', 50], ['02', 42], ['03', 38], ['04', 50], ['05', 58], ['06', 62], ['07', 55], ['08', 68], ['09', 64], ['10', 66]];
+  const ph = photos[Math.floor(Math.random() * photos.length)];
+  $('photo').style.backgroundImage = `url(img/loading/${ph[0]}.jpg)`; $('photo').style.backgroundPosition = `${ph[1]}% 50%`;
+  let tipI = Math.floor(Math.random() * T.tips.length); const tip = $('tip'); tip.textContent = T.tips[tipI];
+  setInterval(() => { tipI = (tipI + 1) % T.tips.length; tip.textContent = T.tips[tipI]; }, 5000);
+
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  let skipped = false;
+  const intro = $('intro'), studio = $('studio'), game = $('game');
+  const skip = () => { if (skipped) return; skipped = true; };
+  intro.addEventListener('pointerdown', () => { if (performance.now() > 900) skip(); });
+  const step = async (ms) => { const t0 = performance.now(); while (performance.now() - t0 < ms) { if (skipped) return false; await wait(30); } return true; };
+
+  async function run() {
+    await document.fonts.ready;
+    // 1. low fade-in from black, then the studio mark lights up bright
+    await step(400);
+    if (!skipped) { play(sReveal); studio.classList.add('dim'); }
+    if (await step(1150)) { studio.classList.remove('dim'); studio.classList.add('lit'); }
+    if (await step(500)) presents.style.opacity = 1;
+    if (await step(1100)) { studio.classList.add('out'); }
+    // 2. the game logo hits
+    if (await step(250)) { play(sImpact); }
+    if (await step(480)) { game.classList.add('pop'); $('flash').classList.add('go'); }
+    if (await step(1400)) { game.classList.add('out'); }
+    await step(450);
+    // 3. loading screen
+    if (skipped) { fadeTo(sReveal, 0, 300); fadeTo(sImpact, 0, 300); }
+    $('loading').classList.add('on'); intro.style.opacity = 0; setTimeout(() => intro.remove(), 600);
+    play(sLoop); fadeTo(sLoop, .55, 1500);
+    const t0 = performance.now(); let shown = 0;
+    while (true) {
+      const p = progress(); shown += (p - shown) * 0.12; const k = Math.max(0, Math.min(1, shown));
+      const on = Math.round(k * 40); cells.forEach((c, i) => c.classList.toggle('on', i < on));
+      $('pct').textContent = Math.round(k * 100) + '%';
+      $('stage').textContent = T.stages[Math.min(4, Math.floor(k * 4.2))];
+      if (p >= 0.995 && shown > 0.97 && performance.now() - t0 > 2600) break;
+      if (performance.now() - t0 > 45000 && !frameLoaded) { problem(); return; }
+      await wait(60);
+    }
+    cells.forEach((c) => c.classList.add('on')); $('pct').textContent = '100%'; $('stage').textContent = T.stages[4];
+    await wait(350);
+    fadeTo(sLoop, 0, 1200);
+    frame.classList.add('on'); $('loading').style.opacity = 0; setTimeout(() => $('loading').remove(), 800);
+  }
+  function problem() {
+    $('pTitle').textContent = T.pTitle; $('pWhat').textContent = T.pWhat; $('pFix').textContent = T.pFix; $('pBtn').textContent = T.pBtn;
+    $('problem').classList.add('on'); $('pBtn').onclick = () => location.reload();
+  }
+  window.addEventListener('error', () => {}, true);
+  run().catch(problem);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,94 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face { font-family: Changa; src: url(../../app/fonts/Changa.ttf); font-weight: 200 800; }
+@font-face { font-family: Kufi; src: url(../../app/fonts/NotoKufiArabic.ttf); font-weight: 100 900; }
+html, body { margin: 0; background: transparent; }
+.board { position: relative; display: flex; align-items: center; justify-content: center; flex-direction: column; overflow: hidden; }
+/* ---------- studio ---------- */
+#studio { width: 1600px; height: 900px; background: #000; }
+#studio .mark { width: 230px; height: 230px; filter: drop-shadow(0 0 18px rgba(255,236,200,.35)); }
+#studio .name { font: 800 92px/1 Changa; letter-spacing: .32em; color: #f3efe4; margin-top: 46px; padding-left: .32em;
+  text-shadow: 0 0 24px rgba(255,236,200,.35); }
+#studio .rule { width: 520px; height: 2px; margin: 26px 0 22px; background: linear-gradient(90deg, transparent, #b8975a 20%, #e6c98a 50%, #b8975a 80%, transparent); }
+#studio .sub { font: 500 34px/1 Changa; letter-spacing: .9em; padding-left: .9em; color: #b9b2a2; }
+/* ---------- game logo ---------- */
+#game { width: 1600px; height: 900px; background: transparent; }
+#game.dark { background: #0a0d0c; }
+#game .emb { width: 210px; height: 210px; }
+#game .ar { font: 900 150px/1.2 Kufi; color: #e9e4d6; margin-top: 10px; letter-spacing: 0; }
+#game .en { position: relative; font: 800 128px/1 Changa; letter-spacing: .2em; padding-left: .2em; color: #e9e4d6; margin-top: -6px; }
+#game .en::after { content: ''; position: absolute; left: 0; right: -.2em; top: 52%; height: 6px; background: #0a0d0c; }
+#game .bar { display: flex; gap: 14px; align-items: center; margin-top: 26px; }
+#game .bar i { display: block; width: 150px; height: 3px; background: #9a8754; }
+#game .bar b { font: 600 26px/1 Changa; letter-spacing: .5em; padding-left: .5em; color: #9a8754; }
+/* ---------- icon ---------- */
+.icon { width: 1024px; height: 1024px; }
+#iconFull { background: radial-gradient(circle at 50% 38%, #3a4231 0%, #20261d 55%, #121611 100%); }
+#iconFg, #iconMono { background: transparent; }
+</style></head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <!-- halberd head: spear point, axe blade, back hook, socket -->
+    <symbol id="halberd" viewBox="0 0 200 200">
+      <path d="M100 0 L111 38 L100 50 L89 38 Z" />
+      <rect x="94" y="42" width="12" height="156" />
+      <path d="M106 56 L152 46 C182 74 182 110 152 136 L106 124 Z" />
+      <path d="M94 70 L50 80 L36 98 L56 94 L94 92 Z" />
+      <rect x="90" y="128" width="20" height="7" /><rect x="90" y="141" width="20" height="5" />
+    </symbol>
+    <!-- commander chevrons inside a cut-corner plate -->
+    <symbol id="chevrons" viewBox="0 0 200 200">
+      <path d="M100 30 L164 70 L164 94 L100 54 L36 94 L36 70 Z" />
+      <path d="M100 76 L164 116 L164 140 L100 100 L36 140 L36 116 Z" />
+      <path d="M100 122 L164 162 L164 186 L100 146 L36 186 L36 162 Z" />
+    </symbol>
+    <linearGradient id="steel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fbf8f0" /><stop offset=".55" stop-color="#d9d3c4" /><stop offset="1" stop-color="#a59d8a" />
+    </linearGradient>
+    <linearGradient id="brass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f1d79a" /><stop offset="1" stop-color="#9c7c3e" />
+    </linearGradient>
+  </defs>
+</svg>
+
+<div id="studio" class="board">
+  <svg class="mark" viewBox="0 0 230 230">
+    <path d="M30 6 H200 L224 30 V200 L200 224 H30 L6 200 V30 Z" fill="none" stroke="url(#brass)" stroke-width="6" />
+    <use href="#halberd" x="25" y="20" width="180" height="190" fill="url(#steel)" />
+  </svg>
+  <div class="name">HALBERD</div>
+  <div class="rule"></div>
+  <div class="sub">STUDIO</div>
+</div>
+
+<div id="game" class="board dark">
+  <svg class="emb" viewBox="0 0 200 200">
+    <path d="M28 4 H172 L196 28 V172 L172 196 H28 L4 172 V28 Z" fill="#1d2219" stroke="url(#brass)" stroke-width="5" />
+    <use href="#chevrons" x="10" y="12" width="180" height="180" fill="url(#steel)" />
+  </svg>
+  <div class="ar">القائد</div>
+  <div class="en">COMMANDER</div>
+  <div class="bar"><i></i><b>MODERN WAR</b><i></i></div>
+</div>
+
+<div id="iconFull" class="board icon">
+  <svg viewBox="0 0 1024 1024" width="1024" height="1024">
+    <path d="M190 120 H834 L904 190 V834 L834 904 H190 L120 834 V190 Z" fill="none" stroke="url(#brass)" stroke-width="16" />
+    <g transform="translate(232 214) scale(2.8)"><use href="#chevrons" width="200" height="200" fill="url(#steel)" /></g>
+  </svg>
+</div>
+<div id="iconFg" class="board icon">
+  <svg viewBox="0 0 1024 1024" width="1024" height="1024">
+    <!-- adaptive icon safe zone is the middle 66%: keep the art inside 340..684 -->
+    <g transform="translate(302 290) scale(2.1)"><use href="#chevrons" width="200" height="200" fill="url(#steel)" /></g>
+  </svg>
+</div>
+<div id="iconMono" class="board icon">
+  <svg viewBox="0 0 1024 1024" width="1024" height="1024">
+    <g transform="translate(302 290) scale(2.1)"><use href="#chevrons" width="200" height="200" fill="#ffffff" /></g>
+  </svg>
+</div>
+</body></html>
