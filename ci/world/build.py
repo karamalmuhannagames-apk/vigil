@@ -523,15 +523,7 @@ if sat:
     w_cont = np.clip(8.5 + 3.0 * vary, 4.5, 13)
     d_land = np.minimum(ndi.distance_transform_edt(~cont8), ndi.distance_transform_edt(lf8 < 0.5) + 6)
     near = (ndi.distance_transform_edt(~cont8) < w_cont) | (ndi.distance_transform_edt(~mid8) < np.clip(4 + 1.5 * vary, 2.5, 6)) | (ndi.distance_transform_edt(lf8 < 0.5) < 2.2)
-    rows_lat = np.array([from_px(np.array([W / 2.0]), np.array([r * 4 + 2.0]))[1][0] for r in range(lf8.shape[0])])
-    arctic = (rows_lat > 62)[:, None] & np.ones_like(near)
-    shelf_n = 'ne_10m_bathymetry_K_200.geojson'
-    if os.path.exists(os.path.join(DATA, shelf_n)):
-        deep200 = raster([(1, [f['geometry'] for f in load(shelf_n)])], (M, MH))[::8, ::8] > 0
-        near |= arctic & (~deep200 | (d_land < 45))      # Barents, Kara, Laptev ...: all coastal like CoN
-        del deep200
-    else:
-        near |= arctic & (d_land < 30)
+    # Arctic: same rule as the Mediterranean (coastal near land, a deep passage through the middle)
     deep = ~near & (lf8 < 0.5)
     dl, nd_ = ndi.label(deep)
     deep &= np.isin(dl, np.nonzero(np.bincount(dl.ravel()) >= 60)[0][1:])        # tiny deep pockets become coastal
