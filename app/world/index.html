@@ -312,7 +312,8 @@ function drawCountryNames(s, sw, sh) {
   for (const L of countryLabels) {
     const roomW = (L.lw || Math.sqrt(L.px) * 1.2) * s * 1.0 * dpr, roomH = Math.max(L.lh || 0, Math.sqrt(L.px) * 0.25) * s * 0.85 * dpr;   // big countries are never squeezed by one narrow spot
     if (!L.name) continue;
-    const lay = nameLayout(L.name, roomW, roomH, cap, minS);
+    const capL = cap * Math.min(1.7, Math.max(1, Math.sqrt(L.px) / 600));   // the biggest countries get bigger names
+    const lay = nameLayout(L.name, roomW, roomH, capL, minS);
     let size = lay.size;
     const mine = L.iso === ME;
     if (size < minS) {
