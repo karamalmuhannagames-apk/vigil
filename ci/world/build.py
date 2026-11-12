@@ -498,7 +498,11 @@ if sat:
     coast8 = ndi.gaussian_filter((~deep).astype(np.float32), 3.0)                 # coastal waters, soft-cornered outline
     del lab8, dl
     rng8 = np.random.default_rng(21)
-    clump8 = ndi.gaussian_filter(rng8.standard_normal(lf8.shape), 1.6); clump8 /= clump8.std()      # forest clumps
+    _c1 = ndi.gaussian_filter(rng8.standard_normal(lf8.shape), 2.2); _c1 /= _c1.std()
+    _c2 = ndi.gaussian_filter(rng8.standard_normal(lf8.shape), 0.8); _c2 /= _c2.std()
+    _c3 = ndi.gaussian_filter(rng8.standard_normal(lf8.shape), 9.0); _c3 /= _c3.std()
+    clump8 = _c1 * 0.75 + _c2 * 0.45 + _c3 * 0.55                                                     # forest clumps: irregular, uneven spread
+    clump8 /= clump8.std(); del _c1, _c2, _c3
     depth8 = ndi.gaussian_filter(rng8.standard_normal(lf8.shape), 7.0); depth8 /= depth8.std()      # slow dark patches in deep water
     half = np.zeros((H, W), np.uint8); halfb = np.zeros((H // 2, W // 2, 3), np.uint8)
     manifest = {str(z): [] for z in range(5)}
@@ -531,11 +535,11 @@ if sat:
         if HS is not None:
             h = HS[np.clip((sy.astype(np.float64) * HS.shape[0] / sh4).astype(np.int32), 0, HS.shape[0] - 1),
                    np.clip((sx.astype(np.float64) * HS.shape[1] / sw4).astype(np.int32), 0, HS.shape[1] - 1)].astype(np.float32) / 255
-            h = ndi.gaussian_filter(h, 2.6)                                         # painted, broad soft ridges (no crumpled noise)
+            h = ndi.gaussian_filter(h, 5.0)                                         # painted, broad soft ridges (no crumpled noise)
             # only real mountain ranges show: where the ground is rough over a wide area. Plains stay calm.
-            hm = ndi.gaussian_filter(h, 10)
-            hstd = np.sqrt(np.maximum(ndi.gaussian_filter(h * h, 10) - hm * hm, 0))
-            mnt = np.clip((hstd - 0.05) / 0.05, 0, 1)
+            hm = ndi.gaussian_filter(h, 16)
+            hstd = np.sqrt(np.maximum(ndi.gaussian_filter(h * h, 16) - hm * hm, 0))
+            mnt = np.clip((hstd - 0.03) / 0.04, 0, 1)
             relief = np.clip(1 + 2.4 * (h - hm) * mnt + 0.25 * (hm - hs_mid) * mnt, 0.45, 1.5)
             rough = mnt * np.clip(np.abs(h - hm) * 8, 0, 1)
         else: relief = np.ones_like(L); rough = np.zeros_like(L)
@@ -543,7 +547,7 @@ if sat:
         cl = ndi.zoom(clump8[a0 // 8:a1 // 8 + 2], 8, order=1)[:a1 - a0, :M]
         dry = np.clip((ndi.gaussian_filter(arid, 24) - 0.3) * 3, 0, 1)           # inside deserts: no satellite 'forest' (dark coasts, towns, oases)
         forest = forest * (1 - dry)
-        woods = np.clip((cl - 1.6) * 2.5, 0, 1) * (1 - 0.75 * arid)          # a few scattered woods, not a carpet
+        woods = np.clip((cl - 1.55) * 2.2, 0, 1) * (1 - arid) * (1 - dry)   # a few irregular woods, none in deserts
         forest = np.clip(np.maximum(forest * np.clip((forest - 0.25) * 2.2, 0, 1) * np.clip(cl * 0.35 + 0.8, 0, 1), woods), 0, 1)
         rock = np.clip(np.maximum(rough * (1 - forest), snow), 0, 1)
         lum = np.clip(0.5 * relief * broad + 0.25 * snow, 0, 1)
