@@ -511,17 +511,17 @@ if sat:
     deep = ~near
     dl, nd_ = ndi.label(deep)
     deep &= np.isin(dl, np.nonzero(np.bincount(dl.ravel()) >= 900)[0][1:])        # no small deep pockets inside enclosed seas
-    bathy_f = os.path.join(DATA, 'ne_10m_bathymetry_K_200.geojson')
-    if os.path.exists(bathy_f):
+    bathy_n = next((n for n in ('ne_10m_bathymetry_J_1000.geojson', 'ne_10m_bathymetry_K_200.geojson') if os.path.exists(os.path.join(DATA, n))), None)
+    if bathy_n:   # CoN's light band is wide: the shelf and slope down to ~1000 m
         # like CoN: the light band is the real shallow sea (continental shelf, deeper than 200 m is deep water),
         # widened a little so every coast has some, and narrow seas like the Gulf are fully light
-        d200 = raster([(1, [f['geometry'] for f in load('ne_10m_bathymetry_K_200.geojson')])], (M, MH))[::8, ::8] > 0   # 1 = deeper than 200 m
-        near = (~d200) | (ndi.distance_transform_edt(lf8 < 0.5) < 2)
+        d200 = raster([(1, [f['geometry'] for f in load(bathy_n)])], (M, MH))[::8, ::8] > 0   # 1 = deep water
+        near = (~d200) | (ndi.distance_transform_edt(lf8 < 0.5) < 4)
         deep = ~near
         dl, nd_ = ndi.label(deep)
         deep &= np.isin(dl, np.nonzero(np.bincount(dl.ravel()) >= 40000)[0][1:])   # like CoN: enclosed seas (Mediterranean, Black, Red Sea) stay light; only open oceans are deep
-        print('shelf band from bathymetry', round(float(near.mean()), 3))
-    coast8 = ndi.gaussian_filter((~deep).astype(np.float32), 1.6)                 # coastal waters, soft-cornered outline
+        print('shelf band from bathymetry', bathy_n, round(float(near.mean()), 3))
+    coast8 = ndi.gaussian_filter((~deep).astype(np.float32), 0.9)                 # crisp, irregular edge                 # coastal waters, soft-cornered outline
     del lab8, dl
     rng8 = np.random.default_rng(21)
     _c1 = ndi.gaussian_filter(rng8.standard_normal(lf8.shape), 3.4); _c1 /= _c1.std()   # clumps ~100-190 km, like CoN
@@ -529,6 +529,10 @@ if sat:
     _c3 = ndi.gaussian_filter(rng8.standard_normal(lf8.shape), 9.0); _c3 /= _c3.std()
     clump8 = _c1 * 0.75 + _c2 * 0.45 + _c3 * 0.55                                                     # forest clumps: irregular, uneven spread
     clump8 /= clump8.std(); del _c1, _c2, _c3
+    _wy = ndi.gaussian_filter(rng8.standard_normal(lf8.shape), 2.0) * 6; _wx = ndi.gaussian_filter(rng8.standard_normal(lf8.shape), 2.0) * 6
+    _yy, _xx = np.mgrid[0:lf8.shape[0], 0:lf8.shape[1]]
+    clump8 = ndi.map_coordinates(clump8, [np.clip(_yy + _wy / _wy.std() * 2.5, 0, lf8.shape[0] - 1), np.clip(_xx + _wx / _wx.std() * 2.5, 0, lf8.shape[1] - 1)], order=1)   # warped: irregular clusters, not round dots
+    del _wy, _wx, _yy, _xx
     depth8 = ndi.gaussian_filter(rng8.standard_normal(lf8.shape), 7.0); depth8 /= depth8.std()      # slow dark patches in deep water
     half = np.zeros((H, W), np.uint8); halfb = np.zeros((H // 2, W // 2, 3), np.uint8)
     manifest = {str(z): [] for z in range(5)}

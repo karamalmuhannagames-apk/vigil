@@ -26,7 +26,7 @@ let W, H, world, countries = [], byIso = {}, cityOrder = [];
 // Relation colours measured from CoN screenshots: 7 colour stops per relation, darkest to lightest, taken from
 // real map pixels of each relation (own green, ally pale olive, stranger blue-grey slate, enemy blood red).
 // The painted ground's light and dark picks a colour along the stops, so terrain shows in every colour.
-const STOPS = {"ally":[[90,105,77],[98,116,83],[106,125,89],[118,137,100],[128,153,106],[137,161,109],[143,166,113]],"enemy":[[53,16,8],[56,19,11],[63,21,16],[71,26,20],[82,30,24],[117,34,38],[126,38,43]],"neutral":[[9,22,17],[10,23,19],[10,27,21],[18,36,29],[21,41,33],[32,50,43],[40,58,51]],"me":[[44,75,33],[58,91,46],[76,116,62],[99,145,81],[112,181,94],[128,191,100],[135,198,104]],"passage":[[31,54,23],[41,65,33],[54,83,44],[71,104,58],[80,130,67],[92,137,72],[97,142,74]]};
+const STOPS = {"ally":[[90,105,77],[98,116,83],[106,125,89],[118,137,100],[128,153,106],[137,161,109],[143,166,113]],"enemy":[[53,17,11],[55,19,12],[58,20,15],[62,22,17],[67,24,19],[84,26,25],[88,28,28]],"neutral":[[9,22,17],[10,23,19],[10,27,21],[18,36,29],[21,41,33],[32,50,43],[40,58,51]],"me":[[48,81,36],[63,98,50],[82,125,67],[107,157,87],[121,195,102],[138,206,108],[146,214,112]],"passage":[[31,54,23],[41,65,33],[54,83,44],[71,104,58],[80,130,67],[92,137,72],[97,142,74]]};
 const STOP_AT = [0.06, 0.16, 0.30, 0.45, 0.58, 0.68, 0.80];   // which ground brightness lands on each stop
 const LUT = {};
 for (const [k, st] of Object.entries(STOPS)) {
@@ -61,7 +61,7 @@ Promise.all(['forest', 'forest_id', 'open', 'arid', 'rock', 'waves'].map(n => lo
   TEX = {FN, fl, fa, fv, open: one(op, 512), arid: one(ar, 512), rock: one(rk, 512), wave, WN};
   // open ocean with no tile: a deep-sea pattern built the same way
   const dc = document.createElement('canvas'); dc.width = dc.height = WN; const dg = dc.getContext('2d'), di = dg.createImageData(WN, WN);
-  for (let i = 0; i < WN * WN; i++) { const k = 1 + wave[i] * 0.2; di.data[i * 4] = SEA.deep[0] * k; di.data[i * 4 + 1] = SEA.deep[1] * k; di.data[i * 4 + 2] = SEA.deep[2] * k; di.data[i * 4 + 3] = 255; }
+  for (let i = 0; i < WN * WN; i++) { const k = Math.max(0.45, 1 + wave[i] * 0.6); di.data[i * 4] = SEA.deep[0] * k; di.data[i * 4 + 1] = SEA.deep[1] * k; di.data[i * 4 + 2] = SEA.deep[2] * k; di.data[i * 4 + 3] = 255; }
   dg.putImageData(di, 0, 0); deepPat = ctx.createPattern(dc, 'repeat');
   cache.clear(); draw();
 });
@@ -114,7 +114,7 @@ async function buildTile(z, tx, ty, C) {
   g.drawImage(bioI, 0, 0, C, C); const bd = g.getImageData(0, 0, C, C).data;
   const out = g.createImageData(C, C), d = out.data;
   const {FN, fl, fa, fv, open, arid, rock, wave, WN} = TEX;
-  const wamp = [0.16, 0.22, 0.3, 0.42, 0.5][z] || 0.5;          // CoN: same ripple size on screen, stronger close in
+  const wamp = [0.4, 0.55, 0.8, 1.1, 1.3][z] || 1.3;            // CoN's sea has a clearly visible wind-ripple texture          // CoN: same ripple size on screen, stronger close in
   const gx0 = tx * C, gy0 = ty * C;
   const lut = {};
   const idAt = (x, y) => { x = Math.max(0, Math.min(C - 1, x)); y = Math.max(0, Math.min(C - 1, y)); return own[y * C + x]; };
@@ -127,7 +127,7 @@ async function buildTile(z, tx, ty, C) {
       const L = ld[q] / 127.5;                                  // 1.0 = no extra light or shade
       let sr = 0, sg = 0, sb = 0;
       if (m < 170) {                                            // sea: coastal grey-blue or deep blue, ripples, land shadow
-        const cw = m > 0 ? 1 : bd[q] / 255, k = L * (1 + wamp * wave[wr + gx % WN]);     // coastal share: soft edge between coastal and deep water
+        const cw = m > 0 ? 1 : bd[q] / 255, k = L * Math.max(0.45, 1 + wamp * wave[wr + gx % WN]);     // coastal share: soft edge between coastal and deep water
         sr = (SEA.deep[0] + (SEA.coast[0] - SEA.deep[0]) * cw) * k; sg = (SEA.deep[1] + (SEA.coast[1] - SEA.deep[1]) * cw) * k; sb = (SEA.deep[2] + (SEA.coast[2] - SEA.deep[2]) * cw) * k;
         if (m > 14) { const e = 1 - 0.55 * Math.min(1, (m - 14) / 50); sr *= e; sg *= e; sb *= e; }   // thin dark rim along every coast
         if (m < 86) { d[q] = sr; d[q + 1] = sg; d[q + 2] = sb; d[q + 3] = 255; continue; }
