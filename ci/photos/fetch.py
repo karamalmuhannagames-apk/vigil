@@ -4,6 +4,14 @@
 import json, os, re, sys, time, urllib.parse, urllib.request
 API = 'https://commons.wikimedia.org/w/api.php'
 UA = {'User-Agent': 'HalberdStudio-asset-fetch/1.0 (loading screen research)'}
+TOPICS2 = {
+  'cyber': 'Cyber Shield exercise soldiers computer',
+  'cyber2': 'cyber protection team network defense',
+  'cyber3': 'Army Cyber Command soldier laptop',
+  'missile': 'missile launch test fire',
+  'mlrs': 'M142 HIMARS live fire',
+  'radar': 'military radar air defense night',
+}
 TOPICS = {
   'tank': 'M1A2 Abrams tank desert firing',
   'tank2': 'Leopard 2 tank exercise',
@@ -26,6 +34,8 @@ def get(params):
         return json.load(r)
 out = 'art/loading/raw'; os.makedirs(out, exist_ok=True)
 credits = {}
+import sys
+if len(sys.argv) > 1 and sys.argv[1] == '2': TOPICS = TOPICS2
 for topic, q in TOPICS.items():
     try:
         d = get({'action': 'query', 'format': 'json', 'generator': 'search', 'gsrsearch': f'{q} filetype:bitmap', 'gsrnamespace': 6, 'gsrlimit': 40,
@@ -50,5 +60,7 @@ for topic, q in TOPICS.items():
         got += 1; print('ok', name, p['title'])
         if got >= 3: break
         time.sleep(0.5)
-json.dump(credits, open(f'{out}/credits.json', 'w'), indent=1)
+old = json.load(open(f'{out}/credits.json')) if os.path.exists(f'{out}/credits.json') else {}
+old.update(credits)
+json.dump(old, open(f'{out}/credits.json', 'w'), indent=1)
 print('total', len(credits))

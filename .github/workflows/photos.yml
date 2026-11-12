@@ -1,5 +1,9 @@
 name: Loading photos
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+    inputs:
+      set:
+        default: '1'
 permissions:
   contents: write
 jobs:
@@ -9,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Fetch public-domain photos
-        run: python3 ci/photos/fetch.py
+        run: python3 ci/photos/fetch.py ${{ inputs.set }}
       - name: Save
         run: |
           git config user.name "Halberd Studio CI"; git config user.email "ci@users.noreply.github.com"
