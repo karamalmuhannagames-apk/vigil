@@ -384,6 +384,26 @@ def save_ids(a, name):
     v = a + 1
     Image.fromarray(np.dstack([v % 256, v // 256, np.zeros_like(v)]).astype(np.uint8)).save(os.path.join(OUT, name))
 save_ids(nation, 'nations.png'); save_ids(province, 'provinces.png')
+# country name anchor: the widest open spot inside the country (not a thin strip like Norway's coast).
+# Distance to the nearest border or coast, with vertical distance counted 2.2x, so the spot favours room for a
+# wide line of text. label_w = free width there (world px), label_h = free height.
+_lab = nation + 1
+_edge = np.zeros(_lab.shape, bool)
+_edge[:, 1:] |= _lab[:, 1:] != _lab[:, :-1]; _edge[:, :-1] |= _lab[:, :-1] != _lab[:, 1:]
+_edge[1:, :] |= _lab[1:, :] != _lab[:-1, :]; _edge[:-1, :] |= _lab[:-1, :] != _lab[1:, :]
+_dd = ndi.distance_transform_edt(~_edge, sampling=(2.2, 1.0))
+_dv = ndi.distance_transform_edt(~_edge)
+_pos = ndi.maximum_position(_dd, labels=_lab, index=np.arange(1, len(ids) + 1))
+for i, a in enumerate(ids):
+    c = countries[a]; y, x = _pos[i]
+    if _lab[y, x] != i + 1: continue
+    row = _lab[y]; l = x; r = x
+    while l > 0 and row[l - 1] == i + 1 and x - l < 3000: l -= 1
+    while r < W - 1 and row[r + 1] == i + 1 and r - x < 3000: r += 1
+    half = min(x - l, r - x)                                          # centred text: limited by the nearer side
+    c['label'] = {'x': int(x), 'y': int(y), 'w': int(2 * half), 'h': round(float(_dv[y, x]) * 2, 1)}
+del _lab, _edge, _dd, _dv
+print('country label anchors done')
 out = {'size': [W, H], 'projection': {'type': 'miller+magnify', 'lat': [LAT_S, LAT_N], 'mags': MAGS, 'frame': [X0, X1, YB0, YB1]},
        'countries': [{k: v for k, v in c.items() if k != 'geoms'} | {'index': i} for i, c in enumerate(countries.values())],
        'provinces': prov_meta}

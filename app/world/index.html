@@ -284,16 +284,19 @@ function drawCountryNames(s, sw, sh) {
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   const placed = [];
   for (const L of countryLabels) {
-    const span = Math.sqrt(L.px) * s;                       // rough width of the country on screen
-    const mine = L.iso === ME;
-    const cap = 10 + 28 * smooth(0.2, 0.9, view.z);   // up to ~90 px at region zoom, like CoN                 // CoN: small names far away, big ones at region zoom
-    let size = Math.max(mine ? 13 : 0, Math.min(cap, span * 0.24)) * dpr;   // your own country is always named
-    const minS = (7 + 4 * smooth(0.2, 0.9, view.z)) * dpr;
-    if (size < minS) continue;
+    // size from the room at the name's spot: as wide as ~80% of the free width, never taller than the free height
+    const cap = 10 + 28 * smooth(0.2, 0.9, view.z);
+    const roomW = (L.lw || Math.sqrt(L.px) * 1.2) * s * 0.8 * dpr, roomH = (L.lh || Math.sqrt(L.px) * 0.5) * s * 0.75 * dpr;
+    ctx.font = `700 ${100}px Plex, system-ui`;
+    const w100 = ctx.measureText(L.name).width;
+    let size = Math.min(cap * dpr, roomW / w100 * 100, roomH);
+    const mine = L.iso === ME, minS = (8 + 3 * smooth(0.2, 0.9, view.z)) * dpr;
+    if (size < minS) {                                                   // small countries: smallest readable size if it nearly fits
+      if (!mine && Math.min(roomW / w100 * 100 * 1.45, roomH * 1.6) < minS) continue;
+      size = minS;
+    }
     ctx.font = `700 ${size}px Plex, system-ui`;
-    let w = ctx.measureText(L.name).width;
-    const fit = span * 1.05 * dpr;                            // a name never runs far past its own land
-    if (w > fit && !mine) { size *= fit / w; w = fit; if (size < minS) continue; ctx.font = `700 ${size}px Plex, system-ui`; }
+    let w = w100 * size / 100;
     const sx = Math.round((L.x - view.x) * s + sw / 2), sy = Math.round((L.y - view.y) * s + sh / 2);
     if (sx + w / 2 < 0 || sy < -40 || sx - w / 2 > sw || sy > sh + 40) continue;
     const box = [sx - w / 2 - 4 * dpr, sy - size * 0.55, sx + w / 2 + 4 * dpr, sy + size * 0.55];
@@ -584,6 +587,7 @@ fetch(DATA + 'world.json').then(r => r.json()).then(async j => {
     let x = ps.reduce((a, p) => a + p.centre[0] * p.px, 0) / tot, y = ps.reduce((a, p) => a + p.centre[1] * p.px, 0) / tot;
     const best = ps.reduce((b, p) => (Math.hypot(p.centre[0] - x, p.centre[1] - y) / Math.sqrt(p.px) < Math.hypot(b.centre[0] - x, b.centre[1] - y) / Math.sqrt(b.px) ? p : b), ps[0]);
     if (ps.length > 1 && Math.hypot(best.centre[0] - x, best.centre[1] - y) > Math.sqrt(best.px) * 0.8) { x = best.centre[0]; y = best.centre[1]; }
+    if (c.label) return {name: c.name_ar, iso: c.iso, x: c.label.x, y: c.label.y, lw: c.label.w, lh: c.label.h, px: tot};   // widest open spot inside the country
     return {name: c.name_ar, iso: c.iso, x, y, px: tot};
   }).filter(Boolean).sort((a, b) => b.px - a.px);
   // each city's size: by importance, but never crowding its neighbours, and smaller in small countries,
